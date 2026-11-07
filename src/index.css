@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: #f6f7f9;
+  color: #1f2937;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI",
+    "Microsoft YaHei", sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* alphaTab 容器 */
+.at-viewer {
+  height: 100%;
+  overflow: auto;
+}
+.at-viewer svg {
+  display: block;
+  margin: 0 auto;
+}

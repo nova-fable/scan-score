@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<title>Spike B — alphaTab CDN 验证</title>
+<script src="alphatab.js"></script>
+<script>
+// 捕获所有 console 输出便于诊断
+window.__console = [];
+for (const m of ["log", "warn", "error", "info"]) {
+  const orig = console[m].bind(console);
+  console[m] = (...args) => {
+    window.__console.push(`[${m}] ` + args.map(a => (a instanceof Error ? a.stack : String(a))).join(" "));
+    orig(...args);
+  };
+}
+window.addEventListener("error", (e) => window.__console.push("[pageerror] " + e.message + " @ " + e.filename + ":" + e.lineno));
+window.addEventListener("unhandledrejection", (e) => window.__console.push("[unhandled] " + String(e.reason)));
+</script>
+<style>
+  body { font-family: -apple-system, sans-serif; margin: 20px; }
+  #at { height: 70vh; overflow: auto; border: 1px solid #ddd; background: #fff; }
+  #status { padding: 8px; background: #f0f0f0; font-size: 13px; }
+  button { padding: 6px 14px; margin-right: 8px; }
+</style>
+</head>
+<body>
+<h3>Spike B：alphaTab 渲染 + 播放（CDN 版）</h3>
+<div>
+  <button id="play">▶ 播放</button>
+  <button id="pause">❚❚ 暂停</button>
+  <button id="stop">■ 停止</button>
+</div>
+<div id="status">加载中…</div>
+<div id="at"></div>
+<script>
+const status = (m) => (document.getElementById("status").textContent = m);
+window.__log = [];
+const log = (m) => { window.__log.push(String(m)); status(String(m)); };
+let api = null;
+
+const settings = new alphaTab.Settings();
+settings.core.engine = "svg";
+settings.core.useWorkers = false;
+settings.player.enablePlayer = true;
+settings.player.soundFont = "sonivox.sf2"; // 本地文件（正式版打包进应用）
+if (alphaTab.environment) alphaTab.environment.debug = true; // 某些构建无此对象
+
+api = new alphaTab.AlphaTabApi(document.getElementById("at"), settings);
+window.api = api;
+
+api.scoreLoaded.on((score) => log(`已加载: ${score.title}，轨道 ${score.tracks.length} 个`));
+api.renderFinished.on(() => log("渲染完成"));
+api.playerStateChanged.on((args) => log(`播放状态: ${args.state}`));
+api.playerPositionChanged.on((args) => { window.__pos = [args.currentTick, args.endTime]; });
+api.playerFinished.on(() => log("播放结束"));
+api.error.on((e) => log("错误: " + (e.message || e)));
+
+// 支持 ?file= 指定加载文件，默认 sample.musicxml
+const file = new URLSearchParams(location.search).get("file") || "sample.musicxml";
+fetch(file)
+  .then((r) => r.arrayBuffer())
+  .then((buf) => {
+    api.load(new Uint8Array(buf));
+    log(`数据已提交渲染… (${file})`);
+  })
+  .catch((e) => log("加载失败: " + e));
+
+document.getElementById("play").onclick = () => api.play();
+document.getElementById("pause").onclick = () => api.pause();
+document.getElementById("stop").onclick = () => api.stop();
+</script>
+</body>
+</html>
