@@ -52,8 +52,8 @@ pub async fn pick_import_files(app: AppHandle) -> Result<Vec<String>, String> {
         let files = app.dialog().file().add_filter(
             "乐谱文件",
             &[
-                "pdf", "png", "jpg", "jpeg", "xml", "mxl", "musicxml", "gp", "gp3", "gp4",
-                "gp5", "gpx", "tg",
+                "pdf", "png", "jpg", "jpeg", "avif", "webp", "xml", "mxl", "musicxml", "gp",
+                "gp3", "gp4", "gp5", "gpx", "tg",
             ],
         );
         match files.blocking_pick_files() {
@@ -73,15 +73,27 @@ pub async fn pick_import_files(app: AppHandle) -> Result<Vec<String>, String> {
 }
 
 fn classify(ext: &str) -> Option<(&'static str, &'static str)> {
-    // (source_type, 默认乐器)
+    // (source_type, 默认乐器)。avif/webp 归一化为 png（导入时经 sips 转码）
     match ext {
         "pdf" => Some(("pdf", "other")),
         "png" => Some(("png", "other")),
         "jpg" | "jpeg" => Some(("jpg", "other")),
+        "avif" | "webp" => Some(("png", "other")),
         "xml" | "mxl" | "musicxml" => Some(("musicxml", "other")),
         "gp" | "gp3" | "gp4" | "gp5" | "gpx" | "gpif" | "tg" => Some(("gp", "guitar")),
         _ => None,
     }
+}
+
+/// avif/webp → png（macOS 内置 sips；Java ImageIO 不支持这两种格式，先转码才能送 OMR）
+fn convert_to_png(src: &Path, target: &Path) -> bool {
+    std::process::Command::new("sips")
+        .args(["-s", "format=png"])
+        .arg(src)
+        .arg(target)
+        .output()
+        .map(|o| o.status.success() && target.exists())
+        .unwrap_or(false)
 }
 
 /// 导入文件：复制进应用数据目录并建立曲库条目（含 pdfium 封面渲染，放后台线程）。
@@ -117,8 +129,21 @@ fn import_files_impl(state: &AppState, paths: Vec<String>) -> Result<ImportResul
         let id = uuid::Uuid::new_v4().to_string();
         let score_dir = state.data_dir.join("scores").join(&id);
         std::fs::create_dir_all(&score_dir).map_err(err)?;
-        let original = score_dir.join(format!("original.{ext}"));
-        std::fs::copy(&src, &original).map_err(err)?;
+
+        // avif/webp 转成 png 后按 png 处理；其余原样复制
+        let original = if matches!(ext.as_str(), "avif" | "webp") {
+            let target = score_dir.join("original.png");
+            if !convert_to_png(&src, &target) {
+                log::warn!("avif/webp 转 png 失败，跳过: {raw}");
+                skipped.push(raw);
+                continue;
+            }
+            target
+        } else {
+            let p = score_dir.join(format!("original.{ext}"));
+            std::fs::copy(&src, &p).map_err(err)?;
+            p
+        };
 
         // PDF/图片：生成封面
         let mut cover_path = None;
