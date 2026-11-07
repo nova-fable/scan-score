@@ -83,6 +83,12 @@ export const api = {
   getSettings: () => invoke<Setting[]>("get_settings"),
   setSetting: (key: string, value: string) => invoke<void>("set_setting", { key, value }),
   getAppInfo: () => invoke<AppInfo>("get_app_info"),
+  pickSavePath: (fileName: string, ext: string) =>
+    invoke<string | null>("pick_save_path", { fileName, ext }),
+  writeExportBytes: (path: string, bytes: Uint8Array) =>
+    invoke<void>("write_export_bytes", { path, bytes: Array.from(bytes) }),
+  exportScoreSource: (id: string, target: string) =>
+    invoke<void>("export_score_source", { id, target }),
 };
 
 export const events = {

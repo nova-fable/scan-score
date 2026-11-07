@@ -58,6 +58,9 @@ pub fn run() {
             commands::get_settings,
             commands::set_setting,
             commands::get_app_info,
+            commands::pick_save_path,
+            commands::write_export_bytes,
+            commands::export_score_source,
             commands::emit_test_progress,
         ])
         .run(tauri::generate_context!())

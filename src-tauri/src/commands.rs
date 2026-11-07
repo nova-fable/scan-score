@@ -361,6 +361,51 @@ pub fn get_app_info(state: Ctx) -> Result<AppInfo, String> {
     })
 }
 
+// ---------------------------------------------------------------------------
+// 导出
+// ---------------------------------------------------------------------------
+
+/// 弹出保存对话框，返回用户选择的目标路径（未选择返回 None）
+#[tauri::command]
+pub fn pick_save_path(file_name: String, ext: String, app: AppHandle) -> Result<Option<String>, String> {
+    let path = app
+        .dialog()
+        .file()
+        .set_file_name(&file_name)
+        .add_filter(&format!("{ext} 文件"), &[ext.as_str()])
+        .blocking_pick_file();
+    Ok(path.map(|p| p.into_path().map(|p| p.to_string_lossy().into_owned()).unwrap_or_default())
+        .filter(|s| !s.is_empty()))
+}
+
+/// 把前端生成的字节（如 MIDI 导出）写到用户指定路径
+#[tauri::command]
+pub fn write_export_bytes(path: String, bytes: Vec<u8>, state: Ctx) -> Result<(), String> {
+    let p = PathBuf::from(&path);
+    // 目录必须已存在或可创建；不做数据目录限制（路径由用户对话框选择）
+    if let Some(dir) = p.parent() {
+        std::fs::create_dir_all(dir).map_err(err)?;
+    }
+    let _ = &state;
+    std::fs::write(&p, &bytes).map_err(err)
+}
+
+/// 导出曲谱源文件（识别产物 score.xml 或原始 GP/MusicXML）到目标路径
+#[tauri::command]
+pub fn export_score_source(id: String, target: String, state: Ctx) -> Result<(), String> {
+    let score = state
+        .db
+        .get_score(&id)
+        .map_err(err)?
+        .ok_or_else(|| "条目不存在".to_string())?;
+    let src = score
+        .musicxml_path
+        .or(score.original_path)
+        .ok_or_else(|| "没有可导出的乐谱文件".to_string())?;
+    std::fs::copy(&src, &target).map_err(err)?;
+    Ok(())
+}
+
 /// 测试事件通道（开发用）
 #[tauri::command]
 pub fn emit_test_progress(state: Ctx) -> Result<(), String> {

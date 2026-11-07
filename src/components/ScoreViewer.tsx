@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 import { AlphaTabApi, Settings, model, synth } from "@coderline/alphatab";
 
 export interface ViewerCallbacks {
-  onScoreLoaded?: (title: string, trackInfos: { track: model.Track; name: string }[]) => void;
+  onScoreLoaded?: (score: model.Score, trackInfos: { track: model.Track; name: string }[]) => void;
   onPlayerState?: (playing: boolean) => void;
   onPosition?: (currentTimeMs: number, endTimeMs: number) => void;
   onFinished?: () => void;
@@ -46,7 +46,7 @@ export default function ScoreViewer({ data, onReady, callbacks }: Props) {
 
     api.scoreLoaded.on((score) => {
       cbRef.current?.onScoreLoaded?.(
-        score.title,
+        score,
         score.tracks.map((t) => ({ track: t, name: t.name })),
       );
     });
