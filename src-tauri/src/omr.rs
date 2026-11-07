@@ -23,6 +23,8 @@ pub enum OmrError {
     InputMissing,
     #[error("识别完成但未产出 MusicXML")]
     NoOutput,
+    #[error("识别结果没有有效音符——这很可能是六线谱（TAB）谱。开源 OMR 无法识别六线谱，请改用 Guitar Pro (.gp/.gp5) 文件导入该曲目")]
+    TabNotRecognized,
     #[error("任务已取消")]
     Canceled,
     #[error("进程异常退出: {0}")]
@@ -392,6 +394,12 @@ fn execute_job(
     let score_xml_path = out_dir.join("score.xml");
     std::fs::write(&score_xml_path, &xml_text)?;
     let meta = mxl::parse_meta(&xml_text)?;
+
+    // 六线谱（TAB）防护：几乎无有效音符 → 判定为 TAB 输入，标记失败并提示
+    if mxl::count_pitched_notes(&xml_text) < 10 {
+        return Err(OmrError::TabNotRecognized);
+    }
+
     let instrument = if meta.part_count <= 1 { "piano" } else { "other" };
 
     state.db.update_score_recognition(

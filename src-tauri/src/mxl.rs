@@ -163,6 +163,12 @@ pub fn parse_meta(xml: &str) -> Result<MusicMeta, MxlError> {
     Ok(meta)
 }
 
+/// 统计带实际音高（<pitch>）的音符数。
+/// 六线谱（TAB）输入经 OMR 后几乎不产出带音高的音符，用此判断空结果。
+pub fn count_pitched_notes(xml: &str) -> usize {
+    xml.matches("<pitch>").count()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -198,5 +204,13 @@ mod tests {
         assert_eq!(meta.title.as_deref(), Some("Test Suite"));
         assert_eq!(meta.composer.as_deref(), Some("Anonymous"));
         assert_eq!(meta.part_count, 1);
+    }
+
+    #[test]
+    fn test_count_pitched_notes() {
+        let tab_like = "<note><rest/></note><note><chord/></note>";
+        assert_eq!(count_pitched_notes(tab_like), 0);
+        let real = "<note><pitch><step>C</step></pitch></note>".repeat(12);
+        assert_eq!(count_pitched_notes(&real), 12);
     }
 }
