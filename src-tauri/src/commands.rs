@@ -88,8 +88,11 @@ fn classify(ext: &str) -> Option<(&'static str, &'static str)> {
 /// avif/webp → png（macOS 内置 sips；Java ImageIO 不支持这两种格式，先转码才能送 OMR）
 fn convert_to_png(src: &Path, target: &Path) -> bool {
     std::process::Command::new("sips")
-        .args(["-s", "format=png"])
+        .arg("-s")
+        .arg("format")
+        .arg("png")
         .arg(src)
+        .arg("--out")
         .arg(target)
         .output()
         .map(|o| o.status.success() && target.exists())
