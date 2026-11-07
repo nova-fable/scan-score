@@ -43,28 +43,33 @@ pub struct ImportResult {
     pub skipped: Vec<String>,
 }
 
+/// 弹出文件选择对话框。
+/// 注意：必须放到后台线程执行——同步 command 运行在主线程，
+/// 而 blocking_pick_files 阻塞主线程会与面板自身的事件循环死锁（转菊花）。
 #[tauri::command]
-pub fn pick_import_files(app: AppHandle) -> Result<Vec<String>, String> {
-    let files = app
-        .dialog()
-        .file()
-        .add_filter(
+pub async fn pick_import_files(app: AppHandle) -> Result<Vec<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let files = app.dialog().file().add_filter(
             "乐谱文件",
-            &["pdf", "png", "jpg", "jpeg", "xml", "mxl", "musicxml", "gp", "gp3", "gp4", "gp5", "gpx", "tg"],
-        )
-        .blocking_pick_files();
-    Ok(files
-        .map(|items| {
-            items
+            &[
+                "pdf", "png", "jpg", "jpeg", "xml", "mxl", "musicxml", "gp", "gp3", "gp4",
+                "gp5", "gpx", "tg",
+            ],
+        );
+        match files.blocking_pick_files() {
+            Some(items) => Ok(items
                 .into_iter()
                 .filter_map(|f| {
                     f.into_path()
                         .ok()
                         .map(|p| p.to_string_lossy().into_owned())
                 })
-                .collect()
-        })
-        .unwrap_or_default())
+                .collect()),
+            None => Ok(Vec::new()),
+        }
+    })
+    .await
+    .map_err(err)?
 }
 
 fn classify(ext: &str) -> Option<(&'static str, &'static str)> {
@@ -79,11 +84,18 @@ fn classify(ext: &str) -> Option<(&'static str, &'static str)> {
     }
 }
 
-/// 导入文件：复制进应用数据目录并建立曲库条目。
+/// 导入文件：复制进应用数据目录并建立曲库条目（含 pdfium 封面渲染，放后台线程）。
 /// - MusicXML/GP：立即可用 (status=ready)
 /// - PDF/图片：待识别 (status=imported)
 #[tauri::command]
-pub fn import_files(paths: Vec<String>, state: Ctx) -> Result<ImportResult, String> {
+pub async fn import_files(paths: Vec<String>, state: Ctx<'_>) -> Result<ImportResult, String> {
+    let state = Arc::clone(&state);
+    tauri::async_runtime::spawn_blocking(move || import_files_impl(&state, paths))
+        .await
+        .map_err(err)?
+}
+
+fn import_files_impl(state: &AppState, paths: Vec<String>) -> Result<ImportResult, String> {
     let mut imported = Vec::new();
     let mut skipped = Vec::new();
 
@@ -112,7 +124,7 @@ pub fn import_files(paths: Vec<String>, state: Ctx) -> Result<ImportResult, Stri
         let mut cover_path = None;
         let mut page_count = 0i64;
         if source_type == "pdf" {
-            if let Ok(pdfium) = bind_pdfium(state.inner()) {
+            if let Ok(pdfium) = bind_pdfium(state) {
                 if let Ok(n) = pdf::page_count(&pdfium, &original) {
                     page_count = n as i64;
                 }
@@ -169,12 +181,12 @@ pub fn import_files(paths: Vec<String>, state: Ctx) -> Result<ImportResult, Stri
             id: id.clone(),
             title,
             composer,
-            instrument: instrument.to_string(),
+            instrument,
             source_type: source_type.to_string(),
             status: status.to_string(),
             original_path: Some(original.to_string_lossy().into_owned()),
-            musicxml_path: musicxml_path,
-            cover_path: cover_path,
+            musicxml_path,
+            cover_path,
             page_count,
             error_message: None,
             created_at: now(),
@@ -365,17 +377,23 @@ pub fn get_app_info(state: Ctx) -> Result<AppInfo, String> {
 // 导出
 // ---------------------------------------------------------------------------
 
-/// 弹出保存对话框，返回用户选择的目标路径（未选择返回 None）
+/// 弹出保存对话框，返回用户选择的目标路径（未选择返回 None）。
+/// 与 pick_import_files 同理：必须在后台线程阻塞等待。
 #[tauri::command]
-pub fn pick_save_path(file_name: String, ext: String, app: AppHandle) -> Result<Option<String>, String> {
-    let path = app
-        .dialog()
-        .file()
-        .set_file_name(&file_name)
-        .add_filter(&format!("{ext} 文件"), &[ext.as_str()])
-        .blocking_pick_file();
-    Ok(path.map(|p| p.into_path().map(|p| p.to_string_lossy().into_owned()).unwrap_or_default())
-        .filter(|s| !s.is_empty()))
+pub async fn pick_save_path(file_name: String, ext: String, app: AppHandle) -> Result<Option<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let path = app
+            .dialog()
+            .file()
+            .set_file_name(&file_name)
+            .add_filter(&format!("{ext} 文件"), &[ext.as_str()])
+            .blocking_pick_file();
+        Ok(path
+            .map(|p| p.into_path().map(|p| p.to_string_lossy().into_owned()).unwrap_or_default())
+            .filter(|s| !s.is_empty()))
+    })
+    .await
+    .map_err(err)?
 }
 
 /// 把前端生成的字节（如 MIDI 导出）写到用户指定路径

@@ -371,9 +371,18 @@ mod tests {
         }
     }
 
+    /// 每个测试线程一个独立的命名内存库，避免共享缓存互踩
+    fn test_db(tag: &str) -> Db {
+        let name = format!(
+            "file:memdb_{tag}_{:?}?mode=memory&cache=shared",
+            std::thread::current().id()
+        );
+        Db::open(Path::new(&name)).unwrap()
+    }
+
     #[test]
     fn test_migrate_and_crud() {
-        let db = Db::open(Path::new("file::memtest_crud?cache=shared")).unwrap();
+        let db = test_db("crud");
         db.insert_score(&score("s1", "Test", "imported")).unwrap();
         let all = db.list_scores(&ScoreQuery::default()).unwrap();
         assert_eq!(all.len(), 1);
@@ -396,7 +405,7 @@ mod tests {
 
     #[test]
     fn test_jobs_and_settings() {
-        let db = Db::open(Path::new("file::memtest_jobs?cache=shared")).unwrap();
+        let db = test_db("jobs");
         db.insert_score(&score("s1", "Test", "imported")).unwrap();
         let job = Job {
             id: "j1".into(),
