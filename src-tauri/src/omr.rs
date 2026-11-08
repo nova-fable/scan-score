@@ -62,6 +62,41 @@ pub struct CancelState {
     pid: Mutex<Option<u32>>,
 }
 
+/// 进程管理（按平台）：终止/存活探测
+mod proc {
+    #[cfg(unix)]
+    pub fn terminate(pid: u32) {
+        unsafe {
+            libc::kill(pid as i32, libc::SIGTERM);
+        }
+    }
+
+    #[cfg(windows)]
+    pub fn terminate(pid: u32) {
+        use std::os::windows::process::CommandExt;
+        let _ = std::process::Command::new("taskkill")
+            .args(["/PID", &pid.to_string(), "/F"])
+            .creation_flags(0x08000000) // CREATE_NO_WINDOW
+            .output();
+    }
+
+    #[cfg(unix)]
+    pub fn alive(pid: u32) -> bool {
+        unsafe { libc::kill(pid as i32, 0) == 0 }
+    }
+
+    #[cfg(windows)]
+    pub fn alive(pid: u32) -> bool {
+        use std::os::windows::process::CommandExt;
+        std::process::Command::new("tasklist")
+            .args(["/FI", &format!("PID eq {pid}"), "/NH"])
+            .creation_flags(0x08000000)
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).contains(&pid.to_string()))
+            .unwrap_or(true)
+    }
+}
+
 impl CancelState {
     pub fn new() -> Arc<Self> {
         Arc::new(Self {
@@ -73,9 +108,7 @@ impl CancelState {
         self.flag.store(true, Ordering::SeqCst);
         // 立即尝试杀进程（watcher 兜底）
         if let Some(pid) = *self.pid.lock().unwrap() {
-            unsafe {
-                libc::kill(pid as i32, libc::SIGTERM);
-            }
+            proc::terminate(pid);
         }
     }
     fn cancel_requested(&self) -> bool {
@@ -84,7 +117,7 @@ impl CancelState {
     /// 子进程是否仍存活（kill(pid,0) 探测）
     fn is_alive(&self) -> bool {
         match *self.pid.lock().unwrap() {
-            Some(pid) => unsafe { libc::kill(pid as i32, 0) == 0 },
+            Some(pid) => proc::alive(pid),
             None => true,
         }
     }
@@ -252,9 +285,7 @@ pub fn run_batch(
         thread::spawn(move || loop {
             if cancel_w.flag.load(Ordering::SeqCst) {
                 if let Some(pid) = *cancel_w.pid.lock().unwrap() {
-                    unsafe {
-                        libc::kill(pid as i32, libc::SIGTERM);
-                    }
+                    proc::terminate(pid);
                 }
                 break;
             }

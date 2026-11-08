@@ -64,7 +64,7 @@ mod imp {
     use std::path::Path;
     use pdfium_render::prelude::*;
 
-    fn open(path: &Path) -> Result<Pdfium, String> {
+    fn open(_path: &Path) -> Result<Pdfium, String> {
         // 解析 pdfium.dll: 可执行文件目录 / 资源目录 / PDFIUM_DLL 环境变量
         let mut candidates = Vec::new();
         if let Ok(env_path) = std::env::var("PDFIUM_DLL") {
