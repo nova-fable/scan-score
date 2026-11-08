@@ -68,6 +68,12 @@
 - 项目 skill：`.zcode/skills/release/SKILL.md`（agent 触发 `/release x.y.z`）
 - 实测：直连 GitHub 间歇失败，git push 走 `git -c http.proxy=http://127.0.0.1:7890 ...` 稳定
 
+## Skill 位置
+
+- ZCode 项目级 skill 读 `<repo>/.zcode/skills/` 与 `<repo>/.agents/skills/`（后者是跨工具标准，Claude/Copilot/Hermes 等也读），用户级在 `~/.agents/skills/`
+- impeccable（前端设计规范 skill，v4.8）装在 `.agents/skills/impeccable/`（跨工具共享）；`.github/skills/` 里那份是 Copilot 专属位置，两份内容相同，更新 impeccable 时两处都要重装
+- 同名 skill 按发现顺序第一个生效：user .zcode → user .agents → workspace .zcode → workspace .agents → 插件
+
 ## 工作方式（用户明确要求过的）
 
 - **修问题修根因**，不给出绕过性的答案（例：推理模型空输出，正确解是开推理+加预算+阶梯降级，不是一刀切关推理）
