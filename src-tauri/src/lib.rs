@@ -1,5 +1,6 @@
 pub mod commands;
 pub mod db;
+pub mod import;
 pub mod model;
 pub mod mxl;
 pub mod omr;
@@ -46,7 +47,10 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::pick_import_files,
+            commands::pick_import_folder,
+            commands::list_folder_scores,
             commands::import_files,
+            commands::import_merged,
             commands::list_scores,
             commands::get_score,
             commands::update_score,

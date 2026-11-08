@@ -7,6 +7,7 @@ use tauri::{AppHandle, State};
 use tauri_plugin_dialog::DialogExt;
 
 use crate::db::now;
+use crate::import::{concat_images, natural_cmp};
 use crate::model::{Job, OmrProgressEvent, Score, ScoreQuery, Setting};
 use crate::omr::{self, AppState};
 use crate::{mxl, pdf};
@@ -72,8 +73,144 @@ pub async fn pick_import_files(app: AppHandle) -> Result<Vec<String>, String> {
     .map_err(err)?
 }
 
-fn classify(ext: &str) -> Option<(&'static str, &'static str)> {
-    // (source_type, 默认乐器)。avif/webp 归一化为 png（导入时经 sips 转码）
+/// 选择文件夹（用于"整本图片谱一次导入"）
+#[tauri::command]
+pub async fn pick_import_folder(app: AppHandle) -> Result<Option<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        Ok(app
+            .dialog()
+            .file()
+            .blocking_pick_folder()
+            .and_then(|f| f.into_path().ok())
+            .map(|p| p.to_string_lossy().into_owned()))
+    })
+    .await
+    .map_err(err)?
+}
+
+/// 列出文件夹内的乐谱图片/PDF（自然排序：page2 < page10）
+#[tauri::command]
+pub fn list_folder_scores(folder: String) -> Result<Vec<String>, String> {
+    let dir = PathBuf::from(&folder);
+    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir)
+        .map_err(err)?
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.is_file())
+        .filter(|p| {
+            let ext = p
+                .extension()
+                .map(|e| e.to_string_lossy().to_lowercase())
+                .unwrap_or_default();
+            matches!(
+                ext.as_str(),
+                "png" | "jpg" | "jpeg" | "avif" | "webp" | "pdf"
+            )
+        })
+        .collect();
+    files.sort_by(|a, b| natural_cmp(&a.to_string_lossy(), &b.to_string_lossy()));
+    Ok(files
+        .into_iter()
+        .map(|p| p.to_string_lossy().into_owned())
+        .collect())
+}
+
+/// 合并导入：多张图片谱纵向拼接为一首曲子，一次识别产出连续的 MusicXML。
+#[tauri::command]
+pub async fn import_merged(paths: Vec<String>, state: Ctx<'_>) -> Result<Score, String> {
+    let state = Arc::clone(&state);
+    tauri::async_runtime::spawn_blocking(move || import_merged_impl(&state, paths))
+        .await
+        .map_err(err)?
+}
+
+fn import_merged_impl(state: &AppState, paths: Vec<String>) -> Result<Score, String> {
+    // 只合并图片（PDF 本身已是多页，单独导入）
+    let mut page_srcs: Vec<PathBuf> = Vec::new();
+    for raw in &paths {
+        let p = PathBuf::from(raw);
+        if !p.exists() {
+            continue;
+        }
+        let ext = p
+            .extension()
+            .map(|e| e.to_string_lossy().to_lowercase())
+            .unwrap_or_default();
+        if matches!(ext.as_str(), "png" | "jpg" | "jpeg" | "avif" | "webp") {
+            page_srcs.push(p);
+        }
+    }
+    if page_srcs.len() < 2 {
+        return Err("合并导入至少需要两张图片".into());
+    }
+    page_srcs.sort_by(|a, b| natural_cmp(&a.to_string_lossy(), &b.to_string_lossy()));
+
+    let id = uuid::Uuid::new_v4().to_string();
+    let score_dir = state.data_dir.join("scores").join(&id);
+    let pages_dir = score_dir.join("pages");
+    std::fs::create_dir_all(&pages_dir).map_err(err)?;
+
+    // 每页复制/转码入库
+    let mut pages: Vec<PathBuf> = Vec::with_capacity(page_srcs.len());
+    for (i, src) in page_srcs.iter().enumerate() {
+        let ext = src
+            .extension()
+            .map(|e| e.to_string_lossy().to_lowercase())
+            .unwrap_or_default();
+        let target = if matches!(ext.as_str(), "avif" | "webp") {
+            let t = pages_dir.join(format!("page-{}.png", i + 1));
+            if !convert_to_png(src, &t) {
+                return Err(format!("第 {} 页图片转码失败", i + 1));
+            }
+            t
+        } else {
+            let t = pages_dir.join(format!("page-{}.{ext}", i + 1));
+            std::fs::copy(src, &t).map_err(err)?;
+            t
+        };
+        pages.push(target);
+    }
+
+    // 纵向拼接 → 识别输入
+    let merged = score_dir.join("original.png");
+    concat_images(&pages, &merged).map_err(err)?;
+
+    // 封面 = 第一页（统一转 PNG）
+    let cover = state.data_dir.join("covers").join(format!("{id}.png"));
+    let _ = std::fs::create_dir_all(cover.parent().unwrap());
+    if let Err(e) = image::open(&pages[0])
+        .and_then(|img| img.save_with_format(&cover, image::ImageFormat::Png))
+    {
+        log::warn!("封面生成失败: {e}");
+    }
+
+    let title = page_srcs[0]
+        .parent()
+        .and_then(|d| d.file_name())
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "合并曲谱".into());
+
+    let score = Score {
+        id: id.clone(),
+        title,
+        composer: None,
+        instrument: "other".into(),
+        source_type: "png".into(),
+        status: "imported".into(),
+        original_path: Some(merged.to_string_lossy().into_owned()),
+        musicxml_path: None,
+        cover_path: Some(cover.to_string_lossy().into_owned()),
+        pages: pages.iter().map(|p| p.to_string_lossy().into_owned()).collect(),
+        page_count: pages.len() as i64,
+        error_message: None,
+        created_at: now(),
+        updated_at: now(),
+    };
+    state.db.insert_score(&score).map_err(err)?;
+    Ok(score)
+}
+
+fn classify(ext: &str) -> Option<(&'static str, &'static str)> {    // (source_type, 默认乐器)。avif/webp 归一化为 png（导入时经 sips 转码）
     match ext {
         "pdf" => Some(("pdf", "other")),
         "png" => Some(("png", "other")),
@@ -215,6 +352,7 @@ fn import_files_impl(state: &AppState, paths: Vec<String>) -> Result<ImportResul
             original_path: Some(original.to_string_lossy().into_owned()),
             musicxml_path,
             cover_path,
+            pages: Vec::new(),
             page_count,
             error_message: None,
             created_at: now(),

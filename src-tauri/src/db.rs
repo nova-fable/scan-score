@@ -52,11 +52,34 @@ impl Db {
                 value TEXT NOT NULL
             );
             "#,
-        )
+        )?;
+        // 增量迁移：多页合并曲谱的原图页列表
+        let has_pages_json = Self::column_exists(conn, "scores", "pages_json")?;
+        if !has_pages_json {
+            conn.execute_batch("ALTER TABLE scores ADD COLUMN pages_json TEXT;")?;
+        }
+        Ok(())
+    }
+
+    fn column_exists(conn: &Connection, table: &str, column: &str) -> Result<bool, rusqlite::Error> {
+        let mut stmt = conn.prepare(&format!("PRAGMA table_info({table})"))?;
+        let mut rows = stmt.query([])?;
+        while let Some(row) = rows.next()? {
+            let name: String = row.get(1)?;
+            if name == column {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 }
 
 fn row_to_score(row: &Row) -> rusqlite::Result<Score> {
+    let pages_json: Option<String> = row.get("pages_json").unwrap_or(None);
+    let pages: Vec<String> = pages_json
+        .as_deref()
+        .and_then(|s| serde_json::from_str(s).ok())
+        .unwrap_or_default();
     Ok(Score {
         id: row.get("id")?,
         title: row.get("title")?,
@@ -67,6 +90,7 @@ fn row_to_score(row: &Row) -> rusqlite::Result<Score> {
         original_path: row.get("original_path")?,
         musicxml_path: row.get("musicxml_path")?,
         cover_path: row.get("cover_path")?,
+        pages,
         page_count: row.get("page_count")?,
         error_message: row.get("error_message")?,
         created_at: row.get("created_at")?,
@@ -91,11 +115,16 @@ fn row_to_job(row: &Row) -> rusqlite::Result<Job> {
 impl Db {
     pub fn insert_score(&self, score: &Score) -> Result<(), rusqlite::Error> {
         let conn = self.0.lock().unwrap();
+        let pages_json = if score.pages.is_empty() {
+            None
+        } else {
+            Some(serde_json::to_string(&score.pages).unwrap_or_default())
+        };
         conn.execute(
             "INSERT INTO scores (id, title, composer, instrument, source_type, status,
-                 original_path, musicxml_path, cover_path, page_count, error_message,
+                 original_path, musicxml_path, cover_path, pages_json, page_count, error_message,
                  created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
             params![
                 score.id,
                 score.title,
@@ -106,6 +135,7 @@ impl Db {
                 score.original_path,
                 score.musicxml_path,
                 score.cover_path,
+                pages_json,
                 score.page_count,
                 score.error_message,
                 score.created_at,
@@ -119,7 +149,7 @@ impl Db {
         let conn = self.0.lock().unwrap();
         let mut sql = String::from(
             "SELECT id, title, composer, instrument, source_type, status,
-                    original_path, musicxml_path, cover_path, page_count, error_message,
+                    original_path, musicxml_path, cover_path, pages_json, page_count, error_message,
                     created_at, updated_at
              FROM scores WHERE 1=1",
         );
@@ -146,7 +176,7 @@ impl Db {
         let conn = self.0.lock().unwrap();
         conn.query_row(
             "SELECT id, title, composer, instrument, source_type, status,
-                    original_path, musicxml_path, cover_path, page_count, error_message,
+                    original_path, musicxml_path, cover_path, pages_json, page_count, error_message,
                     created_at, updated_at
              FROM scores WHERE id = ?1",
             params![id],
@@ -364,6 +394,7 @@ mod tests {
             original_path: None,
             musicxml_path: None,
             cover_path: None,
+            pages: Vec::new(),
             page_count: 0,
             error_message: None,
             created_at: now(),

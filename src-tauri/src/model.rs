@@ -16,6 +16,9 @@ pub struct Score {
     pub original_path: Option<String>,
     pub musicxml_path: Option<String>,
     pub cover_path: Option<String>,
+    /// 多页合并曲谱的原图页列表（绝对路径）
+    #[serde(default)]
+    pub pages: Vec<String>,
     pub page_count: i64,
     pub error_message: Option<String>,
     pub created_at: String,
