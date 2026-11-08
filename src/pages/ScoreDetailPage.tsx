@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlphaTabApi, midi, model } from "@coderline/alphatab";
+import { AlphaTabApi, LayoutMode, midi, model } from "@coderline/alphatab";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, readAssetBytes, type Score } from "../lib/tauri";
 import { useUi } from "../stores/ui";
@@ -28,6 +28,8 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
   const [tracks, setTracks] = useState<TrackInfo[]>([]);
   const [loadKey, setLoadKey] = useState(0); // 重新识别后强制重载
   const scoreModelRef = useRef<model.Score | null>(null);
+  const [scale, setScale] = useState<number | null>(null);
+  const [layout, setLayout] = useState<"page" | "horizontal">("page");
 
   // 元数据编辑
   const [editing, setEditing] = useState(false);
@@ -238,6 +240,53 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
           </div>
         )}
         <div className="flex-1" />
+        {isPlayable && (
+          <>
+            <div className="flex items-center gap-0.5 rounded-lg border border-zinc-200" title="缩放">
+              <button
+                onClick={() => {
+                  if (!atApi) return;
+                  atApi.settings.display.scale = Math.max(0.5, atApi.settings.display.scale - 0.2);
+                  atApi.updateSettings();
+                  atApi.render();
+                  setScale(atApi.settings.display.scale);
+                }}
+                className="px-2 py-1 text-sm text-zinc-600 hover:text-indigo-600"
+              >
+                −
+              </button>
+              <span className="w-10 text-center text-[11px] text-zinc-400">
+                {Math.round((scale ?? 1) * 100)}%
+              </span>
+              <button
+                onClick={() => {
+                  if (!atApi) return;
+                  atApi.settings.display.scale = Math.min(2.5, atApi.settings.display.scale + 0.2);
+                  atApi.updateSettings();
+                  atApi.render();
+                  setScale(atApi.settings.display.scale);
+                }}
+                className="px-2 py-1 text-sm text-zinc-600 hover:text-indigo-600"
+              >
+                ＋
+              </button>
+            </div>
+            <button
+              onClick={() => {
+                if (!atApi) return;
+                const next = layout === "page" ? LayoutMode.Horizontal : LayoutMode.Page;
+                atApi.settings.display.layoutMode = next;
+                atApi.updateSettings();
+                atApi.render();
+                setLayout(next === LayoutMode.Horizontal ? "horizontal" : "page");
+              }}
+              className="shrink-0 whitespace-nowrap rounded-lg border border-zinc-200 px-2.5 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
+              title="切换滚动方向"
+            >
+              {layout === "page" ? "⇉ 横向" : "▦ 分页"}
+            </button>
+          </>
+        )}
         {canRecognize && (
           <button
             onClick={() => recognize.mutate()}
