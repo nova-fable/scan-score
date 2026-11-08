@@ -75,3 +75,33 @@ cargo test            # 在 src-tauri 下跑 Rust 单测
 - 本项目代码：MIT
 - Audiveris 为 AGPL-3.0，以独立进程方式调用；商用分发前请自行确认合规
 - alphaTab 为 MIT
+
+---
+
+## English
+
+**ScanScore** turns paper sheet music into playable, editable digital scores — a desktop app built with Tauri 2, Rust and React.
+
+- 📷 **Scan**: offline OMR (Audiveris) for PNG / JPG / AVIF / WebP / PDF staff-notation scores, with automatic upscaling of low-resolution scans
+- 🎸 **Tabs**: tablature images are transcribed to alphaTex by a vision model (optional, works with any OpenAI-compatible endpoint such as DeepSeek, ZhipuGLM or a local Ollama); Guitar Pro files (.gp3–.gp5 / .gpx) import natively with full tab rendering
+- 🎼 **Library**: SQLite-backed catalog with covers, search & filters, folder import, merging multiple images into one piece, batch operations, backup & restore
+- ▶️ **Play**: WebAudio synthesizer (GeneralUser GS soundfont), A-B loop, metronome, 0.5–2× speed, track mute, zoom and page/horizontal layouts
+- 📤 **Export**: MIDI, MusicXML / alphaTex, plus a built-in alphaTex editor for proofreading AI transcriptions
+- 🔍 **Transparency**: engine logs for every recognition are viewable in the app
+- 🔒 **Privacy**: staff-notation recognition runs fully offline; only the optional AI TAB transcription uses the network
+
+### Build
+
+```bash
+npm install
+npm run dev:app     # run the desktop app in development
+npm run build:app   # produce the macOS dmg
+```
+
+### Release
+
+```bash
+bash scripts/release.sh 0.2.0   # bumps versions, tags & pushes — CI builds the release
+```
+
+Engineering notes for agents and contributors: [AGENTS.md](AGENTS.md).

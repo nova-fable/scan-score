@@ -61,6 +61,13 @@
 - 前端拖拽监听（`getCurrentWebview().onDragDropEvent`）在纯浏览器预览会抛异常——必须 try/catch 包住，否则 React 整树崩掉（白屏）
 - **重复构建时报 `Permission denied (os error 13)`，日志停在 `TAURI_ENV_TARGET_TRIPLE` 后**：Tauri 复制 Audiveris/JRE 资源时保留 `0444` 权限，下次 `fs::copy` 无法覆盖生成副本。`build_support.rs` 在复制前仅为 Cargo 输出目录 `resources/engine` 内的普通文件补 owner-write，保留执行位、不跟随符号链接、不修改源码资源；不要只手动 chmod 一次（下次复制又会变只读）。回归测试：在 `src-tauri` 下运行 `cargo test --test build_resources`
 
+## 发布流程
+
+- 版本号存在三处：package.json / src-tauri/Cargo.toml / src-tauri/tauri.conf.json（+ Cargo.lock）——**不要手改**，跑 `bash scripts/release.sh x.y.z`（校验工作区干净/远端不分叉/tag 不重复，push 失败自动走 7890 代理）
+- tag 推送后 CI（.github/workflows/build.yml）自动构建双平台并创建 GitHub Release；release job 单独 `contents: write` 最小权限
+- 项目 skill：`.zcode/skills/release/SKILL.md`（agent 触发 `/release x.y.z`）
+- 实测：直连 GitHub 间歇失败，git push 走 `git -c http.proxy=http://127.0.0.1:7890 ...` 稳定
+
 ## 工作方式（用户明确要求过的）
 
 - **修问题修根因**，不给出绕过性的答案（例：推理模型空输出，正确解是开推理+加预算+阶梯降级，不是一刀切关推理）
