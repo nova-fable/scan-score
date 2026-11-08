@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlphaTabApi, model } from "@coderline/alphatab";
 
 interface Props {
@@ -8,6 +8,18 @@ interface Props {
   endTimeMs: number;
   tracks: { track: model.Track; name: string; muted: boolean }[];
   onToggleMute: (track: model.Track) => void;
+  /// 已保存的练习状态（首次挂载时作为初始值）
+  initialSpeed?: number;
+  initialVolume?: number;
+  initialLoop?: boolean;
+  initialAB?: { startTick: number; endTick: number } | null;
+  /// 练习状态变化上报（父级防抖落库）
+  onPractice?: (p: {
+    speed?: number;
+    volume?: number;
+    loopEnabled?: boolean;
+    ab?: { startTick: number; endTick: number } | null;
+  }) => void;
 }
 
 function fmtTime(ms: number) {
@@ -24,13 +36,30 @@ export default function PlayerBar({
   endTimeMs,
   tracks,
   onToggleMute,
+  initialSpeed,
+  initialVolume,
+  initialLoop,
+  initialAB,
+  onPractice,
 }: Props) {
-  const [speed, setSpeed] = useState(1);
-  const [loop, setLoop] = useState(false);
-  const [loopA, setLoopA] = useState<number | null>(null);
-  const [loopB, setLoopB] = useState<number | null>(null);
+  const [speed, setSpeed] = useState(initialSpeed ?? 1);
+  const [loop, setLoop] = useState(initialLoop ?? false);
+  const [loopA, setLoopA] = useState<number | null>(initialAB?.startTick ?? null);
+  const [loopB, setLoopB] = useState<number | null>(initialAB?.endTick ?? null);
   const [metronome, setMetronome] = useState(false);
-  const [volume, setVolume] = useState(100);
+  const [volume, setVolume] = useState(initialVolume ?? 100);
+
+  // 恢复已保存的 A-B 区间（api 就绪后一次性应用）
+  const abAppliedRef = useRef(false);
+  useEffect(() => {
+    if (abAppliedRef.current || !api?.player) return;
+    const ab = initialAB;
+    if (ab) {
+      abAppliedRef.current = true;
+      api.player.playbackRange = { startTick: ab.startTick, endTick: ab.endTick };
+      api.player.isLooping = initialLoop ?? false;
+    }
+  }, [api, initialAB, initialLoop]);
 
   if (!api || !api.player) return null;
   const pct = endTimeMs > 0 ? Math.min(100, (currentTimeMs / endTimeMs) * 100) : 0;
@@ -51,6 +80,7 @@ export default function PlayerBar({
       api.player!.playbackRange = { startTick: Math.min(a, b), endTick: Math.max(a, b) };
       api.player!.isLooping = true;
       setLoop(true);
+      onPractice?.({ ab: { startTick: Math.min(a, b), endTick: Math.max(a, b) }, loopEnabled: true });
     }
   };
 
@@ -60,6 +90,7 @@ export default function PlayerBar({
     api.player!.playbackRange = null;
     api.player!.isLooping = false;
     setLoop(false);
+    onPractice?.({ ab: null });
   };
 
   const seekMs = (ms: number) => {
@@ -100,6 +131,7 @@ export default function PlayerBar({
             const next = !loop;
             setLoop(next);
             api.player!.isLooping = next;
+            onPractice?.({ loopEnabled: next });
           }}
           className={`grid h-8 w-8 place-items-center rounded-full border text-xs ${
             loop
@@ -220,16 +252,17 @@ export default function PlayerBar({
 
       <label className="flex items-center gap-1 text-xs text-zinc-500">
         速度
-        <select
-          value={speed}
-          onChange={(e) => {
-            const v = Number(e.target.value);
-            setSpeed(v);
-            api.player!.playbackSpeed = v;
-          }}
-          className="rounded-lg border border-zinc-200 px-1 py-0.5"
-          aria-label="播放速度"
-        >
+          <select
+            value={speed}
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              setSpeed(v);
+              api.player!.playbackSpeed = v;
+              onPractice?.({ speed: v });
+            }}
+            className="rounded-lg border border-zinc-200 px-1 py-0.5"
+            aria-label="播放速度"
+          >
           {[0.5, 0.75, 1, 1.25, 1.5, 2].map((v) => (
             <option key={v} value={v}>
               {v}x
@@ -249,6 +282,7 @@ export default function PlayerBar({
             const v = Number(e.target.value);
             setVolume(v);
             api.player!.masterVolume = v / 100;
+            onPractice?.({ volume: v / 100 });
           }}
           className="w-20"
           aria-label="音量"

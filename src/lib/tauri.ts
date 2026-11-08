@@ -66,6 +66,18 @@ export interface Setting {
   value: string;
 }
 
+/// 每首曲子的练习状态（跨会话恢复）
+export interface PracticeState {
+  speed: number;
+  volume: number;
+  loopEnabled: boolean;
+  /// "page" | "horizontal"
+  layout: string;
+  scale: number;
+  abStart: number | null;
+  abEnd: number | null;
+}
+
 export const api = {
   pickImportFiles: () => invoke<string[]>("pick_import_files"),
   pickImportFolder: () => invoke<string | null>("pick_import_folder"),
@@ -94,6 +106,10 @@ export const api = {
   getSettings: () => invoke<Setting[]>("get_settings"),
   setSetting: (key: string, value: string) => invoke<void>("set_setting", { key, value }),
   getAppInfo: () => invoke<AppInfo>("get_app_info"),
+  getPracticeState: (scoreId: string) =>
+    invoke<PracticeState | null>("get_practice_state", { scoreId }),
+  setPracticeState: (scoreId: string, practice: PracticeState) =>
+    invoke<void>("set_practice_state", { scoreId, practice }),
   testVlmConnection: (apiBase: string, apiKey: string, model: string) =>
     invoke<string>("test_vlm_connection", { apiBase, apiKey, model }),
   fetchVlmModels: (apiBase: string, apiKey: string) =>

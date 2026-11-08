@@ -107,6 +107,8 @@ pub fn run() {
             commands::test_vlm_connection,
             commands::fetch_vlm_models,
             commands::get_app_info,
+            commands::get_practice_state,
+            commands::set_practice_state,
             commands::pick_save_path,
             commands::write_export_bytes,
             commands::export_score_source,

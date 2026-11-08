@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlphaTabApi, LayoutMode, midi, model } from "@coderline/alphatab";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { api, readAssetBytes, type Score } from "../lib/tauri";
+import { api, readAssetBytes, type PracticeState, type Score } from "../lib/tauri";
 import { useUi } from "../stores/ui";
 import { useDialog, useDismissOnEsc } from "../lib/useDialog";
 import ScoreViewer from "../components/ScoreViewer";
@@ -46,6 +46,52 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
     queryKey: ["score", scoreId],
     queryFn: () => api.getScore(scoreId),
   });
+
+  // 练习状态：跨会话按曲子恢复（速度/音量/循环/布局/缩放/A-B）
+  const practice = useQuery({
+    queryKey: ["practice", scoreId],
+    queryFn: () => api.getPracticeState(scoreId),
+  });
+  const atApiRef = useRef<AlphaTabApi | null>(null);
+  const practiceRef = useRef<PracticeState | null>(null);
+  practiceRef.current = practice.data ?? null;
+
+  type PracticePatch = Partial<Omit<PracticeState, "abStart" | "abEnd">> & {
+    ab?: { startTick: number; endTick: number } | null;
+  };
+  const practiceDraftRef = useRef<PracticePatch>({});
+  const practiceTimerRef = useRef<number | undefined>(undefined);
+
+  const schedulePractice = (patch: PracticePatch) => {
+    Object.assign(practiceDraftRef.current, patch);
+    if (practiceTimerRef.current !== undefined) clearTimeout(practiceTimerRef.current);
+    practiceTimerRef.current = window.setTimeout(() => {
+      const base: PracticeState = practiceRef.current ?? {
+        speed: 1,
+        volume: 1,
+        loopEnabled: false,
+        layout: "page",
+        scale: 1,
+        abStart: null,
+        abEnd: null,
+      };
+      const draft = practiceDraftRef.current;
+      const next: PracticeState = {
+        speed: draft.speed ?? base.speed,
+        volume: draft.volume ?? base.volume,
+        loopEnabled: draft.loopEnabled ?? base.loopEnabled,
+        layout: draft.layout ?? base.layout,
+        scale: draft.scale ?? base.scale,
+        abStart: draft.ab === undefined ? base.abStart : (draft.ab?.startTick ?? null),
+        abEnd: draft.ab === undefined ? base.abEnd : (draft.ab?.endTick ?? null),
+      };
+      practiceDraftRef.current = {};
+      practiceRef.current = next;
+      api.setPracticeState(scoreId, next).catch(() => {
+        // 落库失败静默：练习状态是尽力而为的恢复
+      });
+    }, 400);
+  };
 
   const s: Score | null = score.data ?? null;
 
@@ -478,11 +524,41 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
             <ScoreViewer
               key={`${assetPath}-${loadKey}`}
               data={asset.data}
-              onReady={setAtApi}
+              onReady={(a) => {
+                atApiRef.current = a;
+                setAtApi(a);
+              }}
               callbacks={{
                 onScoreLoaded: (score, trackInfos) => {
                   scoreModelRef.current = score;
                   setTracks(trackInfos.map(({ name, track }) => ({ track, name, muted: false })));
+                  // 恢复练习状态（A-B 按 endTick 校验：重新识别后 tick 失效则跳过）
+                  const p = practiceRef.current;
+                  const a = atApiRef.current;
+                  if (a?.player && p) {
+                    try {
+                      a.player.playbackSpeed = p.speed;
+                      a.player.masterVolume = p.volume;
+                      if (p.layout === "horizontal") {
+                        a.settings.display.layoutMode = LayoutMode.Horizontal;
+                        a.updateSettings();
+                        a.render();
+                        setLayout("horizontal");
+                      }
+                      if (Math.abs(p.scale - 1) > 1e-6) {
+                        a.settings.display.scale = p.scale;
+                        a.updateSettings();
+                        a.render();
+                        setScale(p.scale);
+                      }
+                      if (p.abStart != null && p.abEnd != null && p.abEnd <= a.endTick) {
+                        a.player.playbackRange = { startTick: p.abStart, endTick: p.abEnd };
+                        a.player.isLooping = p.loopEnabled;
+                      }
+                    } catch {
+                      // 状态恢复失败不阻断播放
+                    }
+                  }
                 },
                 onPlayerState: setPlaying,
                 onPosition: (currentTimeMs, endTimeMs) => setPosition({ currentTimeMs, endTimeMs }),
@@ -548,6 +624,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                 atApi.updateSettings();
                 atApi.render();
                 setScale(atApi.settings.display.scale);
+                schedulePractice({ scale: atApi.settings.display.scale });
               }}
               disabled={scaleValue <= 0.51}
               aria-label="缩小"
@@ -565,6 +642,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                 atApi.updateSettings();
                 atApi.render();
                 setScale(atApi.settings.display.scale);
+                schedulePractice({ scale: atApi.settings.display.scale });
               }}
               disabled={scaleValue >= 2.49}
               aria-label="放大"
@@ -581,6 +659,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                 atApi.updateSettings();
                 atApi.render();
                 setLayout(next === LayoutMode.Horizontal ? "horizontal" : "page");
+                schedulePractice({ layout: next === LayoutMode.Horizontal ? "horizontal" : "page" });
               }}
               aria-label="切换滚动方向"
               title="切换滚动方向"
@@ -634,13 +713,22 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
         )}
       </div>
 
-      {isPlayable && asset.data && (
+      {isPlayable && asset.data && practice.isSuccess && (
         <PlayerBar
           api={atApi}
           playing={playing}
           currentTimeMs={position.currentTimeMs}
           endTimeMs={position.endTimeMs}
           tracks={tracks}
+          initialSpeed={practice.data?.speed}
+          initialVolume={practice.data?.volume}
+          initialLoop={practice.data?.loopEnabled}
+          initialAB={
+            practice.data?.abStart != null && practice.data?.abEnd != null
+              ? { startTick: practice.data.abStart, endTick: practice.data.abEnd }
+              : null
+          }
+          onPractice={schedulePractice}
           onToggleMute={(track) => {
             if (!atApi) return;
             const current = tracks.find((t) => t.track.index === track.index);

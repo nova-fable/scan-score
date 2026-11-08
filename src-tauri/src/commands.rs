@@ -8,7 +8,7 @@ use tauri_plugin_dialog::DialogExt;
 
 use crate::db::now;
 use crate::import::{concat_images, natural_cmp};
-use crate::model::{Job, OmrProgressEvent, Score, ScoreQuery, Setting};
+use crate::model::{Job, OmrProgressEvent, PracticeState, Score, ScoreQuery, Setting};
 use crate::omr::{self, AppState};
 use crate::{mxl, pdf};
 
@@ -467,6 +467,32 @@ pub fn list_jobs(score_id: Option<String>, state: Ctx) -> Result<Vec<Job>, Strin
 }
 
 // ---------------------------------------------------------------------------
+// 练习状态
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub fn get_practice_state(
+    state: Ctx,
+    score_id: String,
+) -> Result<Option<PracticeState>, String> {
+    state
+        .db
+        .get_practice_state(&score_id)
+        .map_err(|e| format!("读取练习状态失败: {e}"))
+}
+
+#[tauri::command]
+pub fn set_practice_state(
+    state: Ctx,
+    score_id: String,
+    practice: PracticeState,
+) -> Result<(), String> {
+    state
+        .db
+        .set_practice_state(&score_id, &practice)
+        .map_err(|e| format!("保存练习状态失败: {e}"))
+}
+
 // 设置
 // ---------------------------------------------------------------------------
 

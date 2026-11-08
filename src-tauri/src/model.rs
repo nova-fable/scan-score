@@ -80,3 +80,17 @@ pub struct OmrDoneEvent {
     pub score: Option<Score>,
     pub error: Option<String>,
 }
+
+/// 每首曲子的练习状态（跨会话恢复：速度/音量/循环/布局/缩放/A-B 区间）
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PracticeState {
+    pub speed: f64,
+    pub volume: f64,
+    pub loop_enabled: bool,
+    /// page | horizontal
+    pub layout: String,
+    pub scale: f64,
+    pub ab_start: Option<i64>,
+    pub ab_end: Option<i64>,
+}

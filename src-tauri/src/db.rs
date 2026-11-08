@@ -3,7 +3,7 @@ use std::sync::Mutex;
 
 use rusqlite::{params, Connection, OptionalExtension, Row};
 
-use crate::model::{Job, Score, ScoreQuery};
+use crate::model::{Job, PracticeState, Score, ScoreQuery};
 
 /// 线程安全的数据库连接包装
 pub struct Db(pub Mutex<Connection>);
@@ -50,6 +50,17 @@ impl Db {
             CREATE TABLE IF NOT EXISTS settings (
                 key   TEXT PRIMARY KEY,
                 value TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS practice_state (
+                score_id     TEXT PRIMARY KEY REFERENCES scores(id) ON DELETE CASCADE,
+                speed        REAL NOT NULL DEFAULT 1.0,
+                volume       REAL NOT NULL DEFAULT 1.0,
+                loop_enabled INTEGER NOT NULL DEFAULT 0,
+                layout       TEXT NOT NULL DEFAULT 'page',
+                scale        REAL NOT NULL DEFAULT 1.0,
+                ab_start     INTEGER,
+                ab_end       INTEGER,
+                updated_at   TEXT NOT NULL
             );
             "#,
         )?;
@@ -353,8 +364,60 @@ impl Db {
 
     // ---- settings ----
 
-    pub fn get_setting(&self, key: &str) -> Result<Option<String>, rusqlite::Error> {
+    /// 练习状态：跨会话按曲子恢复（速度/音量/循环/布局/缩放/A-B）
+    pub fn get_practice_state(
+        &self,
+        score_id: &str,
+    ) -> Result<Option<PracticeState>, rusqlite::Error> {
         let conn = self.0.lock().unwrap();
+        conn.query_row(
+            "SELECT speed, volume, loop_enabled, layout, scale, ab_start, ab_end
+             FROM practice_state WHERE score_id = ?1",
+            params![score_id],
+            |row| {
+                Ok(PracticeState {
+                    speed: row.get(0)?,
+                    volume: row.get(1)?,
+                    loop_enabled: row.get::<_, i64>(2)? != 0,
+                    layout: row.get(3)?,
+                    scale: row.get(4)?,
+                    ab_start: row.get(5)?,
+                    ab_end: row.get(6)?,
+                })
+            },
+        )
+        .optional()
+    }
+
+    pub fn set_practice_state(
+        &self,
+        score_id: &str,
+        p: &PracticeState,
+    ) -> Result<(), rusqlite::Error> {
+        let conn = self.0.lock().unwrap();
+        conn.execute(
+            "INSERT INTO practice_state
+                (score_id, speed, volume, loop_enabled, layout, scale, ab_start, ab_end, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+             ON CONFLICT(score_id) DO UPDATE SET
+                speed = ?2, volume = ?3, loop_enabled = ?4, layout = ?5,
+                scale = ?6, ab_start = ?7, ab_end = ?8, updated_at = ?9",
+            params![
+                score_id,
+                p.speed,
+                p.volume,
+                p.loop_enabled as i64,
+                p.layout,
+                p.scale,
+                p.ab_start,
+                p.ab_end,
+                now()
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_setting(&self, key: &str) -> Result<Option<String>, rusqlite::Error> {        let conn = self.0.lock().unwrap();
         conn.query_row(
             "SELECT value FROM settings WHERE key = ?1",
             params![key],
