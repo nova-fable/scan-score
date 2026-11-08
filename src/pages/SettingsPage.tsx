@@ -2,6 +2,17 @@ import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/tauri";
 
+const VLM_PROVIDERS = [
+  { name: "智谱 GLM", base: "https://open.bigmodel.cn/api/paas/v4", models: ["glm-4.6v", "glm-4v-plus"] },
+  { name: "DeepSeek", base: "https://api.deepseek.com/v1", models: ["deepseek-flash", "deepseek-chat"] },
+  { name: "硅基流动 SiliconFlow", base: "https://api.siliconflow.cn/v1", models: [] },
+  { name: "Moonshot Kimi", base: "https://api.moonshot.cn/v1", models: ["kimi-latest"] },
+  { name: "阿里通义 Qwen", base: "https://dashscope.aliyuncs.com/compatible-mode/v1", models: ["qwen-vl-max"] },
+  { name: "OpenAI", base: "https://api.openai.com/v1", models: ["gpt-4o"] },
+  { name: "Ollama（本地）", base: "http://localhost:11434/v1", models: [] },
+  { name: "自定义", base: "", models: [] },
+];
+
 function Row({
   label,
   hint,
@@ -26,9 +37,12 @@ export default function SettingsPage() {
   const settings = useQuery({ queryKey: ["settings"], queryFn: () => api.getSettings() });
 
   const [enginePath, setEnginePath] = useState("");
+  const [vlmProvider, setVlmProvider] = useState("");
   const [vlmBase, setVlmBase] = useState("");
   const [vlmKey, setVlmKey] = useState("");
   const [vlmModel, setVlmModel] = useState("");
+  const [vlmModels, setVlmModels] = useState<string[]>([]);
+  const [vlmThinking, setVlmThinking] = useState("on");
   const [vlmTest, setVlmTest] = useState<string | null>(null);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
 
@@ -38,6 +52,7 @@ export default function SettingsPage() {
       setVlmBase(settings.data.find((s) => s.key === "vlm_api_base")?.value ?? "");
       setVlmKey(settings.data.find((s) => s.key === "vlm_api_key")?.value ?? "");
       setVlmModel(settings.data.find((s) => s.key === "vlm_model")?.value ?? "");
+      setVlmThinking(settings.data.find((s) => s.key === "vlm_thinking")?.value ?? "on");
     }
   }, [settings.data]);
 
@@ -93,13 +108,33 @@ export default function SettingsPage() {
 
         <Row
           label="AI 六线谱识别（实验性）"
-          hint="开源 OMR 无法识别六线谱。配置视觉大模型后，检测到六线谱输入时自动改用 AI 转录（需联网，按调用量计费）。兼容 OpenAI chat/completions 协议；智谱示例：API Base https://open.bigmodel.cn/api/paas/v4，模型 glm-4.6v。"
+          hint="开源 OMR 无法识别六线谱。配置视觉大模型后，检测到六线谱输入时自动改用 AI 转录（需联网，按调用量计费）。兼容 OpenAI chat/completions 协议。"
         >
           <div className="grid gap-2">
+            <select
+              value={vlmProvider}
+              onChange={(e) => {
+                const name = e.target.value;
+                setVlmProvider(name);
+                const p = VLM_PROVIDERS.find((x) => x.name === name);
+                if (p) {
+                  if (p.base) setVlmBase(p.base);
+                  if (p.models.length) setVlmModel(p.models[0]);
+                }
+              }}
+              className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm outline-none"
+            >
+              <option value="">选择服务商（自动填 API Base）</option>
+              {VLM_PROVIDERS.map((p) => (
+                <option key={p.name} value={p.name}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
             <input
               value={vlmBase}
               onChange={(e) => setVlmBase(e.target.value)}
-              placeholder="API Base（默认智谱）"
+              placeholder="API Base"
               className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm outline-none focus:border-indigo-400"
             />
             <div className="flex gap-2">
@@ -110,18 +145,39 @@ export default function SettingsPage() {
                 placeholder="API Key"
                 className="flex-1 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm outline-none focus:border-indigo-400"
               />
-              <input
-                value={vlmModel}
-                onChange={(e) => setVlmModel(e.target.value)}
-                placeholder="模型名"
-                className="w-40 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm outline-none focus:border-indigo-400"
-              />
+              <div className="relative">
+                <input
+                  value={vlmModel}
+                  onChange={(e) => setVlmModel(e.target.value)}
+                  list="vlm-model-list"
+                  placeholder="模型"
+                  className="w-56 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm outline-none focus:border-indigo-400"
+                />
+                <datalist id="vlm-model-list">
+                  {vlmModels.map((m) => (
+                    <option key={m} value={m} />
+                  ))}
+                </datalist>
+              </div>
             </div>
+            <label className="flex items-center gap-2 text-xs text-zinc-500">
+              推理模式
+              <select
+                value={vlmThinking}
+                onChange={(e) => setVlmThinking(e.target.value)}
+                className="rounded border border-zinc-200 px-2 py-1"
+              >
+                <option value="on">允许推理（更准，更慢更贵）</option>
+                <option value="off">关闭推理（更快更省）</option>
+              </select>
+              <span className="text-zinc-400">输出预算已自动放大到 32k tokens</span>
+            </label>
             <div className="flex gap-2">
               <button
                 onClick={async () => {
                   await api.setSetting("vlm_api_base", vlmBase);
                   await api.setSetting("vlm_model", vlmModel);
+                  await api.setSetting("vlm_thinking", vlmThinking);
                   if (vlmKey.trim()) {
                     await api.setSetting("vlm_api_key", vlmKey);
                   }
@@ -132,6 +188,21 @@ export default function SettingsPage() {
                 className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-500"
               >
                 保存
+              </button>
+              <button
+                onClick={async () => {
+                  setVlmTest("获取模型列表中…");
+                  try {
+                    const models = await api.fetchVlmModels(vlmBase, vlmKey);
+                    setVlmModels(models);
+                    setVlmTest(`获取到 ${models.length} 个模型，下拉即可选择`);
+                  } catch (e) {
+                    setVlmTest(`该平台不支持列表接口（${String(e).slice(0, 80)}…），可手动输入模型名`);
+                  }
+                }}
+                className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
+              >
+                获取模型列表
               </button>
               <button
                 onClick={async () => {
@@ -151,7 +222,7 @@ export default function SettingsPage() {
             {vlmTest && (
               <div
                 className={`text-xs ${
-                  vlmTest.startsWith("测试中") || vlmTest.startsWith("连通")
+                  vlmTest.startsWith("测试中") || vlmTest.startsWith("连通") || vlmTest.startsWith("获取到")
                     ? "text-emerald-600"
                     : "text-red-500"
                 }`}

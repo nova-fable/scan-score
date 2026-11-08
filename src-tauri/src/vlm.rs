@@ -10,7 +10,7 @@ use crate::db::Db;
 const DEFAULT_API_BASE: &str = "https://open.bigmodel.cn/api/paas/v4";
 const DEFAULT_MODEL: &str = "glm-4.6v";
 
-/// 从设置读取 VLM 配置；三项齐全才返回 Some
+/// 从设置读取 VLM 配置；key 非空才返回 Some
 pub fn load_config(db: &Db) -> Option<VlmConfig> {
     let key = db.get_setting("vlm_api_key").ok().flatten()?;
     if key.trim().is_empty() {
@@ -28,10 +28,17 @@ pub fn load_config(db: &Db) -> Option<VlmConfig> {
         .flatten()
         .filter(|s| !s.trim().is_empty())
         .unwrap_or_else(|| DEFAULT_MODEL.into());
+    let thinking = db
+        .get_setting("vlm_thinking")
+        .ok()
+        .flatten()
+        .map(|v| v != "off")
+        .unwrap_or(true); // 默认开推理：转录准确率更高
     Some(VlmConfig {
         api_base: base.trim().trim_end_matches('/').to_string(),
         api_key: key.trim().to_string(),
         model,
+        thinking,
     })
 }
 
@@ -39,6 +46,8 @@ pub struct VlmConfig {
     pub api_base: String,
     pub api_key: String,
     pub model: String,
+    /// 允许推理（更准，更慢更贵）
+    pub thinking: bool,
 }
 
 const SYSTEM_PROMPT: &str = r#"你是吉他六线谱(TAB)转录专家。把图中的六线谱转录为 alphaTex 格式(alphaTab 记谱文本)。
@@ -54,21 +63,25 @@ const SYSTEM_PROMPT: &str = r#"你是吉他六线谱(TAB)转录专家。把图�
 8. 忽略和弦指法图、歌词、指法标注; 图中装饰记号拿不准就省略
 9. 多页/多行谱按顺序连续转录成一个整曲, 不要每个系统单独从头开始"#;
 
-/// 把图片交给 VLM 转录为 alphaTex
+/// 把图片交给 VLM 转录为 alphaTex。
+///
+/// 请求阶梯（自动降级，直到拿到有效答案或穷尽）：
+/// 1. 推理开启时：thinking=enabled + max_tokens 32768（推理型模型有充足预算边想边写）
+/// 2. 严格端点不认识 thinking 字段（400）：去掉该字段重试
+/// 3. 输出预算仍被思考耗尽（content 空且 finish=length）：thinking=disabled + 8192 重试
 pub fn transcribe_tab(image_path: &Path, cfg: &VlmConfig) -> Result<String, String> {
     let data_url = encode_image_data_url(image_path)?;
-
     let url = format!("{}/chat/completions", cfg.api_base);
     let client = reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(300))
+        .timeout(std::time::Duration::from_secs(600))
         .build()
         .map_err(|e| e.to_string())?;
 
-    let make_body = |thinking: bool| {
+    let make_body = |thinking: Option<bool>, max_tokens: u64| {
         let mut body = serde_json::json!({
             "model": cfg.model,
             "temperature": 0.2,
-            "max_tokens": 8192,
+            "max_tokens": max_tokens,
             "messages": [
                 { "role": "system", "content": SYSTEM_PROMPT },
                 { "role": "user", "content": [
@@ -77,10 +90,10 @@ pub fn transcribe_tab(image_path: &Path, cfg: &VlmConfig) -> Result<String, Stri
                 ]}
             ]
         });
-        // 推理型模型（如 deepseek-flash）会把输出预算耗在思考上导致空 content；
-        // 支持该参数的端点关闭思考，不认识的端点由 400 回退处理
-        if thinking {
-            body["thinking"] = serde_json::json!({ "type": "disabled" });
+        match thinking {
+            Some(true) => body["thinking"] = serde_json::json!({ "type": "enabled" }),
+            Some(false) => body["thinking"] = serde_json::json!({ "type": "disabled" }),
+            None => {}
         }
         body
     };
@@ -97,36 +110,90 @@ pub fn transcribe_tab(image_path: &Path, cfg: &VlmConfig) -> Result<String, Stri
         Ok((status, text))
     };
 
-    let (mut status, mut text) = send(&make_body(true))?;
-    if status == reqwest::StatusCode::BAD_REQUEST {
-        // 严格端点不认识 thinking 字段 → 去掉重试
-        log::info!("端点拒绝 thinking 参数，去掉后重试");
-        let (s2, t2) = send(&make_body(false))?;
-        status = s2;
-        text = t2;
+    // 请求阶梯
+    let mut attempts: Vec<(Option<bool>, u64)> = if cfg.thinking {
+        vec![
+            (Some(true), 32768),
+            (None, 32768),
+            (Some(false), 8192),
+        ]
+    } else {
+        vec![(Some(false), 8192)]
+    };
+    attempts.reverse(); // pop 顺序
+
+    let mut last_err: Option<String> = None;
+    while let Some((thinking, max_tokens)) = attempts.pop() {
+        let (status, text) = send(&make_body(thinking, max_tokens))?;
+        if status == reqwest::StatusCode::BAD_REQUEST {
+            // 多半是 thinking 字段或 max_tokens 超限不被接受 → 下一档
+            last_err = Some(format!("HTTP 400: {}", text.chars().take(200).collect::<String>()));
+            continue;
+        }
+        if !status.is_success() {
+            return Err(format!(
+                "识别服务返回 {status}: {}",
+                text.chars().take(300).collect::<String>()
+            ));
+        }
+        let json: serde_json::Value =
+            serde_json::from_str(&text).map_err(|e| format!("响应解析失败: {e}"))?;
+        let content = json["choices"][0]["message"]["content"]
+            .as_str()
+            .unwrap_or("")
+            .trim();
+        if !content.is_empty() {
+            return Ok(normalize_alpha_tex(content));
+        }
+        let finish = json["choices"][0]["finish_reason"].as_str().unwrap_or("?").to_string();
+        last_err = Some(match finish.as_str() {
+            "length" => "模型思考耗尽了输出预算（content 为空）".to_string(),
+            other => format!("模型返回空内容 (finish_reason={other})"),
+        });
+        // 还有下一档就继续
     }
 
+    Err(format!(
+        "{}——建议改用非推理模型（如 deepseek-chat / glm-4.6v），或在设置中关闭推理模式",
+        last_err.unwrap_or_else(|| "所有请求档位均失败".into())
+    ))
+}
+
+/// 拉取模型列表（OpenAI 兼容 GET /models；部分平台不支持则返回错误，前端回退手动输入）
+pub fn fetch_models(api_base: &str, api_key: &str) -> Result<Vec<String>, String> {
+    let base = api_base.trim().trim_end_matches('/');
+    let url = format!("{base}/models");
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(20))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let resp = client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", api_key.trim()))
+        .send()
+        .map_err(|e| format!("连接失败: {e}"))?;
+    let status = resp.status();
+    let text = resp.text().map_err(|e| e.to_string())?;
     if !status.is_success() {
-        return Err(format!(
-            "识别服务返回 {status}: {}",
-            text.chars().take(300).collect::<String>()
-        ));
+        return Err(format!("HTTP {status}: {}", text.chars().take(150).collect::<String>()));
     }
-
-    let json: serde_json::Value =
-        serde_json::from_str(&text).map_err(|e| format!("响应解析失败: {e}"))?;
-    let content = json["choices"][0]["message"]["content"]
-        .as_str()
-        .unwrap_or("")
-        .trim();
-    if content.is_empty() {
-        let finish = json["choices"][0]["finish_reason"].as_str().unwrap_or("?");
-        return Err(format!(
-            "模型返回了空内容 (finish_reason={finish})——若为推理型模型，请在服务端关闭思考模式或改用非推理模型（如 deepseek-chat / glm-4.6v）"
-        ));
-    }
-
-    Ok(normalize_alpha_tex(content))
+    let json: serde_json::Value = serde_json::from_str(&text).map_err(|e| format!("解析失败: {e}"))?;
+    let mut ids: Vec<String> = if let Some(arr) = json["data"].as_array() {
+        arr.iter()
+            .filter_map(|m| m["id"].as_str())
+            .map(|s| s.to_string())
+            .collect()
+    } else if let Some(arr) = json["models"].as_array() {
+        // Ollama 原生格式兜底
+        arr.iter()
+            .filter_map(|m| m["name"].as_str().or_else(|| m["model"].as_str()))
+            .map(|s| s.to_string())
+            .collect()
+    } else {
+        return Err("响应中没有模型列表".into());
+    };
+    ids.sort();
+    Ok(ids)
 }
 
 /// 清洗模型输出：去 markdown 代码块围栏（含语言标识行）、去首尾空白

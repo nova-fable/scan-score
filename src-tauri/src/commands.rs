@@ -472,7 +472,7 @@ pub fn list_jobs(score_id: Option<String>, state: Ctx) -> Result<Vec<Job>, Strin
 
 #[tauri::command]
 pub fn get_settings(state: Ctx) -> Result<Vec<Setting>, String> {
-    let keys = ["engine_path", "vlm_api_base", "vlm_api_key", "vlm_model"];
+    let keys = ["engine_path", "vlm_api_base", "vlm_api_key", "vlm_model", "vlm_thinking"];
     Ok(keys
         .iter()
         .filter_map(|k| {
@@ -490,11 +490,19 @@ pub fn get_settings(state: Ctx) -> Result<Vec<Setting>, String> {
 pub fn set_setting(key: String, value: String, state: Ctx) -> Result<(), String> {
     if !matches!(
         key.as_str(),
-        "engine_path" | "vlm_api_base" | "vlm_api_key" | "vlm_model"
+        "engine_path" | "vlm_api_base" | "vlm_api_key" | "vlm_model" | "vlm_thinking"
     ) {
         return Err(format!("未知设置项: {key}"));
     }
     state.db.set_setting(&key, &value).map_err(err)
+}
+
+/// 拉取 VLM 平台的模型列表（OpenAI 兼容 GET /models）
+#[tauri::command]
+pub async fn fetch_vlm_models(api_base: String, api_key: String) -> Result<Vec<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || crate::vlm::fetch_models(&api_base, &api_key))
+        .await
+        .map_err(err)?
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -585,6 +593,7 @@ pub async fn test_vlm_connection(
             api_base: api_base.trim().trim_end_matches('/').to_string(),
             api_key: api_key.trim().to_string(),
             model: model.trim().to_string(),
+            thinking: false, // 连通性测试与推理无关
         };
         crate::vlm::ping(&cfg)
     })

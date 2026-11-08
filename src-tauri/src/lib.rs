@@ -63,6 +63,7 @@ pub fn run() {
             commands::get_settings,
             commands::set_setting,
             commands::test_vlm_connection,
+            commands::fetch_vlm_models,
             commands::get_app_info,
             commands::pick_save_path,
             commands::write_export_bytes,

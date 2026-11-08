@@ -478,9 +478,12 @@ fn execute_job(
     if mxl::count_pitched_notes(&xml_text) < 10 {
         log::info!("识别结果几乎无音符，疑似六线谱输入");
         if let Some(cfg) = vlm::load_config(&state.db) {
-            state
-                .db
-                .update_job(&job.id, "running", 60, Some("六线谱检出，尝试 AI 识别…"))?;
+            let msg = if cfg.thinking {
+                "六线谱检出，AI 识别中（推理模式约需 1-5 分钟）…"
+            } else {
+                "六线谱检出，尝试 AI 识别…"
+            };
+            state.db.update_job(&job.id, "running", 60, Some(msg))?;
             let _ = state.app_handle.emit(
                 "omr://progress",
                 OmrProgressEvent {
@@ -488,7 +491,7 @@ fn execute_job(
                     score_id: score.id.clone(),
                     state: "running".into(),
                     progress: 60,
-                    message: Some("六线谱检出，尝试 AI 识别…".into()),
+                    message: Some(msg.into()),
                 },
             );
             match vlm::transcribe_tab(&input, &cfg) {

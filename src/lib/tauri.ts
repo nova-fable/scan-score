@@ -89,6 +89,8 @@ export const api = {
   getAppInfo: () => invoke<AppInfo>("get_app_info"),
   testVlmConnection: (apiBase: string, apiKey: string, model: string) =>
     invoke<string>("test_vlm_connection", { apiBase, apiKey, model }),
+  fetchVlmModels: (apiBase: string, apiKey: string) =>
+    invoke<string[]>("fetch_vlm_models", { apiBase, apiKey }),
   pickSavePath: (fileName: string, ext: string) =>
     invoke<string | null>("pick_save_path", { fileName, ext }),
   writeExportBytes: (path: string, bytes: Uint8Array) =>
