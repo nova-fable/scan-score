@@ -104,8 +104,15 @@ pub fn resolve_engine(state: &AppState) -> Result<EngineConfig, OmrError> {
         }
     }
     if let Some(res) = &state.resource_dir {
-        candidates.push(res.join("engine/Audiveris.app/Contents/MacOS/Audiveris"));
-        candidates.push(res.join("engine/bin/Audiveris"));
+        // tauri 资源目录映射层级随打包方式略有差异，做三候选兜底
+        for base in [
+            res.join("engine"),
+            res.join("resources/engine"),
+            res.to_path_buf(),
+        ] {
+            candidates.push(base.join("Audiveris.app/Contents/MacOS/Audiveris"));
+            candidates.push(base.join("bin/Audiveris"));
+        }
     }
     if let Ok(env_path) = std::env::var("AUDIVERIS_CMD") {
         candidates.push(PathBuf::from(env_path));

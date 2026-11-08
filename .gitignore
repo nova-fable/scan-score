@@ -28,3 +28,6 @@ spike/alphatab.js
 spike/sonivox.sf2
 spike/cucaracha.mxl
 spike/cucaracha-from-omr.xml
+
+# 引擎发行包不入库（体积大，打包前从 /Applications 拷贝）
+src-tauri/resources/engine/

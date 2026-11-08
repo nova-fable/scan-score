@@ -32,6 +32,32 @@ pub fn run() {
 
             let resource_dir = app.path().resource_dir().ok();
 
+            // 引擎 tessdata 首次安装（Audiveris 期望它在用户数据目录）
+            if let Some(res) = &resource_dir {
+                let bundled = [res.join("engine/tessdata"), res.join("resources/engine/tessdata"), res.join("tessdata")]
+                    .iter()
+                    .map(|d| d.join("eng.traineddata"))
+                    .find(|p| p.exists())
+                    .map(|p| p.to_path_buf());
+                let Some(bundled) = bundled else {
+                    return Ok(());
+                };
+                let user_tess = std::env::var("HOME").ok().map(|home| {
+                    std::path::PathBuf::from(home)
+                        .join("Library/Application Support/AudiverisLtd/audiveris/tessdata")
+                });
+                if let (true, Some(user_tess)) = (bundled.exists(), user_tess) {
+                    let target = user_tess.join("eng.traineddata");
+                    if !target.exists() {
+                        std::fs::create_dir_all(&user_tess).ok();
+                        match std::fs::copy(&bundled, &target) {
+                            Ok(_) => log::info!("已安装 OCR 语言包到 {}", target.display()),
+                            Err(e) => log::warn!("OCR 语言包安装失败: {e}"),
+                        }
+                    }
+                }
+            }
+
             let state = Arc::new(AppState {
                 db: Arc::new(db),
                 data_dir,
