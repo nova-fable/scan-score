@@ -457,9 +457,21 @@ fn execute_job(
             .as_ref()
             .ok_or(OmrError::InputMissing)?,
     );
+    let out_dir = state.data_dir.join("scores").join(&score.id);
+    let log_path = out_dir.join(format!("job-{}.log", job.id));
+
+    // 六线谱图像判据：直接走 VLM（省去注定失败的 Audiveris 运行）
+    let is_pdf = raw_input
+        .extension()
+        .map(|e| e.to_string_lossy().to_lowercase() == "pdf")
+        .unwrap_or(false);
+    if !is_pdf && crate::tabdetect::looks_like_tab(&raw_input) {
+        log::info!("图像检测为六线谱（TAB），直接走 AI 转录");
+        return execute_tab_via_ai(state, job, score, &raw_input, &out_dir, &log_path);
+    }
+
     // 低分辨率图片自动放大后再送识别
     let input = prepare_input(&raw_input);
-    let out_dir = state.data_dir.join("scores").join(&score.id);
 
     let db = Arc::clone(&state.db);
     let app = state.app_handle.clone();
@@ -468,7 +480,6 @@ fn execute_job(
     let queue = Arc::clone(&state.queue);
     let cancel_for_cb = Arc::clone(&cancel);
 
-    let log_path = out_dir.join(format!("job-{}.log", job.id));
     let produced = run_batch(
         &engine,
         std::slice::from_ref(&input),
@@ -502,76 +513,10 @@ fn execute_job(
     std::fs::write(&score_xml_path, &xml_text)?;
     let meta = mxl::parse_meta(&xml_text)?;
 
-    // 六线谱（TAB）检出：优先尝试云端多模态识别（若已配置），否则报错提示
+    // Audiveris 产出几乎无音符 → 六线谱漏检，回退 VLM
     if mxl::count_pitched_notes(&xml_text) < 10 {
-        log::info!("识别结果几乎无音符，疑似六线谱输入");
-        {
-            use std::io::Write;
-            if let Ok(mut w) = std::fs::OpenOptions::new().append(true).open(&log_path) {
-                let _ = writeln!(w, "\n=== TAB 检出 ===");
-            }
-        }
-        if let Some(cfg) = vlm::load_config(&state.db) {
-            let msg = if cfg.thinking {
-                "六线谱检出，AI 识别中（推理模式约需 1-5 分钟）…"
-            } else {
-                "六线谱检出，尝试 AI 识别…"
-            };
-            state.db.update_job(&job.id, "running", 60, Some(msg))?;
-            let _ = state.app_handle.emit(
-                "omr://progress",
-                OmrProgressEvent {
-                    job_id: job.id.clone(),
-                    score_id: score.id.clone(),
-                    state: "running".into(),
-                    progress: 60,
-                    message: Some(msg.into()),
-                },
-            );
-            match vlm::transcribe_tab(&raw_input, &cfg) {
-                Ok(tex) if vlm::looks_like_alpha_tex(&tex) => {
-                    let atx_path = out_dir.join("score.atx");
-                    std::fs::write(&atx_path, &tex)?;
-                    {
-                        use std::io::Write;
-                        if let Ok(mut w) = std::fs::OpenOptions::new().append(true).open(&log_path) {
-                            let _ = writeln!(w, "=== AI 识别成功 (alphaTex {} 字符) ===", tex.len());
-                            let _ = writeln!(w, "{tex}");
-                        }
-                    }
-                    state.db.update_score_recognition(
-                        &score.id,
-                        &atx_path.to_string_lossy(),
-                        "guitar",
-                        None,
-                        None,
-                    )?;
-                    log::info!("AI 六线谱识别成功 (alphaTex {} 字符)", tex.len());
-                    return Ok(atx_path);
-                }
-                Ok(_) => {
-                    log::warn!("AI 输出不像 alphaTex，按失败处理");
-                    {
-                        use std::io::Write;
-                        if let Ok(mut w) = std::fs::OpenOptions::new().append(true).open(&log_path) {
-                            let _ = writeln!(w, "=== AI 输出不像 alphaTex，按失败处理 ===");
-                        }
-                    }
-                    return Err(OmrError::TabNotRecognized);
-                }
-                Err(e) => {
-                    log::warn!("AI 六线谱识别失败: {e}");
-                    {
-                        use std::io::Write;
-                        if let Ok(mut w) = std::fs::OpenOptions::new().append(true).open(&log_path) {
-                            let _ = writeln!(w, "=== AI 六线谱识别失败: {e} ===");
-                        }
-                    }
-                    return Err(OmrError::AiTabFailed(e));
-                }
-            }
-        }
-        return Err(OmrError::TabNotRecognized);
+        log::info!("识别结果几乎无音符，疑似六线谱漏检，回退 AI 转录");
+        return execute_tab_via_ai(state, job, score, &raw_input, &out_dir, &log_path);
     }
 
     let instrument = if meta.part_count <= 1 { "piano" } else { "other" };
@@ -584,6 +529,78 @@ fn execute_job(
         meta.composer.as_deref(),
     )?;
     Ok(mxl_path)
+}
+
+/// TAB 图直接走 VLM 转录（跳过 Audiveris）
+fn execute_tab_via_ai(
+    state: &Arc<AppState>,
+    job: &Job,
+    score: &Score,
+    input: &Path,
+    out_dir: &Path,
+    log_path: &Path,
+) -> Result<PathBuf, OmrError> {
+    let Some(cfg) = vlm::load_config(&state.db) else {
+        return Err(OmrError::TabNotRecognized);
+    };
+    let msg = if cfg.thinking {
+        "六线谱检出，AI 识别中（推理模式约需 1-5 分钟）…"
+    } else {
+        "六线谱检出，尝试 AI 识别…"
+    };
+    state.db.update_job(&job.id, "running", 60, Some(msg))?;
+    let _ = state.app_handle.emit(
+        "omr://progress",
+        OmrProgressEvent {
+            job_id: job.id.clone(),
+            score_id: score.id.clone(),
+            state: "running".into(),
+            progress: 60,
+            message: Some(msg.into()),
+        },
+    );
+    match vlm::transcribe_tab(input, &cfg) {
+        Ok(tex) if vlm::looks_like_alpha_tex(&tex) => {
+            let atx_path = out_dir.join("score.atx");
+            std::fs::write(&atx_path, &tex)?;
+            {
+                use std::io::Write;
+                if let Ok(mut w) = std::fs::OpenOptions::new().append(true).open(log_path) {
+                    let _ = writeln!(w, "=== AI 识别成功 (alphaTex {} 字符) ===", tex.len());
+                    let _ = writeln!(w, "{tex}");
+                }
+            }
+            state.db.update_score_recognition(
+                &score.id,
+                &atx_path.to_string_lossy(),
+                "guitar",
+                None,
+                None,
+            )?;
+            log::info!("AI 六线谱识别成功 (alphaTex {} 字符)", tex.len());
+            Ok(atx_path)
+        }
+        Ok(_) => {
+            log::warn!("AI 输出不像 alphaTex，按失败处理");
+            {
+                use std::io::Write;
+                if let Ok(mut w) = std::fs::OpenOptions::new().append(true).open(log_path) {
+                    let _ = writeln!(w, "=== AI 输出不像 alphaTex，按失败处理 ===");
+                }
+            }
+            Err(OmrError::TabNotRecognized)
+        }
+        Err(e) => {
+            log::warn!("AI 六线谱识别失败: {e}");
+            {
+                use std::io::Write;
+                if let Ok(mut w) = std::fs::OpenOptions::new().append(true).open(log_path) {
+                    let _ = writeln!(w, "=== AI 六线谱识别失败: {e} ===");
+                }
+            }
+            Err(OmrError::AiTabFailed(e))
+        }
+    }
 }
 
 fn emit_progress(state: &Arc<AppState>, job: &Job, state_name: &str, progress: i64, message: Option<&str>) {
