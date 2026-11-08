@@ -42,18 +42,29 @@ jobs:
           set -e
           DEST=src-tauri/resources/engine
           mkdir -p "$DEST/tessdata"
+          # GitHub Releases 大文件会被中途 reset（curl 56），--retry 不覆盖该错误码：
+          # 用 --retry-all-errors + 断点续传 + 外层循环兜底
+          fetch() {
+            for i in 1 2 3 4 5; do
+              curl -fL --retry 5 --retry-all-errors --retry-delay 5 -C - -o "$2" "$1" && return 0
+              echo "download attempt $i failed, retrying in 15s..."
+              sleep 15
+            done
+            return 1
+          }
           if [ ! -f "$DEST/Audiveris.app/Contents/MacOS/Audiveris" ]; then
-            curl -fL --retry 5 --retry-delay 3 -o "$RUNNER_TEMP/audiveris.dmg" \
-              "https://github.com/Audiveris/audiveris/releases/download/${AUDIVERIS_VERSION}/Audiveris-${AUDIVERIS_VERSION}-macosx-arm64.dmg"
-            yes | hdiutil attach "$RUNNER_TEMP/audiveris.dmg" -nobrowse -quiet
+            fetch "https://github.com/Audiveris/audiveris/releases/download/${AUDIVERIS_VERSION}/Audiveris-${AUDIVERIS_VERSION}-macosx-arm64.dmg" \
+              "$RUNNER_TEMP/audiveris.dmg"
+            # 不加 -quiet：AGPL 许可交互需要 yes | 正常喂入（见 AGENTS.md）
+            yes | hdiutil attach "$RUNNER_TEMP/audiveris.dmg" -nobrowse
             APP_SRC=$(ls -d /Volumes/*/Audiveris.app | head -1)
             cp -R "$APP_SRC" "$DEST/"
-            hdiutil detach "$(dirname "$APP_SRC")" -quiet || true
+            hdiutil detach "$(dirname "$APP_SRC")" || true
           fi
           if [ ! -f "$DEST/tessdata/eng.traineddata" ]; then
             # tessdata 主仓库 = legacy + LSTM 合包（tessdata_best/fast 纯 LSTM 会 OCR 静默失效）
-            curl -fL --retry 5 --retry-delay 3 -o "$DEST/tessdata/eng.traineddata" \
-              "https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata"
+            fetch "https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata" \
+              "$DEST/tessdata/eng.traineddata"
           fi
       - run: npm ci
       - run: npm run tauri build
@@ -89,21 +100,31 @@ jobs:
           $ver = $env:AUDIVERIS_VERSION
           $dest = "src-tauri/resources/engine"
           New-Item -ItemType Directory -Force -Path "$dest/tessdata" | Out-Null
+          # 同 macOS：--retry-all-errors + 断点续传 + 外层循环
+          function Fetch($url, $out) {
+            for ($i = 1; $i -le 5; $i++) {
+              curl.exe -fL --retry 5 --retry-all-errors --retry-delay 5 -C - -o $out $url
+              if ($LASTEXITCODE -eq 0) { return }
+              Write-Host "download attempt $i failed, retrying in 15s..."
+              Start-Sleep -Seconds 15
+            }
+            throw "download failed: $url"
+          }
           if (-not (Test-Path "$dest/bin/Audiveris.exe")) {
-            # msi 管理提取（不实际安装）：得到 bin/Audiveris.exe + 自带 JRE 的应用树
-            $msi = "$env:RUNNER_TEMP/audiveris.msi"
-            curl.exe -fL --retry 5 --retry-delay 3 -o $msi `
-              "https://github.com/Audiveris/audiveris/releases/download/$ver/Audiveris-$ver-windows-x86_64.msi"
-            $target = "$env:RUNNER_TEMP/eng_extract"
-            Start-Process msiexec -ArgumentList "/a `"$msi`" /qn TARGETDIR=`"$target`"" -Wait
+            $msi = Join-Path $env:RUNNER_TEMP "audiveris.msi"
+            Fetch "https://github.com/Audiveris/audiveris/releases/download/$ver/Audiveris-$ver-windows-x86_64.msi" $msi
+            # msi 管理提取（不实际安装）：TARGETDIR 必须反斜杠+尾反斜杠；
+            # 不加引号——尾反斜杠会转义收尾引号（RUNNER_TEMP 路径无空格，安全）
+            $target = (Join-Path $env:RUNNER_TEMP "eng_extract") + "\"
+            $p = Start-Process msiexec.exe -ArgumentList "/a", "`"$msi`"", "/qn", "/norestart", "TARGETDIR=$target" -Wait -PassThru
+            if ($p.ExitCode -ne 0) { throw "msiexec /a failed with exit code $($p.ExitCode)" }
             $exe = Get-ChildItem -Path $target -Recurse -Filter Audiveris.exe | Select-Object -First 1
             if (-not $exe) { throw "msi 管理提取中未找到 Audiveris.exe" }
             $appRoot = $exe.Directory.Parent.FullName
             Copy-Item -Path "$appRoot/*" -Destination $dest -Recurse -Force
           }
           if (-not (Test-Path "$dest/tessdata/eng.traineddata")) {
-            curl.exe -fL --retry 5 --retry-delay 3 -o "$dest/tessdata/eng.traineddata" `
-              "https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata"
+            Fetch "https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata" "$dest/tessdata/eng.traineddata"
           }
       - run: npm ci
       - run: npm run tauri build
