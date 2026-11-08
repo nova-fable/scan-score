@@ -8,7 +8,7 @@
 - **框架**：Tauri 2 + React 19 + TypeScript + Vite + Tailwind CSS
 - **OMR 识别**：Audiveris 5.11（独立进程 CLI 批处理，输出 MusicXML/.mxl）
 - **乐谱渲染与播放**：[alphaTab](https://alphatab.net)（SVG 渲染 + WebAudio 合成器）
-- **PDF 处理**：macOS 内置 `sips` / `mdls`（封面缩略图/页数，零外部依赖）
+- **PDF 处理**：macOS 用内置 `sips` / `mdls`（零外部依赖）；Windows（规划）用 pdfium + 随包动态库，见 `src-tauri/src/pdf.rs` 的平台隔离层
 - **存储**：SQLite（rusqlite），数据目录 `~/Library/Application Support/com.dsjerry.scan-score/`
 
 ## 开发
