@@ -472,7 +472,7 @@ pub fn list_jobs(score_id: Option<String>, state: Ctx) -> Result<Vec<Job>, Strin
 
 #[tauri::command]
 pub fn get_settings(state: Ctx) -> Result<Vec<Setting>, String> {
-    let keys = ["engine_path"];
+    let keys = ["engine_path", "vlm_api_base", "vlm_api_key", "vlm_model"];
     Ok(keys
         .iter()
         .filter_map(|k| {
@@ -488,7 +488,10 @@ pub fn get_settings(state: Ctx) -> Result<Vec<Setting>, String> {
 
 #[tauri::command]
 pub fn set_setting(key: String, value: String, state: Ctx) -> Result<(), String> {
-    if !matches!(key.as_str(), "engine_path") {
+    if !matches!(
+        key.as_str(),
+        "engine_path" | "vlm_api_base" | "vlm_api_key" | "vlm_model"
+    ) {
         return Err(format!("未知设置项: {key}"));
     }
     state.db.set_setting(&key, &value).map_err(err)
@@ -501,6 +504,7 @@ pub struct AppInfo {
     pub resource_dir: Option<String>,
     pub engine_found: bool,
     pub engine_path: Option<String>,
+    pub vlm_configured: bool,
 }
 
 #[tauri::command]
@@ -514,6 +518,7 @@ pub fn get_app_info(state: Ctx) -> Result<AppInfo, String> {
             .map(|p| p.to_string_lossy().into_owned()),
         engine_found: engine.is_some(),
         engine_path: engine.map(|c| c.launcher.to_string_lossy().into_owned()),
+        vlm_configured: crate::vlm::load_config(state.inner().db.as_ref()).is_some(),
     })
 }
 

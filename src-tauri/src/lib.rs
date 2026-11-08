@@ -5,6 +5,7 @@ pub mod model;
 pub mod mxl;
 pub mod omr;
 pub mod pdf;
+pub mod vlm;
 
 use std::sync::Arc;
 

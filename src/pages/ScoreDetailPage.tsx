@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlphaTabApi, midi, model } from "@coderline/alphatab";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, readAssetBytes, type Score } from "../lib/tauri";
 import { useUi } from "../stores/ui";
 import ScoreViewer from "../components/ScoreViewer";
@@ -244,6 +245,19 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
             className="shrink-0 whitespace-nowrap rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
           >
             {s?.status === "processing" ? "识别中…" : s?.status === "imported" ? "开始识别" : "重新识别"}
+          </button>
+        )}
+        {s?.status === "failed" && (s.errorMessage ?? "").includes("六线谱") && (
+          <button
+            onClick={() =>
+              openUrl(
+                `https://www.songsterr.com/a/wa/search?pattern=${encodeURIComponent(s.title)}`,
+              )
+            }
+            className="shrink-0 whitespace-nowrap rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm text-amber-700 hover:bg-amber-100"
+            title="跳转 Songsterr 搜索这首歌的 Guitar Pro 版本"
+          >
+            找 Guitar Pro 版本 ↗
           </button>
         )}
         {originalUrl && (

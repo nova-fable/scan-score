@@ -58,6 +58,7 @@ export interface AppInfo {
   resourceDir: string | null;
   engineFound: boolean;
   enginePath: string | null;
+  vlmConfigured: boolean;
 }
 
 export interface Setting {

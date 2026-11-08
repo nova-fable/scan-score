@@ -14,6 +14,7 @@ use tauri::Emitter;
 use crate::db::Db;
 use crate::model::{Job, OmrDoneEvent, OmrProgressEvent, Score};
 use crate::mxl;
+use crate::vlm;
 
 #[derive(Debug, Error)]
 pub enum OmrError {
@@ -23,8 +24,10 @@ pub enum OmrError {
     InputMissing,
     #[error("识别完成但未产出 MusicXML")]
     NoOutput,
-    #[error("识别结果没有有效音符——这很可能是六线谱（TAB）谱。开源 OMR 无法识别六线谱，请改用 Guitar Pro (.gp/.gp5) 文件导入该曲目")]
+    #[error("识别结果没有有效音符——这很可能是六线谱（TAB）谱。开源 OMR 无法识别六线谱，请改用 Guitar Pro (.gp/.gp5) 文件导入，或在设置中配置 AI 六线谱识别（实验性）")]
     TabNotRecognized,
+    #[error("AI 六线谱识别失败：{0}")]
+    AiTabFailed(String),
     #[error("图片分辨率太低（谱线间距不足），自动放大后仍无法识别。请使用 300DPI 扫描件或更高清的图片")]
     LowResolution,
     #[error("任务已取消")]
@@ -444,7 +447,7 @@ fn execute_job(
     let queue = Arc::clone(&state.queue);
     let cancel_for_cb = Arc::clone(&cancel);
 
-    let produced = run_batch(&engine, &[input], &out_dir, cancel, move |progress, line| {
+    let produced = run_batch(&engine, std::slice::from_ref(&input), &out_dir, cancel, move |progress, line| {
         log::info!("[audiveris] {line}");
         let _ = db.update_job(&job_id, "running", progress, Some(line));
         let _ = app.emit(
@@ -471,8 +474,47 @@ fn execute_job(
     std::fs::write(&score_xml_path, &xml_text)?;
     let meta = mxl::parse_meta(&xml_text)?;
 
-    // 六线谱（TAB）防护：几乎无有效音符 → 判定为 TAB 输入，标记失败并提示
+    // 六线谱（TAB）检出：优先尝试云端多模态识别（若已配置），否则报错提示
     if mxl::count_pitched_notes(&xml_text) < 10 {
+        log::info!("识别结果几乎无音符，疑似六线谱输入");
+        if let Some(cfg) = vlm::load_config(&state.db) {
+            state
+                .db
+                .update_job(&job.id, "running", 60, Some("六线谱检出，尝试 AI 识别…"))?;
+            let _ = state.app_handle.emit(
+                "omr://progress",
+                OmrProgressEvent {
+                    job_id: job.id.clone(),
+                    score_id: score.id.clone(),
+                    state: "running".into(),
+                    progress: 60,
+                    message: Some("六线谱检出，尝试 AI 识别…".into()),
+                },
+            );
+            match vlm::transcribe_tab(&input, &cfg) {
+                Ok(tex) if vlm::looks_like_alpha_tex(&tex) => {
+                    let atx_path = out_dir.join("score.atx");
+                    std::fs::write(&atx_path, &tex)?;
+                    state.db.update_score_recognition(
+                        &score.id,
+                        &atx_path.to_string_lossy(),
+                        "guitar",
+                        None,
+                        None,
+                    )?;
+                    log::info!("AI 六线谱识别成功 (alphaTex {} 字符)", tex.len());
+                    return Ok(atx_path);
+                }
+                Ok(_) => {
+                    log::warn!("AI 输出不像 alphaTex，按失败处理");
+                    return Err(OmrError::TabNotRecognized);
+                }
+                Err(e) => {
+                    log::warn!("AI 六线谱识别失败: {e}");
+                    return Err(OmrError::AiTabFailed(e));
+                }
+            }
+        }
         return Err(OmrError::TabNotRecognized);
     }
 

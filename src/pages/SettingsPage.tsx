@@ -26,11 +26,17 @@ export default function SettingsPage() {
   const settings = useQuery({ queryKey: ["settings"], queryFn: () => api.getSettings() });
 
   const [enginePath, setEnginePath] = useState("");
+  const [vlmBase, setVlmBase] = useState("");
+  const [vlmKey, setVlmKey] = useState("");
+  const [vlmModel, setVlmModel] = useState("");
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (settings.data) {
       setEnginePath(settings.data.find((s) => s.key === "engine_path")?.value ?? "");
+      setVlmBase(settings.data.find((s) => s.key === "vlm_api_base")?.value ?? "");
+      setVlmKey(settings.data.find((s) => s.key === "vlm_api_key")?.value ?? "");
+      setVlmModel(settings.data.find((s) => s.key === "vlm_model")?.value ?? "");
     }
   }, [settings.data]);
 
@@ -77,6 +83,62 @@ export default function SettingsPage() {
                 <span className="text-emerald-600">已找到 ✓ {info.data.enginePath}</span>
               ) : (
                 <span className="text-red-500">未找到 ✗（请安装 Audiveris 或填写路径）</span>
+              )
+            ) : (
+              "检测中…"
+            )}
+          </div>
+        </Row>
+
+        <Row
+          label="AI 六线谱识别（实验性）"
+          hint="开源 OMR 无法识别六线谱。配置视觉大模型后，检测到六线谱输入时自动改用 AI 转录（需联网，按调用量计费）。兼容 OpenAI chat/completions 协议；智谱示例：API Base https://open.bigmodel.cn/api/paas/v4，模型 glm-4.6v。"
+        >
+          <div className="grid gap-2">
+            <input
+              value={vlmBase}
+              onChange={(e) => setVlmBase(e.target.value)}
+              placeholder="API Base（默认智谱）"
+              className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm outline-none focus:border-indigo-400"
+            />
+            <div className="flex gap-2">
+              <input
+                type="password"
+                value={vlmKey}
+                onChange={(e) => setVlmKey(e.target.value)}
+                placeholder="API Key"
+                className="flex-1 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm outline-none focus:border-indigo-400"
+              />
+              <input
+                value={vlmModel}
+                onChange={(e) => setVlmModel(e.target.value)}
+                placeholder="模型名"
+                className="w-40 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm outline-none focus:border-indigo-400"
+              />
+            </div>
+            <button
+              onClick={async () => {
+                await api.setSetting("vlm_api_base", vlmBase);
+                await api.setSetting("vlm_model", vlmModel);
+                if (vlmKey.trim()) {
+                  await api.setSetting("vlm_api_key", vlmKey);
+                }
+                queryClient.invalidateQueries({ queryKey: ["appInfo"] });
+                setSavedMsg("已保存");
+                setTimeout(() => setSavedMsg(null), 2000);
+              }}
+              className="self-start rounded-lg bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-500"
+            >
+              保存
+            </button>
+          </div>
+          <div className="mt-2 text-xs">
+            当前状态：
+            {info.data ? (
+              info.data.vlmConfigured ? (
+                <span className="text-emerald-600">已配置 ✓</span>
+              ) : (
+                <span className="text-zinc-400">未配置（六线谱将提示改用 Guitar Pro 导入）</span>
               )
             ) : (
               "检测中…"

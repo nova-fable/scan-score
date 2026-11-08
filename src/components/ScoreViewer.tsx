@@ -72,11 +72,17 @@ export default function ScoreViewer({ data, onReady, callbacks }: Props) {
     };
   }, []);
 
-  // 加载数据变化
+  // 加载数据变化（自动分流：alphaTex 文本 vs 二进制谱格式）
   useEffect(() => {
     const api = apiRef.current;
     if (!api || !data) return;
-    api.load(data);
+    const head = new TextDecoder().decode(data.subarray(0, 16)).trimStart();
+    if (head.startsWith("\\")) {
+      // AI 六线谱识别产出的 alphaTex
+      api.tex(new TextDecoder().decode(data));
+    } else {
+      api.load(data);
+    }
   }, [data]);
 
   return <div ref={containerRef} className="at-viewer flex-1 bg-white" />;
