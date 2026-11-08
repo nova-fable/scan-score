@@ -24,7 +24,17 @@ const INSTRUMENT_LABEL: Record<string, string> = {
   other: "其他",
 };
 
-function ScoreCard({ score, onOpen }: { score: Score; onOpen: () => void }) {
+function ScoreCard({
+  score,
+  checked,
+  onToggleCheck,
+  onOpen,
+}: {
+  score: Score;
+  checked: boolean;
+  onToggleCheck: () => void;
+  onOpen: () => void;
+}) {
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
@@ -85,6 +95,21 @@ function ScoreCard({ score, onOpen }: { score: Score; onOpen: () => void }) {
           )}
         </div>
       </button>
+      {/* 多选框（左上角常驻） */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleCheck();
+        }}
+        className={`absolute left-2 top-2 grid h-6 w-6 place-items-center rounded-md border text-xs shadow ${
+          checked
+            ? "border-indigo-600 bg-indigo-600 text-white"
+            : "border-zinc-300 bg-white/90 text-transparent hover:text-zinc-400"
+        }`}
+        title={checked ? "取消选择" : "选择"}
+      >
+        ✓
+      </button>
       <div className="absolute right-2 top-2 flex gap-1 opacity-0 transition group-hover:opacity-100">
         {canRecognize && (
           <button
@@ -118,10 +143,50 @@ export default function LibraryPage() {
   const dropDepth = useRef(0);
   const [folderFiles, setFolderFiles] = useState<string[] | null>(null);
   const [mergeChecked, setMergeChecked] = useState(true);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const scores = useQuery({
     queryKey: ["scores", search, instrument],
     queryFn: () => api.listScores({ query: search || undefined, instrument: instrument || undefined }),
+  });
+
+  // 识别队列状态（用于角标展示）
+  const allJobs = useQuery({
+    queryKey: ["jobs", "queue"],
+    queryFn: () => api.listJobs(),
+    refetchInterval: 3000,
+  });
+  const queuedCount =
+    allJobs.data?.filter((j) => j.state === "queued" || j.state === "running").length ?? 0;
+
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const batchRecognize = useMutation({
+    mutationFn: () => api.startRecognition([...selected]),
+    onSuccess: () => {
+      setSelected(new Set());
+      queryClient.invalidateQueries({ queryKey: ["scores"] });
+      queryClient.invalidateQueries({ queryKey: ["jobs", "queue"] });
+    },
+  });
+
+  const batchDelete = useMutation({
+    mutationFn: async () => {
+      for (const id of selected) {
+        await api.deleteScore(id);
+      }
+    },
+    onSuccess: () => {
+      setSelected(new Set());
+      queryClient.invalidateQueries({ queryKey: ["scores"] });
+    },
   });
 
   const doImport = useMutation({
@@ -201,6 +266,40 @@ export default function LibraryPage() {
           <option value="other">其他</option>
         </select>
         <div className="flex-1" />
+        {queuedCount > 0 && (
+          <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs text-blue-700">
+            队列 {queuedCount}
+          </span>
+        )}
+        {selected.size > 0 && (
+          <>
+            <span className="text-xs text-zinc-500">已选 {selected.size}</span>
+            <button
+              onClick={() => batchRecognize.mutate()}
+              disabled={batchRecognize.isPending}
+              className="whitespace-nowrap rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+            >
+              识别所选
+            </button>
+            <button
+              onClick={() => {
+                if (confirm(`确认删除所选的 ${selected.size} 个曲谱？文件将一并删除`)) {
+                  batchDelete.mutate();
+                }
+              }}
+              disabled={batchDelete.isPending}
+              className="whitespace-nowrap rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-500 hover:bg-red-50 disabled:opacity-50"
+            >
+              删除所选
+            </button>
+            <button
+              onClick={() => setSelected(new Set())}
+              className="whitespace-nowrap rounded-lg border border-zinc-200 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
+            >
+              取消
+            </button>
+          </>
+        )}
         <button
           onClick={async () => {
             const folder = await api.pickImportFolder();
@@ -245,7 +344,13 @@ export default function LibraryPage() {
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
             {scoresList.map((s) => (
-              <ScoreCard key={s.id} score={s} onOpen={() => openScore(s.id)} />
+              <ScoreCard
+                key={s.id}
+                score={s}
+                checked={selected.has(s.id)}
+                onToggleCheck={() => toggleSelect(s.id)}
+                onOpen={() => openScore(s.id)}
+              />
             ))}
           </div>
         )}
