@@ -9,6 +9,13 @@
 - 用户数据：`~/Library/Application Support/com.dsjerry.scan-score/`（library.db + scores/<id>/ + covers/），与 dev/release 共用
 - 测试样例在 `samples/`（来自 Audiveris 官方仓库）；Audiveris 装在 `/Applications/Audiveris.app`
 
+## 应用图标
+
+- 图标源文件是 `public/app-icon.png`（1024×1024 RGBA PNG），侧栏和网页 favicon 共用它；参考 JPG 的圆角外黑底已移除，替换素材时必须保留真正的透明通道，不能只把黑底改成白底
+- 修改后运行 `npm run icons`，通过 Tauri CLI 重新生成 `src-tauri/icons/` 中的 PNG、ICNS、ICO 和移动端资源；不要再用旧的 `src-tauri/examples/gen_icon.rs` 像素生成器
+- 图标自带透明边距和圆角底板，应用内显示时不要再加背景或额外圆角裁切
+- `tauri::generate_context!()` 在 macOS 开发模式下会将 ICNS 嵌入二进制，但不会自动监听原始图标文件；`build.rs` 必须保留 `cargo:rerun-if-changed=icons`，否则只改图标后 Cargo 会复用嵌着旧图标的程序，重启 `dev:app` 也不会更新
+
 ## alphaTab（渲染/播放）
 
 - **包名是 `@coderline/alphatab`**——npm 上的 `alphatab` 不存在（404）
@@ -52,6 +59,7 @@
 - `tauri.conf.json` resources 的 glob 要 `resources/engine/**/*`（`**` 不匹配）；**资源落点层级有歧义**（编译期能过、运行时路径对不上）——运行时用多候选探测（`engine/`、`resources/engine/`、根），见 omr.rs resolve_engine
 - macOS 打 dmg：tauri 的 bundle_dmg.sh 依赖 Finder AppleScript，自动化环境常超时（-1712）→ 手工 `hdiutil create -volname X -srcfolder <app> -format UDZO` 兜底
 - 前端拖拽监听（`getCurrentWebview().onDragDropEvent`）在纯浏览器预览会抛异常——必须 try/catch 包住，否则 React 整树崩掉（白屏）
+- **重复构建时报 `Permission denied (os error 13)`，日志停在 `TAURI_ENV_TARGET_TRIPLE` 后**：Tauri 复制 Audiveris/JRE 资源时保留 `0444` 权限，下次 `fs::copy` 无法覆盖生成副本。`build_support.rs` 在复制前仅为 Cargo 输出目录 `resources/engine` 内的普通文件补 owner-write，保留执行位、不跟随符号链接、不修改源码资源；不要只手动 chmod 一次（下次复制又会变只读）。回归测试：在 `src-tauri` 下运行 `cargo test --test build_resources`
 
 ## 工作方式（用户明确要求过的）
 
