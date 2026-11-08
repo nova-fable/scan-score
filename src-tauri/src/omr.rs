@@ -173,7 +173,7 @@ pub fn prepare_input(input: &Path) -> PathBuf {
 }
 
 /// 单次批处理执行：流式读取 stdout，回调进度；可取消（SIGTERM 子进程）。
-/// 返回输出目录中新产出的 .mxl 文件列表。
+/// 返回本次运行产出的 .mxl 文件列表（按 mtime ≥ 运行开始判定，兼容重跑覆盖同名文件的场景）。
 pub fn run_batch(
     engine: &EngineConfig,
     inputs: &[PathBuf],
@@ -187,7 +187,7 @@ pub fn run_batch(
         }
     }
     let _ = std::fs::create_dir_all(out_dir);
-    let before = snapshot_mxl(out_dir);
+    let run_started = std::time::SystemTime::now() - std::time::Duration::from_secs(2);
 
     // 引擎日志尾部环形缓冲（失败时附到错误信息里）
     let log_tail: Arc<Mutex<std::collections::VecDeque<String>>> =
@@ -276,10 +276,10 @@ pub fn run_batch(
         )));
     }
 
-    let after = snapshot_mxl(out_dir);
-    let produced: Vec<PathBuf> = after
+    let produced: Vec<PathBuf> = snapshot_mxl(out_dir)
         .into_iter()
-        .filter(|p| !before.contains(p))
+        .filter(|(p, m)| *m >= run_started)
+        .map(|(p, _)| p)
         .collect();
     if produced.is_empty() {
         // 正常退出但没导出：常见于转写失败（如 Sheet ignored），日志里通常有原因
@@ -297,13 +297,18 @@ pub fn run_batch(
     Ok(produced)
 }
 
-fn snapshot_mxl(dir: &Path) -> std::collections::HashSet<PathBuf> {
-    let mut set = std::collections::HashSet::new();
+/// 列出目录内的 .mxl 及其修改时间
+fn snapshot_mxl(dir: &Path) -> Vec<(PathBuf, std::time::SystemTime)> {
+    let mut set = Vec::new();
     if let Ok(entries) = std::fs::read_dir(dir) {
         for entry in entries.flatten() {
             let path = entry.path();
             if path.extension().map(|e| e == "mxl").unwrap_or(false) {
-                set.insert(path);
+                if let Ok(meta) = entry.metadata() {
+                    if let Ok(mtime) = meta.modified() {
+                        set.push((path, mtime));
+                    }
+                }
             }
         }
     }
