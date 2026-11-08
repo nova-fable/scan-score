@@ -145,6 +145,8 @@ pub fn resolve_engine(state: &AppState) -> Result<EngineConfig, OmrError> {
         ] {
             candidates.push(base.join("Audiveris.app/Contents/MacOS/Audiveris"));
             candidates.push(base.join("bin/Audiveris"));
+            // Windows 打包布局：engine/bin/Audiveris.exe（jpackage msi 提取产物）
+            candidates.push(base.join("bin/Audiveris.exe"));
         }
     }
     if let Ok(env_path) = std::env::var("AUDIVERIS_CMD") {

@@ -42,10 +42,18 @@ pub fn run() {
                 let Some(bundled) = bundled else {
                     return Ok(());
                 };
-                let user_tess = std::env::var("HOME").ok().map(|home| {
-                    std::path::PathBuf::from(home)
-                        .join("Library/Application Support/AudiverisLtd/audiveris/tessdata")
-                });
+                // Audiveris 期望的语言包目录：macOS 在 ~/Library/Application Support，
+                // Windows 在 %APPDATA%（Roaming）；HOME 在 Windows 通常未设置，不能复用 macOS 路径
+                let user_tess = if cfg!(target_os = "macos") {
+                    std::env::var("HOME").ok().map(|home| {
+                        std::path::PathBuf::from(home)
+                            .join("Library/Application Support/AudiverisLtd/audiveris/tessdata")
+                    })
+                } else {
+                    std::env::var("APPDATA").ok().map(|d| {
+                        std::path::PathBuf::from(d).join("AudiverisLtd/audiveris/tessdata")
+                    })
+                };
                 if let (true, Some(user_tess)) = (bundled.exists(), user_tess) {
                     let target = user_tess.join("eng.traineddata");
                     if !target.exists() {

@@ -10,13 +10,18 @@ on:
 permissions:
   contents: read
 
+env:
+  # OMR 引擎版本：src-tauri/resources/engine 由 CI 从 Audiveris 官方 Release 拉取（185MB，不入库）
+  AUDIVERIS_VERSION: "5.11.0"
+
 concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   build-macos:
-    runs-on: macos-14
+    # macos-14 镜像已退役（解析到 macos-14-arm64-us-default 不被支持）
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -27,6 +32,29 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+      - name: Restore Audiveris engine cache
+        uses: actions/cache@v4
+        with:
+          path: src-tauri/resources/engine
+          key: engine-${{ env.AUDIVERIS_VERSION }}-macos-arm64
+      - name: Fetch Audiveris engine + tessdata
+        run: |
+          set -e
+          DEST=src-tauri/resources/engine
+          mkdir -p "$DEST/tessdata"
+          if [ ! -f "$DEST/Audiveris.app/Contents/MacOS/Audiveris" ]; then
+            curl -fL --retry 5 --retry-delay 3 -o "$RUNNER_TEMP/audiveris.dmg" \
+              "https://github.com/Audiveris/audiveris/releases/download/${AUDIVERIS_VERSION}/Audiveris-${AUDIVERIS_VERSION}-macosx-arm64.dmg"
+            yes | hdiutil attach "$RUNNER_TEMP/audiveris.dmg" -nobrowse -quiet
+            APP_SRC=$(ls -d /Volumes/*/Audiveris.app | head -1)
+            cp -R "$APP_SRC" "$DEST/"
+            hdiutil detach "$(dirname "$APP_SRC")" -quiet || true
+          fi
+          if [ ! -f "$DEST/tessdata/eng.traineddata" ]; then
+            # tessdata 主仓库 = legacy + LSTM 合包（tessdata_best/fast 纯 LSTM 会 OCR 静默失效）
+            curl -fL --retry 5 --retry-delay 3 -o "$DEST/tessdata/eng.traineddata" \
+              "https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata"
+          fi
       - run: npm ci
       - run: npm run tauri build
       - uses: actions/upload-artifact@v4
@@ -49,6 +77,34 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+      - name: Restore Audiveris engine cache
+        uses: actions/cache@v4
+        with:
+          path: src-tauri/resources/engine
+          key: engine-${{ env.AUDIVERIS_VERSION }}-windows-x64
+      - name: Fetch Audiveris engine + tessdata
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $ver = $env:AUDIVERIS_VERSION
+          $dest = "src-tauri/resources/engine"
+          New-Item -ItemType Directory -Force -Path "$dest/tessdata" | Out-Null
+          if (-not (Test-Path "$dest/bin/Audiveris.exe")) {
+            # msi 管理提取（不实际安装）：得到 bin/Audiveris.exe + 自带 JRE 的应用树
+            $msi = "$env:RUNNER_TEMP/audiveris.msi"
+            curl.exe -fL --retry 5 --retry-delay 3 -o $msi `
+              "https://github.com/Audiveris/audiveris/releases/download/$ver/Audiveris-$ver-windows-x86_64.msi"
+            $target = "$env:RUNNER_TEMP/eng_extract"
+            Start-Process msiexec -ArgumentList "/a `"$msi`" /qn TARGETDIR=`"$target`"" -Wait
+            $exe = Get-ChildItem -Path $target -Recurse -Filter Audiveris.exe | Select-Object -First 1
+            if (-not $exe) { throw "msi 管理提取中未找到 Audiveris.exe" }
+            $appRoot = $exe.Directory.Parent.FullName
+            Copy-Item -Path "$appRoot/*" -Destination $dest -Recurse -Force
+          }
+          if (-not (Test-Path "$dest/tessdata/eng.traineddata")) {
+            curl.exe -fL --retry 5 --retry-delay 3 -o "$dest/tessdata/eng.traineddata" `
+              "https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata"
+          }
       - run: npm ci
       - run: npm run tauri build
       - uses: actions/upload-artifact@v4
