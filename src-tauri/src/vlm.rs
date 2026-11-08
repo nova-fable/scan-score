@@ -98,16 +98,56 @@ pub fn transcribe_tab(image_path: &Path, cfg: &VlmConfig) -> Result<String, Stri
         body
     };
 
-    let send = |body: &serde_json::Value| -> Result<(reqwest::StatusCode, String), String> {
-        let resp = client
-            .post(&url)
-            .header("Authorization", format!("Bearer {}", cfg.api_key))
-            .json(body)
-            .send()
-            .map_err(|e| format!("请求识别服务失败: {e}"))?;
-        let status = resp.status();
-        let text = resp.text().map_err(|e| e.to_string())?;
-        Ok((status, text))
+    enum SendOutcome {
+        Ok(String),
+        /// 400：通常是 thinking 字段或 max_tokens 不被接受 → 降级到下一档
+        BadRequest(String),
+        /// 其他失败（网络/非 400 状态码）
+        Failed(String),
+    }
+
+    let send = |body: &serde_json::Value| -> SendOutcome {
+        // 长时间生成可能被服务端/网关中途掐断（表现为 body 解码失败），自动重试
+        let mut last_err = String::new();
+        for attempt in 1..=3 {
+            let result = client
+                .post(&url)
+                .header("Authorization", format!("Bearer {}", cfg.api_key))
+                .header("accept-encoding", "identity")
+                .json(body)
+                .send();
+            match result {
+                Ok(resp) => {
+                    let status = resp.status();
+                    match resp.text() {
+                        Ok(text) => {
+                            if status == reqwest::StatusCode::BAD_REQUEST {
+                                return SendOutcome::BadRequest(text);
+                            }
+                            if !status.is_success() {
+                                return SendOutcome::Failed(format!(
+                                    "识别服务返回 {status}: {}",
+                                    text.chars().take(300).collect::<String>()
+                                ));
+                            }
+                            return SendOutcome::Ok(text);
+                        }
+                        Err(e) => {
+                            last_err = format!("响应流中断 ({e})，第 {attempt}/3 次尝试");
+                            log::warn!("{last_err}");
+                        }
+                    }
+                }
+                Err(e) => {
+                    last_err = format!("请求失败 ({e})，第 {attempt}/3 次尝试");
+                    log::warn!("{last_err}");
+                }
+            }
+            if attempt < 3 {
+                std::thread::sleep(std::time::Duration::from_secs(3 * attempt as u64));
+            }
+        }
+        SendOutcome::Failed(last_err)
     };
 
     // 请求阶梯
@@ -124,18 +164,14 @@ pub fn transcribe_tab(image_path: &Path, cfg: &VlmConfig) -> Result<String, Stri
 
     let mut last_err: Option<String> = None;
     while let Some((thinking, max_tokens)) = attempts.pop() {
-        let (status, text) = send(&make_body(thinking, max_tokens))?;
-        if status == reqwest::StatusCode::BAD_REQUEST {
-            // 多半是 thinking 字段或 max_tokens 超限不被接受 → 下一档
-            last_err = Some(format!("HTTP 400: {}", text.chars().take(200).collect::<String>()));
-            continue;
-        }
-        if !status.is_success() {
-            return Err(format!(
-                "识别服务返回 {status}: {}",
-                text.chars().take(300).collect::<String>()
-            ));
-        }
+        let text = match send(&make_body(thinking, max_tokens)) {
+            SendOutcome::Ok(text) => text,
+            SendOutcome::BadRequest(_) => {
+                log::info!("端点拒绝当前参数组合（thinking/max_tokens），降级到下一档");
+                continue;
+            }
+            SendOutcome::Failed(e) => return Err(e),
+        };
         let json: serde_json::Value =
             serde_json::from_str(&text).map_err(|e| format!("响应解析失败: {e}"))?;
         let content = json["choices"][0]["message"]["content"]

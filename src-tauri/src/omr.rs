@@ -499,7 +499,7 @@ fn execute_job(
                     message: Some(msg.into()),
                 },
             );
-            match vlm::transcribe_tab(&input, &cfg) {
+            match vlm::transcribe_tab(&raw_input, &cfg) {
                 Ok(tex) if vlm::looks_like_alpha_tex(&tex) => {
                     let atx_path = out_dir.join("score.atx");
                     std::fs::write(&atx_path, &tex)?;
