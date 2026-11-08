@@ -145,25 +145,14 @@ export default function SettingsPage() {
                 placeholder="API Key"
                 className="min-w-0 flex-1 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm outline-none focus:border-indigo-400"
               />
-              <input
-                value={vlmModel}
-                onChange={(e) => setVlmModel(e.target.value)}
-                list="vlm-model-list"
-                placeholder="模型"
-                className="w-44 shrink-0 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm outline-none focus:border-indigo-400"
-              />
-              <datalist id="vlm-model-list">
-                {vlmModels.map((m) => (
-                  <option key={m} value={m} />
-                ))}
-              </datalist>
+              <ModelCombobox value={vlmModel} onChange={setVlmModel} options={vlmModels} />
               <button
                 onClick={async () => {
                   setVlmTest("获取模型列表中…");
                   try {
                     const models = await api.fetchVlmModels(vlmBase, vlmKey);
                     setVlmModels(models);
-                    setVlmTest(`获取到 ${models.length} 个模型，下拉即可选择`);
+                    setVlmTest(`获取到 ${models.length} 个模型，点模型框右侧 ▾ 选择`);
                   } catch (e) {
                     setVlmTest(`该平台不支持列表接口（${String(e).slice(0, 80)}…），可手动输入模型名`);
                   }
@@ -249,6 +238,65 @@ export default function SettingsPage() {
           </code>
         </Row>
       </div>
+    </div>
+  );
+}
+
+/// 模型选择组合框：输入框可手动输入，▾ 展开完整列表（不按已填值过滤）
+function ModelCombobox({
+  value,
+  onChange,
+  options,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: string[];
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative shrink-0">
+      <div className="flex">
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="模型"
+          className="w-40 rounded-l-lg border border-zinc-200 px-3 py-1.5 text-sm outline-none focus:border-indigo-400"
+        />
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="rounded-r-lg border border-l-0 border-zinc-200 px-2 text-xs text-zinc-500 hover:bg-zinc-50"
+          title="展开模型列表"
+        >
+          ▾
+        </button>
+      </div>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full z-20 mt-1 max-h-60 w-72 overflow-auto rounded-lg border border-zinc-200 bg-white py-1 shadow-lg">
+            {options.length === 0 ? (
+              <div className="px-3 py-2 text-xs text-zinc-400">
+                列表为空——先点「获取模型列表」，或直接手动输入
+              </div>
+            ) : (
+              options.map((m) => (
+                <button
+                  key={m}
+                  onClick={() => {
+                    onChange(m);
+                    setOpen(false);
+                  }}
+                  className={`block w-full truncate px-3 py-1.5 text-left text-sm hover:bg-zinc-50 ${
+                    m === value ? "font-medium text-indigo-600" : "text-zinc-700"
+                  }`}
+                >
+                  {m}
+                </button>
+              ))
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
