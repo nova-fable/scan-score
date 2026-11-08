@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/tauri";
+import { useUi } from "../stores/ui";
+import { useDismissOnEsc } from "../lib/useDialog";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 const VLM_PROVIDERS = [
   { name: "智谱 GLM", base: "https://open.bigmodel.cn/api/paas/v4", models: ["glm-4.6v", "glm-4v-plus"] },
@@ -25,8 +28,8 @@ function Row({
 }) {
   return (
     <div className="rounded-xl border border-zinc-200 bg-white p-4">
-      <div className="text-sm font-medium">{label}</div>
-      {hint && <div className="mt-1 text-xs text-zinc-400">{hint}</div>}
+      <div className="text-sm font-semibold">{label}</div>
+      {hint && <div className="mt-1 text-xs leading-5 text-zinc-500">{hint}</div>}
       <div className="mt-3">{children}</div>
     </div>
   );
@@ -34,6 +37,7 @@ function Row({
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
+  const showToast = useUi((s) => s.showToast);
   const info = useQuery({ queryKey: ["appInfo"], queryFn: () => api.getAppInfo() });
   const settings = useQuery({ queryKey: ["settings"], queryFn: () => api.getSettings() });
 
@@ -47,8 +51,10 @@ export default function SettingsPage() {
   const [upscaleWidth, setUpscaleWidth] = useState("");
   const [audiverisArgs, setAudiverisArgs] = useState("");
   const [vlmTest, setVlmTest] = useState<string | null>(null);
-  const [savedMsg, setSavedMsg] = useState<string | null>(null);
   const [appVersion, setAppVersion] = useState<string | null>(null);
+  const [confirmingRestore, setConfirmingRestore] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const [vlmOpen, setVlmOpen] = useState(false);
 
   useEffect(() => {
     getVersion().then(setAppVersion).catch(() => setAppVersion(null));
@@ -57,6 +63,7 @@ export default function SettingsPage() {
   useEffect(() => {
     if (settings.data) {
       setEnginePath(settings.data.find((s) => s.key === "engine_path")?.value ?? "");
+      setVlmProvider(settings.data.find((s) => s.key === "vlm_provider")?.value ?? "");
       setVlmBase(settings.data.find((s) => s.key === "vlm_api_base")?.value ?? "");
       setVlmKey(settings.data.find((s) => s.key === "vlm_api_key")?.value ?? "");
       setVlmModel(settings.data.find((s) => s.key === "vlm_model")?.value ?? "");
@@ -66,22 +73,21 @@ export default function SettingsPage() {
     }
   }, [settings.data]);
 
+  // 保存反馈走全局 Toast：卡片可能远在视口外，页面顶部的内联提示看不见
+  const flashSaved = (msg = "已保存", ms = 2000) => {
+    showToast({ message: msg }, ms);
+  };
+
   const save = async (key: string, value: string) => {
     await api.setSetting(key, value.trim());
     queryClient.invalidateQueries({ queryKey: ["appInfo"] });
     queryClient.invalidateQueries({ queryKey: ["settings"] });
-    setSavedMsg("已保存");
-    setTimeout(() => setSavedMsg(null), 2000);
+    flashSaved();
   };
 
   return (
     <div className="h-full overflow-auto bg-zinc-50 p-6">
       <h1 className="text-lg font-semibold">设置</h1>
-      {savedMsg && (
-        <div className="mt-2 inline-block rounded bg-emerald-100 px-2 py-1 text-xs text-emerald-700">
-          {savedMsg}
-        </div>
-      )}
 
       <div className="mt-4 grid max-w-2xl gap-4">
         <Row
@@ -93,11 +99,12 @@ export default function SettingsPage() {
               value={enginePath}
               onChange={(e) => setEnginePath(e.target.value)}
               placeholder="自动探测"
+              aria-label="Audiveris 启动器路径"
               className="flex-1 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm outline-none focus:border-indigo-400"
             />
             <button
               onClick={() => save("engine_path", enginePath)}
-              className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-500"
+              className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
             >
               保存
             </button>
@@ -108,7 +115,7 @@ export default function SettingsPage() {
               info.data.engineFound ? (
                 <span className="text-emerald-600">已找到 ✓ {info.data.enginePath}</span>
               ) : (
-                <span className="text-red-500">未找到 ✗（请安装 Audiveris 或填写路径）</span>
+                <span className="text-red-600">未找到 ✗（请安装 Audiveris 或填写路径）</span>
               )
             ) : (
               "检测中…"
@@ -116,11 +123,34 @@ export default function SettingsPage() {
           </div>
         </Row>
 
-        <Row
-          label="AI 六线谱识别（实验性）"
-          hint="开源 OMR 无法识别六线谱。配置视觉大模型后，检测到六线谱输入时自动改用 AI 转录（需联网，按调用量计费）。兼容 OpenAI chat/completions 协议。"
-        >
-          <div className="grid gap-2">
+        {/* 一次性配置项默认折叠，避免最低频的卡片占据最大面积 */}
+        <div className="rounded-xl border border-zinc-200 bg-white p-4">
+          <div className="flex items-center justify-between gap-2">
+            <button
+              onClick={() => setVlmOpen((v) => !v)}
+              aria-expanded={vlmOpen}
+              className="flex min-w-0 items-center gap-2 text-left text-sm font-semibold"
+            >
+              <span>AI 六线谱识别（实验性）</span>
+              <span className="shrink-0 text-xs font-normal text-zinc-500">
+                {info.data ? (info.data.vlmConfigured ? "· 已配置 ✓" : "· 未配置") : "· 检测中…"}
+              </span>
+            </button>
+            <button
+              onClick={() => setVlmOpen((v) => !v)}
+              aria-expanded={vlmOpen}
+              aria-label={vlmOpen ? "收起 AI 六线谱识别设置" : "展开 AI 六线谱识别设置"}
+              className="grid h-6 w-6 shrink-0 place-items-center rounded border border-zinc-200 text-xs text-zinc-500 hover:bg-zinc-50"
+            >
+              {vlmOpen ? "▴" : "▾"}
+            </button>
+          </div>
+          <p className="mt-1 text-xs leading-5 text-zinc-500">
+            开源 OMR 无法识别六线谱。配置视觉大模型后，检测到六线谱输入时自动改用 AI
+            转录（需联网，按调用量计费）。兼容 OpenAI chat/completions 协议。
+          </p>
+          {vlmOpen && (
+          <div className="mt-3 grid gap-2">
             <select
               value={vlmProvider}
               onChange={(e) => {
@@ -132,9 +162,10 @@ export default function SettingsPage() {
                   if (p.models.length) setVlmModel(p.models[0]);
                 }
               }}
+              aria-label="选择服务商"
               className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm outline-none"
             >
-              <option value="">选择服务商（自动填 API Base）</option>
+              <option value="">选择服务商（自动填接口地址）</option>
               {VLM_PROVIDERS.map((p) => (
                 <option key={p.name} value={p.name}>
                   {p.name}
@@ -144,7 +175,8 @@ export default function SettingsPage() {
             <input
               value={vlmBase}
               onChange={(e) => setVlmBase(e.target.value)}
-              placeholder="API Base"
+              placeholder="接口地址 (API Base)"
+              aria-label="API 接口地址"
               className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm outline-none focus:border-indigo-400"
             />
             <div className="flex gap-2">
@@ -153,6 +185,7 @@ export default function SettingsPage() {
                 value={vlmKey}
                 onChange={(e) => setVlmKey(e.target.value)}
                 placeholder="API Key"
+                aria-label="API Key"
                 className="min-w-0 flex-1 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm outline-none focus:border-indigo-400"
               />
               <ModelCombobox value={vlmModel} onChange={setVlmModel} options={vlmModels} />
@@ -177,27 +210,28 @@ export default function SettingsPage() {
               <select
                 value={vlmThinking}
                 onChange={(e) => setVlmThinking(e.target.value)}
+                aria-label="推理模式"
                 className="rounded border border-zinc-200 px-2 py-1"
               >
                 <option value="on">允许推理（更准，更慢更贵）</option>
                 <option value="off">关闭推理（更快更省）</option>
               </select>
-              <span className="text-zinc-400">输出预算已自动放大到 32k tokens</span>
+              <span className="text-zinc-500">长输出预算已自动配置，无需手动调整</span>
             </label>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               <button
                 onClick={async () => {
                   await api.setSetting("vlm_api_base", vlmBase);
                   await api.setSetting("vlm_model", vlmModel);
                   await api.setSetting("vlm_thinking", vlmThinking);
+                  await api.setSetting("vlm_provider", vlmProvider);
                   if (vlmKey.trim()) {
                     await api.setSetting("vlm_api_key", vlmKey);
                   }
                   queryClient.invalidateQueries({ queryKey: ["appInfo"] });
-                  setSavedMsg("已保存");
-                  setTimeout(() => setSavedMsg(null), 2000);
+                  flashSaved();
                 }}
-                className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-500"
+                className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
               >
                 保存
               </button>
@@ -215,39 +249,39 @@ export default function SettingsPage() {
               >
                 测试连接
               </button>
+              {info.data?.vlmConfigured && !vlmKey.trim() && (
+                <button
+                  onClick={async () => {
+                    await api.setSetting("vlm_api_key", "");
+                    queryClient.invalidateQueries({ queryKey: ["appInfo"] });
+                    flashSaved("已清除保存的 API Key");
+                  }}
+                  className="text-xs text-zinc-500 underline hover:text-red-600"
+                >
+                  清除已保存的 Key
+                </button>
+              )}
             </div>
             {vlmTest && (
               <div
                 className={`text-xs ${
                   vlmTest.startsWith("测试中") || vlmTest.startsWith("连通") || vlmTest.startsWith("获取到")
                     ? "text-emerald-600"
-                    : "text-red-500"
+                    : "text-red-600"
                 }`}
               >
                 {vlmTest}
               </div>
             )}
           </div>
-          <div className="mt-2 text-xs">
-            当前状态：
-            {info.data ? (
-              info.data.vlmConfigured ? (
-                <span className="text-emerald-600">已配置 ✓</span>
-              ) : (
-                <span className="text-zinc-400">未配置（六线谱将提示改用 Guitar Pro 导入）</span>
-              )
-            ) : (
-              "检测中…"
-            )}
-          </div>
-        </Row>
+          )}
+        </div>
 
         <Row label="数据目录" hint="曲库数据库与乐谱文件存放位置">
           <code className="block break-all rounded bg-zinc-100 px-2 py-1.5 text-xs text-zinc-600">
             {info.data?.dataDir ?? "…"}
           </code>
         </Row>
-
 
         <Row
           label="识别参数"
@@ -260,6 +294,7 @@ export default function SettingsPage() {
                 value={upscaleWidth}
                 onChange={(e) => setUpscaleWidth(e.target.value)}
                 placeholder="2400"
+                aria-label="放大目标宽度"
                 className="w-24 rounded-lg border border-zinc-200 px-2 py-1.5 text-sm outline-none focus:border-indigo-400"
               />
             </label>
@@ -269,6 +304,7 @@ export default function SettingsPage() {
                 value={audiverisArgs}
                 onChange={(e) => setAudiverisArgs(e.target.value)}
                 placeholder="留空"
+                aria-label="Audiveris 附加参数"
                 className="min-w-0 flex-1 rounded-lg border border-zinc-200 px-2 py-1.5 text-sm outline-none focus:border-indigo-400"
               />
             </label>
@@ -276,16 +312,14 @@ export default function SettingsPage() {
               onClick={async () => {
                 await api.setSetting("upscale_width", upscaleWidth);
                 await api.setSetting("audiveris_args", audiverisArgs);
-                setSavedMsg("已保存");
-                setTimeout(() => setSavedMsg(null), 2000);
+                flashSaved();
               }}
-              className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-500"
+              className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
             >
               保存
             </button>
           </div>
         </Row>
-
 
         <Row
           label="备份与恢复"
@@ -297,22 +331,14 @@ export default function SettingsPage() {
                 const target = await api.pickBackupTarget();
                 if (!target) return;
                 await api.exportBackup(target);
-                setSavedMsg("已导出备份");
-                setTimeout(() => setSavedMsg(null), 3000);
+                flashSaved("已导出备份", 3000);
               }}
               className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
             >
               导出备份…
             </button>
             <button
-              onClick={async () => {
-                if (!confirm("恢复备份将覆盖当前全部曲库数据，确定继续？")) return;
-                const source = await api.pickBackupSource();
-                if (!source) return;
-                const n = await api.importBackup(source);
-                setSavedMsg(`已恢复 ${n} 个文件，请重启应用生效`);
-                setTimeout(() => setSavedMsg(null), 6000);
-              }}
+              onClick={() => setConfirmingRestore(true)}
               className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm text-amber-700 hover:bg-amber-100"
             >
               从备份恢复…
@@ -351,6 +377,37 @@ export default function SettingsPage() {
           </ul>
         </Row>
       </div>
+
+      {/* 恢复备份确认（window.confirm 在 wry 中不可用） */}
+      <ConfirmDialog
+        open={confirmingRestore}
+        title="从备份恢复"
+        message="恢复备份将覆盖当前全部曲库数据（数据库与乐谱文件），且完成后需重启应用生效。"
+        confirmLabel="覆盖恢复"
+        busy={restoring}
+        onConfirm={async () => {
+          setRestoring(true);
+          try {
+            const source = await api.pickBackupSource();
+            if (!source) {
+              // 用户在文件选择器里取消：关掉确认框，不当作失败
+              setConfirmingRestore(false);
+              return;
+            }
+            const n = await api.importBackup(source);
+            setConfirmingRestore(false);
+            flashSaved(`已恢复 ${n} 个文件，请重启应用生效`, 6000);
+          } catch (e) {
+            setConfirmingRestore(false);
+            showToast({ message: `恢复失败：${String(e)}` }, 6000);
+          } finally {
+            setRestoring(false);
+          }
+        }}
+        onCancel={() => {
+          if (!restoring) setConfirmingRestore(false);
+        }}
+      />
     </div>
   );
 }
@@ -366,6 +423,7 @@ function ModelCombobox({
   options: string[];
 }) {
   const [open, setOpen] = useState(false);
+  useDismissOnEsc(open, () => setOpen(false));
   return (
     <div className="relative shrink-0">
       <div className="flex">
@@ -373,12 +431,14 @@ function ModelCombobox({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="模型"
+          aria-label="模型名称"
           className="w-40 rounded-l-lg border border-zinc-200 px-3 py-1.5 text-sm outline-none focus:border-indigo-400"
         />
         <button
           onClick={() => setOpen((v) => !v)}
+          aria-label="展开模型列表"
+          aria-expanded={open}
           className="rounded-r-lg border border-l-0 border-zinc-200 px-2 text-xs text-zinc-500 hover:bg-zinc-50"
-          title="展开模型列表"
         >
           ▾
         </button>
@@ -386,9 +446,13 @@ function ModelCombobox({
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full z-20 mt-1 max-h-60 w-72 overflow-auto rounded-lg border border-zinc-200 bg-white py-1 shadow-lg">
+          <div
+            role="menu"
+            aria-label="模型列表"
+            className="anim-pop-in absolute right-0 top-full z-20 mt-1 max-h-60 w-72 overflow-auto rounded-lg border border-zinc-200 bg-white py-1 shadow-lg"
+          >
             {options.length === 0 ? (
-              <div className="px-3 py-2 text-xs text-zinc-400">
+              <div className="px-3 py-2 text-xs text-zinc-500">
                 列表为空——先点「获取模型列表」，或直接手动输入
               </div>
             ) : (
@@ -400,7 +464,7 @@ function ModelCombobox({
                     setOpen(false);
                   }}
                   className={`block w-full truncate px-3 py-1.5 text-left text-sm hover:bg-zinc-50 ${
-                    m === value ? "font-medium text-indigo-600" : "text-zinc-700"
+                    m === value ? "font-semibold text-indigo-600" : "text-zinc-700"
                   }`}
                 >
                   {m}

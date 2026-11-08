@@ -4,8 +4,10 @@ import { AlphaTabApi, LayoutMode, midi, model } from "@coderline/alphatab";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, readAssetBytes, type Score } from "../lib/tauri";
 import { useUi } from "../stores/ui";
+import { useDialog, useDismissOnEsc } from "../lib/useDialog";
 import ScoreViewer from "../components/ScoreViewer";
 import PlayerBar from "../components/PlayerBar";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 interface TrackInfo {
   track: model.Track;
@@ -21,6 +23,7 @@ const INSTRUMENT_LABEL: Record<string, string> = {
 
 export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
   const openLibrary = useUi((s) => s.openLibrary);
+  const softDeleteScores = useUi((s) => s.softDeleteScores);
   const queryClient = useQueryClient();
   const [atApi, setAtApi] = useState<AlphaTabApi | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -67,13 +70,9 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
     },
   });
 
-  const del = useMutation({
-    mutationFn: () => api.deleteScore(scoreId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["scores"] });
-      openLibrary();
-    },
-  });
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [confirmingRerecognize, setConfirmingRerecognize] = useState(false);
+  const [confirmDiscardAtx, setConfirmDiscardAtx] = useState(false);
 
   const saveMeta = useMutation({
     mutationFn: () =>
@@ -122,6 +121,13 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
   const atxSyncing = useRef(false);
   const editorPages = s?.pages.length ? s.pages : s?.originalPath ? [s.originalPath] : [];
   const atxBarCount = Math.max(1, (atxDraft.match(/\|/g) || []).length);
+  // 编辑器脏检查：取消/Esc 不得静默丢弃用户改过的草稿
+  const atxBaseline = useRef("");
+  const atxDirty = atxDraft !== atxBaseline.current;
+  const closeAtxEditor = () => {
+    if (atxDirty) setConfirmDiscardAtx(true);
+    else setShowAtxEditor(false);
+  };
 
   // 校对编辑器的原图页
   useEffect(() => {
@@ -221,6 +227,46 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
   const [pageIndex, setPageIndex] = useState(0);
   const [logText, setLogText] = useState<string | null>(null);
   const [showLog, setShowLog] = useState(false);
+
+  // 键盘层：Space 播放/暂停、←/→ ±5s、Esc 逐层退出（模态 → 编辑态）
+  const positionRef = useRef(position);
+  positionRef.current = position;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (showAtxEditor) setShowAtxEditor(false);
+        else if (showLog) setShowLog(false);
+        else if (editing) setEditing(false);
+        return;
+      }
+      const t = e.target as HTMLElement | null;
+      if (
+        t &&
+        (t instanceof HTMLInputElement ||
+          t instanceof HTMLTextAreaElement ||
+          t instanceof HTMLSelectElement ||
+          t.isContentEditable)
+      ) {
+        return;
+      }
+      if (!isPlayable || !atApi?.player) return;
+      // 进度条滑杆有自己的方向键处理，全局层不重复响应
+      if (t?.getAttribute?.("role") === "slider") return;
+      if (e.key === " ") {
+        e.preventDefault();
+        if (playing) atApi.pause();
+        else atApi.play();
+      } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        e.preventDefault();
+        const { currentTimeMs, endTimeMs } = positionRef.current;
+        const end = endTimeMs > 0 ? endTimeMs : 1;
+        const next = Math.min(end, Math.max(0, currentTimeMs + (e.key === "ArrowRight" ? 5000 : -5000)));
+        atApi.player.tickPosition = Math.round((next / end) * atApi.endTick);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [atApi, playing, isPlayable, showAtxEditor, showLog, editing]);
   const pages = s?.pages ?? [];
   const originalAssetPath =
     pages.length > 0
@@ -247,6 +293,58 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
     };
   }, [originalAssetPath, s?.sourceType]);
 
+  const atxDialogRef = useDialog(showAtxEditor, closeAtxEditor);
+  const logDialogRef = useDialog(showLog, () => setShowLog(false));
+
+  const scaleValue = scale ?? 1;
+  const overflowItems = [
+    ...(s?.musicxmlPath?.endsWith(".atx")
+      ? [
+          {
+            label: "编辑谱",
+            onClick: async () => {
+              const bytes = await readAssetBytes(s.musicxmlPath!);
+              const text = new TextDecoder().decode(bytes);
+              setAtxDraft(text);
+              atxBaseline.current = text;
+              setAtxMsg(null);
+              setAtxPageIndex(0);
+              setShowAtxEditor(true);
+            },
+          },
+        ]
+      : []),
+    ...(jobs.data && jobs.data.length > 0
+      ? [
+          {
+            label: "日志",
+            onClick: async () => {
+              const last = jobs.data![0];
+              const log = await api.readJobLog(last.id);
+              setLogText(log ?? "（该任务无日志记录）");
+              setShowLog(true);
+            },
+          },
+        ]
+      : []),
+    ...(s?.status === "failed" && (s.errorMessage ?? "").includes("六线谱")
+      ? [
+          {
+            label: "找 Guitar Pro 版本 ↗",
+            onClick: () =>
+              openUrl(
+                `https://www.songsterr.com/a/wa/search?pattern=${encodeURIComponent(s.title)}`,
+              ),
+          },
+        ]
+      : []),
+    {
+      label: "删除曲谱",
+      danger: true,
+      onClick: () => setConfirmingDelete(true),
+    },
+  ];
+
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center gap-3 border-b border-zinc-200 bg-white px-5 py-3">
@@ -261,19 +359,28 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
             <input
               value={draft.title}
               onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveMeta.mutate();
+              }}
               placeholder="标题"
-              className="w-48 rounded border border-zinc-300 px-2 py-1 text-sm outline-none focus:border-indigo-400"
+              aria-label="标题"
+              className="w-48 rounded-lg border border-zinc-300 px-2 py-1 text-sm outline-none focus:border-indigo-400"
             />
             <input
               value={draft.composer}
               onChange={(e) => setDraft((d) => ({ ...d, composer: e.target.value }))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveMeta.mutate();
+              }}
               placeholder="作曲者"
-              className="w-36 rounded border border-zinc-300 px-2 py-1 text-sm outline-none focus:border-indigo-400"
+              aria-label="作曲者"
+              className="w-36 rounded-lg border border-zinc-300 px-2 py-1 text-sm outline-none focus:border-indigo-400"
             />
             <select
               value={draft.instrument}
               onChange={(e) => setDraft((d) => ({ ...d, instrument: e.target.value }))}
-              className="rounded border border-zinc-300 px-1 py-1 text-sm"
+              aria-label="乐器"
+              className="rounded-lg border border-zinc-300 px-1 py-1 text-sm"
             >
               <option value="piano">钢琴</option>
               <option value="guitar">吉他</option>
@@ -306,14 +413,15 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                     });
                     setEditing(true);
                   }}
-                  className="text-xs text-zinc-400 hover:text-indigo-600"
+                  className="text-xs text-zinc-400 transition hover:text-indigo-600"
                   title="编辑信息"
+                  aria-label="编辑信息"
                 >
                   ✎
                 </button>
               )}
             </div>
-            <div className="truncate text-xs text-zinc-400">
+            <div className="truncate text-xs text-zinc-500 select-text">
               {s ? `${INSTRUMENT_LABEL[s.instrument] ?? "其他"} · ` : ""}
               {s?.composer ? `${s.composer} · ` : ""}
               {statusText}
@@ -321,137 +429,47 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
           </div>
         )}
         <div className="flex-1" />
-        {isPlayable && (
-          <>
-            <div className="flex items-center gap-0.5 rounded-lg border border-zinc-200" title="缩放">
-              <button
-                onClick={() => {
-                  if (!atApi) return;
-                  atApi.settings.display.scale = Math.max(0.5, atApi.settings.display.scale - 0.2);
-                  atApi.updateSettings();
-                  atApi.render();
-                  setScale(atApi.settings.display.scale);
-                }}
-                className="px-2 py-1 text-sm text-zinc-600 hover:text-indigo-600"
-              >
-                −
-              </button>
-              <span className="w-10 text-center text-[11px] text-zinc-400">
-                {Math.round((scale ?? 1) * 100)}%
-              </span>
-              <button
-                onClick={() => {
-                  if (!atApi) return;
-                  atApi.settings.display.scale = Math.min(2.5, atApi.settings.display.scale + 0.2);
-                  atApi.updateSettings();
-                  atApi.render();
-                  setScale(atApi.settings.display.scale);
-                }}
-                className="px-2 py-1 text-sm text-zinc-600 hover:text-indigo-600"
-              >
-                ＋
-              </button>
-            </div>
+        {/* 次级簇（内距 8px），识别主按钮独立在簇外 12px */}
+        <div className="flex items-center gap-2">
+          {originalUrl && (
             <button
-              onClick={() => {
-                if (!atApi) return;
-                const next = layout === "page" ? LayoutMode.Horizontal : LayoutMode.Page;
-                atApi.settings.display.layoutMode = next;
-                atApi.updateSettings();
-                atApi.render();
-                setLayout(next === LayoutMode.Horizontal ? "horizontal" : "page");
-              }}
-              className="shrink-0 whitespace-nowrap rounded-lg border border-zinc-200 px-2.5 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
-              title="切换滚动方向"
+              onClick={() => setShowOriginal((v) => !v)}
+              className={`shrink-0 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-sm ${
+                showOriginal
+                  ? "border-indigo-200 bg-indigo-50 text-indigo-700"
+                  : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"
+              }`}
+              title={showOriginal ? "隐藏原图对照" : "对照原图"}
             >
-              {layout === "page" ? "⇉ 横向" : "▦ 分页"}
+              原图
             </button>
-          </>
-        )}
+          )}
+          {isPlayable && <ExportMenu onMidi={() => exportMidi()} onSource={() => exportSource()} />}
+          <OverflowMenu items={overflowItems} />
+        </div>
         {canRecognize && (
           <button
-            onClick={() => recognize.mutate()}
+            onClick={() => {
+              // 已有用户校对保存的谱文时，重识别会覆盖它——先确认
+              if (s?.musicxmlPath?.endsWith(".atx")) setConfirmingRerecognize(true);
+              else recognize.mutate();
+            }}
             disabled={s?.status === "processing"}
-            className="shrink-0 whitespace-nowrap rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+            className="shrink-0 whitespace-nowrap rounded-lg bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-500 disabled:opacity-50"
           >
             {s?.status === "processing" ? "识别中…" : s?.status === "imported" ? "开始识别" : "重新识别"}
           </button>
         )}
-        {s?.musicxmlPath?.endsWith(".atx") && (
-          <button
-            onClick={async () => {
-              const bytes = await readAssetBytes(s.musicxmlPath!);
-              setAtxDraft(new TextDecoder().decode(bytes));
-              setAtxMsg(null);
-              setAtxPageIndex(0);
-              setShowAtxEditor(true);
-            }}
-            className="shrink-0 whitespace-nowrap rounded-lg border border-zinc-200 px-2.5 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
-            title="手动校对 AI 转录的 alphaTex"
-          >
-            编辑谱
-          </button>
-        )}
-        {jobs.data && jobs.data.length > 0 && (
-          <button
-            onClick={async () => {
-              const last = jobs.data![0];
-              const log = await api.readJobLog(last.id);
-              setLogText(log ?? "（该任务无日志记录）");
-              setShowLog(true);
-            }}
-            className="shrink-0 whitespace-nowrap rounded-lg border border-zinc-200 px-2.5 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
-            title="查看最近一次识别的引擎日志"
-          >
-            日志
-          </button>
-        )}
-        {s?.status === "failed" && (s.errorMessage ?? "").includes("六线谱") && (
-          <button
-            onClick={() =>
-              openUrl(
-                `https://www.songsterr.com/a/wa/search?pattern=${encodeURIComponent(s.title)}`,
-              )
-            }
-            className="shrink-0 whitespace-nowrap rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm text-amber-700 hover:bg-amber-100"
-            title="跳转 Songsterr 搜索这首歌的 Guitar Pro 版本"
-          >
-            找 Guitar Pro 版本 ↗
-          </button>
-        )}
-        {originalUrl && (
-          <button
-            onClick={() => setShowOriginal((v) => !v)}
-            className={`shrink-0 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-sm ${
-              showOriginal
-                ? "border-indigo-200 bg-indigo-50 text-indigo-700"
-                : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"
-            }`}
-            title={showOriginal ? "隐藏原图对照" : "对照原图"}
-          >
-            原图
-          </button>
-        )}
-        {isPlayable && (
-          <ExportMenu onMidi={() => exportMidi()} onSource={() => exportSource()} />
-        )}
-        <button
-          onClick={() => del.mutate()}
-          className="shrink-0 whitespace-nowrap rounded-lg border border-zinc-200 px-2.5 py-1.5 text-sm text-zinc-400 hover:border-red-200 hover:bg-red-50 hover:text-red-500"
-          title="删除"
-        >
-          🗑
-        </button>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="relative flex min-h-0 flex-1 flex-col">
         {isPlayable ? (
           asset.isError ? (
-            <div className="grid flex-1 place-items-center text-sm text-red-500">
+            <div className="grid flex-1 place-items-center text-sm text-red-600">
               乐谱文件读取失败
             </div>
           ) : !asset.data ? (
-            <div className="grid flex-1 place-items-center text-sm text-zinc-400">加载乐谱…</div>
+            <div className="grid flex-1 place-items-center text-sm text-zinc-500">加载乐谱…</div>
           ) : (
             <ScoreViewer
               key={`${assetPath}-${loadKey}`}
@@ -474,7 +492,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
               <div className="text-zinc-500">
                 <div className="text-4xl">🔍</div>
                 <div className="mt-3 text-sm">正在识别，进度 {runningJob?.progress ?? 0}%</div>
-                <div className="mt-1 max-w-md truncate text-xs text-zinc-400">
+                <div className="mt-1 max-w-md truncate select-text text-xs text-zinc-500">
                   {runningJob?.message ?? "…"}
                 </div>
                 <button
@@ -491,7 +509,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
             ) : (
               <div className="text-zinc-500">
                 <div className="text-4xl">📄</div>
-                <div className="mt-3 text-sm">
+                <div className="mx-auto mt-3 max-w-md select-text text-sm">
                   {s?.status === "failed"
                     ? `识别失败：${s.errorMessage ?? "未知错误"}`
                     : "这份谱还没有识别，点击上方「开始识别」"}
@@ -512,6 +530,63 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
           </div>
         )}
 
+        {/* 视图控制簇（缩放 + 滚动方向），悬浮于查看器右上角 */}
+        {isPlayable && asset.data && (
+          <div
+            className="absolute right-5 top-3 z-10 flex items-center gap-0.5 rounded-lg border border-zinc-200 bg-white/95 px-1 py-0.5 shadow-sm"
+            role="group"
+            aria-label="视图控制"
+          >
+            <button
+              onClick={() => {
+                if (!atApi) return;
+                atApi.settings.display.scale = Math.max(0.5, atApi.settings.display.scale - 0.2);
+                atApi.updateSettings();
+                atApi.render();
+                setScale(atApi.settings.display.scale);
+              }}
+              disabled={scaleValue <= 0.51}
+              aria-label="缩小"
+              className="px-2 py-1 text-sm text-zinc-600 hover:text-indigo-600 disabled:opacity-40"
+            >
+              −
+            </button>
+            <span className="w-10 text-center text-micro text-zinc-500">
+              {Math.round(scaleValue * 100)}%
+            </span>
+            <button
+              onClick={() => {
+                if (!atApi) return;
+                atApi.settings.display.scale = Math.min(2.5, atApi.settings.display.scale + 0.2);
+                atApi.updateSettings();
+                atApi.render();
+                setScale(atApi.settings.display.scale);
+              }}
+              disabled={scaleValue >= 2.49}
+              aria-label="放大"
+              className="px-2 py-1 text-sm text-zinc-600 hover:text-indigo-600 disabled:opacity-40"
+            >
+              ＋
+            </button>
+            <span className="mx-1 h-4 w-px bg-zinc-200" />
+            <button
+              onClick={() => {
+                if (!atApi) return;
+                const next = layout === "page" ? LayoutMode.Horizontal : LayoutMode.Page;
+                atApi.settings.display.layoutMode = next;
+                atApi.updateSettings();
+                atApi.render();
+                setLayout(next === LayoutMode.Horizontal ? "horizontal" : "page");
+              }}
+              aria-label="切换滚动方向"
+              title="切换滚动方向"
+              className="px-2 py-1 text-xs text-zinc-600 hover:text-indigo-600"
+            >
+              {layout === "page" ? "⇉ 横向" : "▦ 分页"}
+            </button>
+          </div>
+        )}
+
         {/* 原图对照层 */}
         {showOriginal && originalUrl && (
           <div className="max-h-[40%] shrink-0 overflow-auto border-t border-zinc-200 bg-zinc-100 p-3">
@@ -522,6 +597,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                   <button
                     onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
                     disabled={pageIndex === 0}
+                    aria-label="上一页"
                     className="rounded border border-zinc-300 px-1.5 disabled:opacity-40"
                   >
                     ◀
@@ -532,6 +608,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                   <button
                     onClick={() => setPageIndex((p) => Math.min(pages.length - 1, p + 1))}
                     disabled={pageIndex >= pages.length - 1}
+                    aria-label="下一页"
                     className="rounded border border-zinc-300 px-1.5 disabled:opacity-40"
                   >
                     ▶
@@ -540,9 +617,10 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
               )}
             </div>
             {originalAssetPath?.toLowerCase().endsWith(".pdf") ? (
+              // 固定 208px：始终小于对照区最大高（min 窗约 212px），消除 iframe 嵌套双滚条
               <iframe
                 src={originalUrl}
-                className="h-96 w-full rounded border bg-white"
+                className="h-52 w-full rounded border bg-white"
                 title="原图"
               />
             ) : (
@@ -571,8 +649,14 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
         />
       )}
       {showAtxEditor && (
-        <div className="absolute inset-0 z-30 grid place-items-center bg-black/40">
-          <div className="flex h-[88%] w-[1100px] max-w-[96%] flex-col rounded-2xl bg-white p-4 shadow-xl">
+        <div className="anim-fade-in fixed inset-0 z-30 grid place-items-center bg-black/40">
+          <div
+            ref={atxDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="校对编辑器"
+            className="anim-pop-in flex h-[88%] w-[1100px] max-w-[96%] flex-col rounded-2xl bg-white p-4 shadow-xl"
+          >
             <div className="flex items-center justify-between">
               <div className="text-sm font-semibold">校对编辑器 — 原图对照 · alphaTex</div>
               <div className="flex items-center gap-3">
@@ -585,7 +669,11 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                   />
                   滚动同步
                 </label>
-                <button onClick={() => setShowAtxEditor(false)} className="text-zinc-400 hover:text-zinc-600">
+                <button
+                  onClick={closeAtxEditor}
+                  aria-label="关闭校对编辑器"
+                  className="text-zinc-400 transition hover:text-zinc-600"
+                >
                   ✕
                 </button>
               </div>
@@ -601,6 +689,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                       <button
                         onClick={() => setAtxPageIndex((p) => Math.max(0, p - 1))}
                         disabled={atxPageIndex === 0}
+                        aria-label="上一页"
                         className="rounded border border-zinc-300 px-1.5 disabled:opacity-40"
                       >
                         ◀
@@ -609,6 +698,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                       <button
                         onClick={() => setAtxPageIndex((p) => Math.min(editorPages.length - 1, p + 1))}
                         disabled={atxPageIndex >= editorPages.length - 1}
+                        aria-label="下一页"
                         className="rounded border border-zinc-300 px-1.5 disabled:opacity-40"
                       >
                         ▶
@@ -620,7 +710,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                   {atxImageUrl ? (
                     <img src={atxImageUrl} alt="原图" className="mx-auto w-full" />
                   ) : (
-                    <div className="grid h-full place-items-center text-xs text-zinc-400">无原图</div>
+                    <div className="grid h-full place-items-center text-xs text-zinc-500">无原图</div>
                   )}
                 </div>
               </div>
@@ -638,7 +728,11 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                     <input
                       value={atxJumpTo}
                       onChange={(e) => setAtxJumpTo(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") goToBar(Number(atxJumpTo));
+                      }}
                       placeholder="小节"
+                      aria-label="跳转到小节"
                       className="w-14 rounded border border-zinc-200 px-1.5 py-0.5 text-right"
                     />
                     <button
@@ -649,7 +743,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                     </button>
                   </span>
                 </div>
-                <div className="rounded-lg bg-amber-50 px-3 py-1.5 text-[11px] text-amber-700">
+                <div className="rounded-lg bg-amber-50 px-3 py-1.5 text-micro text-amber-700">
                   品.弦（5.4 = 4弦5品）· :4/:8/:16 时值 · r 休止 · x.弦 闷音 · {"{h}"}{"{p}"}{"{s}"} 击勾滑 · | 分小节
                 </div>
                 <textarea
@@ -662,19 +756,25 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                   }}
                   onScroll={(e) => syncScroll("text", e.currentTarget)}
                   spellCheck={false}
+                  autoFocus
+                  aria-label="alphaTex 谱文"
                   className="min-h-0 flex-1 resize-none p-3 font-mono text-xs leading-4 outline-none focus:border-indigo-400"
                 />
               </div>
             </div>
 
             {atxMsg && <div className="mt-1 text-xs text-emerald-600">{atxMsg}</div>}
-            <div className="mt-2 flex justify-end gap-2">
-              <button
-                onClick={() => setShowAtxEditor(false)}
-                className="rounded-lg border border-zinc-200 px-4 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
-              >
-                取消
-              </button>
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <span className="text-xs text-zinc-500">
+                {atxDirty ? "有未保存的修改" : ""}
+              </span>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={closeAtxEditor}
+                  className="rounded-lg border border-zinc-200 px-4 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
+                >
+                  取消
+                </button>
               <button
                 onClick={async () => {
                   try {
@@ -691,29 +791,131 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
               >
                 保存并刷新
               </button>
+              </div>
             </div>
           </div>
         </div>
       )}
       {showLog && (
-        <div className="absolute inset-0 z-30 grid place-items-center bg-black/40" onClick={() => setShowLog(false)}>
+        <div className="anim-fade-in fixed inset-0 z-30 grid place-items-center bg-black/40" onClick={() => setShowLog(false)}>
           <div
-            className="flex h-[80%] w-[720px] max-w-[90%] flex-col rounded-2xl bg-white p-4 shadow-xl"
+            ref={logDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="识别引擎日志"
+            className="anim-pop-in flex h-[80%] w-[720px] max-w-[90%] flex-col rounded-2xl bg-white p-4 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
               <div className="text-sm font-semibold">识别引擎日志</div>
-              <button onClick={() => setShowLog(false)} className="text-zinc-400 hover:text-zinc-600">
+              <button
+                onClick={() => setShowLog(false)}
+                aria-label="关闭日志"
+                className="text-zinc-400 transition hover:text-zinc-600"
+              >
                 ✕
               </button>
             </div>
-            <pre className="mt-3 flex-1 overflow-auto whitespace-pre-wrap rounded-lg bg-zinc-900 p-3 text-[11px] leading-4 text-zinc-100">
+            <pre className="mt-3 flex-1 overflow-auto whitespace-pre-wrap rounded-lg bg-zinc-900 p-3 text-micro text-zinc-100">
               {logText}
             </pre>
           </div>
         </div>
       )}
 
+      {/* 删除确认（window.confirm 在 wry 中不可用） */}
+      <ConfirmDialog
+        open={confirmingDelete}
+        title="删除曲谱"
+        message={`将永久删除「${s?.title ?? ""}」及其全部文件。删除后 30 秒内可在曲库撤销。`}
+        confirmLabel="删除"
+        onConfirm={() => {
+          setConfirmingDelete(false);
+          if (!s) return;
+          softDeleteScores([s.id], `「${s.title}」`, queryClient);
+          openLibrary();
+        }}
+        onCancel={() => setConfirmingDelete(false)}
+      />
+
+      {/* 重新识别守卫：覆盖已校对谱文前先确认 */}
+      <ConfirmDialog
+        open={confirmingRerecognize}
+        title="重新识别"
+        message="当前谱文包含已保存的校对内容，重新识别将用新的识别结果覆盖它。原扫描图保留。"
+        confirmLabel="覆盖并重识"
+        onConfirm={() => {
+          setConfirmingRerecognize(false);
+          recognize.mutate();
+        }}
+        onCancel={() => setConfirmingRerecognize(false)}
+      />
+
+      {/* 编辑器脏草稿守卫 */}
+      <ConfirmDialog
+        open={confirmDiscardAtx}
+        title="放弃未保存的修改？"
+        message="校对编辑器的修改尚未保存，关闭后将丢失。"
+        confirmLabel="放弃修改"
+        onConfirm={() => {
+          setConfirmDiscardAtx(false);
+          setShowAtxEditor(false);
+        }}
+        onCancel={() => setConfirmDiscardAtx(false)}
+      />
+    </div>
+  );
+}
+
+/// 「⋯」溢出菜单：收纳低频/危险操作，保持头部三锚点（识别 / 原图 / 导出）
+function OverflowMenu({
+  items,
+}: {
+  items: { label: string; danger?: boolean; onClick: () => void }[];
+}) {
+  const [open, setOpen] = useState(false);
+  useDismissOnEsc(open, () => setOpen(false));
+  return (
+    <div className="relative shrink-0">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-label="更多操作"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        className={`grid h-8 w-8 place-items-center rounded-lg border text-sm ${
+          open
+            ? "border-indigo-200 bg-indigo-50 text-indigo-700"
+            : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"
+        }`}
+      >
+        ⋯
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div
+            role="menu"
+            aria-label="更多操作"
+            className="anim-pop-in absolute right-0 top-full z-20 mt-1 w-44 rounded-lg border border-zinc-200 bg-white py-1 shadow-lg"
+          >
+            {items.map((it) => (
+              <button
+                key={it.label}
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  it.onClick();
+                }}
+                className={`block w-full truncate px-3 py-1.5 text-left text-sm hover:bg-zinc-50 ${
+                  it.danger ? "text-red-600" : "text-zinc-700"
+                }`}
+              >
+                {it.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -721,10 +923,13 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
 /// 导出下拉菜单（收拢 MIDI / 乐谱文件两个入口）
 function ExportMenu({ onMidi, onSource }: { onMidi: () => void; onSource: () => void }) {
   const [open, setOpen] = useState(false);
+  useDismissOnEsc(open, () => setOpen(false));
   return (
     <div className="relative shrink-0">
       <button
         onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="menu"
         className={`whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-sm ${
           open
             ? "border-indigo-200 bg-indigo-50 text-indigo-700"
@@ -736,8 +941,13 @@ function ExportMenu({ onMidi, onSource }: { onMidi: () => void; onSource: () => 
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded-lg border border-zinc-200 bg-white py-1 shadow-lg">
+          <div
+            role="menu"
+            aria-label="导出"
+            className="anim-pop-in absolute right-0 top-full z-20 mt-1 w-44 rounded-lg border border-zinc-200 bg-white py-1 shadow-lg"
+          >
             <button
+              role="menuitem"
               onClick={() => {
                 setOpen(false);
                 onMidi();
@@ -747,6 +957,7 @@ function ExportMenu({ onMidi, onSource }: { onMidi: () => void; onSource: () => 
               导出 MIDI
             </button>
             <button
+              role="menuitem"
               onClick={() => {
                 setOpen(false);
                 onSource();

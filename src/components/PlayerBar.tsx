@@ -34,6 +34,11 @@ export default function PlayerBar({
   if (!api || !api.player) return null;
   const pct = endTimeMs > 0 ? Math.min(100, (currentTimeMs / endTimeMs) * 100) : 0;
   const abActive = loopA !== null && loopB !== null;
+  // A-B 区间映射到进度条百分比
+  const tickToPct = (t: number | null) =>
+    t !== null && api.endTick > 0 ? (t / api.endTick) * 100 : null;
+  const aPct = tickToPct(loopA);
+  const bPct = tickToPct(loopB);
 
   const markLoop = (which: "a" | "b") => {
     const tick = api.player!.tickPosition;
@@ -56,18 +61,26 @@ export default function PlayerBar({
     setLoop(false);
   };
 
+  const seekMs = (ms: number) => {
+    if (!api?.player) return;
+    const end = endTimeMs > 0 ? endTimeMs : 1;
+    const next = Math.min(end, Math.max(0, ms));
+    api.player.tickPosition = Math.round((next / end) * api.endTick);
+  };
+
   const seek = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    api.player!.tickPosition = Math.round(ratio * api.endTick);
+    seekMs(ratio * endTimeMs);
   };
 
   return (
-    <div className="flex items-center gap-3 border-t border-zinc-200 bg-white px-4 py-2">
+    <div className="flex items-center gap-2 border-t border-zinc-200 bg-white px-4 py-2">
       <button
         onClick={() => (playing ? api.pause() : api.play())}
         className="grid h-9 w-9 place-items-center rounded-full bg-indigo-600 text-white hover:bg-indigo-500"
         title={playing ? "暂停" : "播放"}
+        aria-label={playing ? "暂停" : "播放"}
       >
         {playing ? "❚❚" : "▶"}
       </button>
@@ -75,25 +88,30 @@ export default function PlayerBar({
         onClick={() => api.stop()}
         className="grid h-8 w-8 place-items-center rounded-full border border-zinc-200 text-zinc-500 hover:bg-zinc-50"
         title="停止"
+        aria-label="停止"
       >
         ■
       </button>
-      <button
-        onClick={() => {
-          const next = !loop;
-          setLoop(next);
-          api.player!.isLooping = next;
-        }}
-        className={`grid h-8 w-8 place-items-center rounded-full border text-xs ${
-          loop
-            ? "border-indigo-300 bg-indigo-50 text-indigo-600"
-            : "border-zinc-200 text-zinc-500 hover:bg-zinc-50"
-        }`}
-        title="循环播放"
-      >
-        ⟳
-      </button>
-      <div className="flex items-center gap-0.5" title="A-B 循环：播放到目标位置时依次按下 A、B">
+      {/* 循环簇：⟳ 与 A-B 段同一分组（内距 4px），由右侧发丝线与进度区分隔 */}
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => {
+            const next = !loop;
+            setLoop(next);
+            api.player!.isLooping = next;
+          }}
+          className={`grid h-8 w-8 place-items-center rounded-full border text-xs ${
+            loop
+              ? "border-indigo-300 bg-indigo-50 text-indigo-600"
+              : "border-zinc-200 text-zinc-500 hover:bg-zinc-50"
+          }`}
+          title="循环播放"
+          aria-label="循环播放"
+          aria-pressed={loop}
+        >
+          ⟳
+        </button>
+        <div className="flex items-center gap-0.5" title="A-B 循环：播放到目标位置时依次按下 A、B">
         <button
           onClick={() => markLoop("a")}
           className={`h-8 w-7 rounded-l-md border text-xs ${
@@ -101,6 +119,7 @@ export default function PlayerBar({
               ? "border-indigo-300 bg-indigo-50 text-indigo-600"
               : "border-zinc-200 text-zinc-500 hover:bg-zinc-50"
           }`}
+          aria-label="标记 A 点"
         >
           A
         </button>
@@ -111,47 +130,92 @@ export default function PlayerBar({
               ? "border-indigo-300 bg-indigo-50 text-indigo-600"
               : "border-zinc-200 text-zinc-500 hover:bg-zinc-50"
           }`}
+          aria-label="标记 B 点"
         >
           B
         </button>
         {abActive && (
           <button
             onClick={clearAB}
-            className="ml-0.5 h-8 w-6 rounded-md border border-zinc-200 text-xs text-zinc-400 hover:bg-red-50 hover:text-red-500"
+            className="ml-0.5 h-8 w-6 rounded-md border border-zinc-200 text-xs text-zinc-400 hover:bg-red-50 hover:text-red-600"
             title="清除 A-B 循环"
+            aria-label="清除 A-B 循环"
           >
             ✕
           </button>
         )}
+        </div>
       </div>
 
-      <div className="flex-1">
-        <div className="relative h-2 cursor-pointer rounded-full bg-zinc-200" onClick={seek}>
+      <span className="mx-1 h-6 w-px shrink-0 bg-zinc-200" aria-hidden="true" />
+
+      <div className="min-w-[160px] flex-1">
+        <div
+          className="relative h-2 cursor-pointer rounded-full bg-zinc-200"
+          onClick={seek}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowLeft") {
+              e.preventDefault();
+              seekMs(currentTimeMs - 5000);
+            } else if (e.key === "ArrowRight") {
+              e.preventDefault();
+              seekMs(currentTimeMs + 5000);
+            }
+          }}
+          tabIndex={0}
+          role="slider"
+          aria-label="播放进度"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(pct)}
+          aria-valuetext={`${fmtTime(currentTimeMs)} / ${fmtTime(endTimeMs)}`}
+        >
+          {/* A-B 循环区间：未播放段显示浅靛底，与播放填充叠加后整个区间始终可辨 */}
+          {abActive && aPct !== null && bPct !== null && (
+            <div
+              className="absolute top-0 h-2 rounded-full bg-indigo-400"
+              style={{ left: `${Math.min(aPct, bPct)}%`, width: `${Math.abs(bPct - aPct)}%` }}
+              aria-hidden="true"
+            />
+          )}
           <div
             className="absolute left-0 top-0 h-2 rounded-full bg-indigo-500"
             style={{ width: `${pct}%` }}
           />
         </div>
-        <div className="mt-0.5 text-center text-[11px] text-zinc-400">
+        <div className="mt-0.5 text-center text-micro text-zinc-500">
           {fmtTime(currentTimeMs)} / {fmtTime(endTimeMs)}
         </div>
       </div>
 
-      <button
-        onClick={() => {
-          const next = !metronome;
-          setMetronome(next);
-          api.player!.metronomeVolume = next ? 0.8 : 0;
-        }}
-        className={`grid h-8 w-8 place-items-center rounded-full border text-sm ${
-          metronome
-            ? "border-amber-300 bg-amber-50 text-amber-600"
-            : "border-zinc-200 text-zinc-500 hover:bg-zinc-50"
-        }`}
-        title="节拍器"
-      >
-        🥁
-      </button>
+      <span className="mx-1 h-6 w-px shrink-0 bg-zinc-200" aria-hidden="true" />
+
+      {/* 声音与轨道簇（内距 8px） */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => {
+            const next = !metronome;
+            setMetronome(next);
+            api.player!.metronomeVolume = next ? 0.8 : 0;
+          }}
+          className={`relative grid h-8 w-8 place-items-center rounded-full border text-sm ${
+            metronome
+              ? "border-amber-300 bg-amber-50 text-amber-600"
+              : "border-zinc-200 text-zinc-500 hover:bg-zinc-50"
+          }`}
+          title="节拍器"
+          aria-label="节拍器"
+          aria-pressed={metronome}
+        >
+          {/* 北极星的「灯」：激活时节拍脉动（prefers-reduced-motion 下静止） */}
+          {metronome && (
+            <span
+              className="anim-beat pointer-events-none absolute inset-0 rounded-full border-2 border-amber-400"
+              aria-hidden="true"
+            />
+          )}
+          🥁
+        </button>
 
       <label className="flex items-center gap-1 text-xs text-zinc-500">
         速度
@@ -162,7 +226,8 @@ export default function PlayerBar({
             setSpeed(v);
             api.player!.playbackSpeed = v;
           }}
-          className="rounded border border-zinc-200 px-1 py-0.5"
+          className="rounded-lg border border-zinc-200 px-1 py-0.5"
+          aria-label="播放速度"
         >
           {[0.5, 0.75, 1, 1.25, 1.5, 2].map((v) => (
             <option key={v} value={v}>
@@ -183,27 +248,31 @@ export default function PlayerBar({
             api.player!.masterVolume = Number(e.target.value) / 100;
           }}
           className="w-20"
+          aria-label="音量"
         />
       </label>
 
-      {tracks.length > 0 && (
-        <div className="flex items-center gap-1">
-          {tracks.map(({ track, name, muted }) => (
-            <button
-              key={String(track.index)}
-              onClick={() => onToggleMute(track)}
-              className={`max-w-28 truncate rounded-md border px-2 py-1 text-xs ${
-                muted
-                  ? "border-zinc-200 text-zinc-400 line-through"
-                  : "border-indigo-200 bg-indigo-50 text-indigo-700"
-              }`}
-              title={name}
-            >
-              {name || `轨道 ${track.index + 1}`}
-            </button>
-          ))}
-        </div>
-      )}
+        {tracks.length > 0 && (
+          <div className="flex max-w-[260px] flex-wrap items-center justify-end gap-1 overflow-y-auto" style={{ maxHeight: 58 }}>
+            {tracks.map(({ track, name, muted }) => (
+              <button
+                key={String(track.index)}
+                onClick={() => onToggleMute(track)}
+                aria-label={muted ? `取消静音轨道 ${name || track.index + 1}` : `静音轨道 ${name || track.index + 1}`}
+                aria-pressed={muted}
+                className={`max-w-28 shrink-0 truncate rounded-md border px-2 py-1 text-xs ${
+                  muted
+                    ? "border-zinc-200 text-zinc-400 line-through"
+                    : "border-indigo-200 bg-indigo-50 text-indigo-700"
+                }`}
+                title={name}
+              >
+                {name || `轨道 ${track.index + 1}`}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
