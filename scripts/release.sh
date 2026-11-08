@@ -28,6 +28,14 @@ for f in package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json; do
   grep -q "$VERSION" "$f" || { echo "✗ $f 版本号更新失败"; exit 1; }
 done
 
+if [[ "${2:-}" == "--dry-run" ]]; then
+  echo "【dry-run】将执行: 三处版本号→$VERSION ✓ | commit 'release v$VERSION' | tag $TAG | push main+tag"
+  git checkout -- package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json
+  git checkout -- Cargo.lock 2>/dev/null || true
+  echo "【dry-run】版本号已还原，无副作用"
+  exit 0
+fi
+
 git add -A
 git commit -m "release v$VERSION"
 git tag -a "$TAG" -m "ScanScore $TAG"
