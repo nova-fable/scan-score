@@ -162,7 +162,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
       <header className="flex items-center gap-3 border-b border-zinc-200 bg-white px-5 py-3">
         <button
           onClick={openLibrary}
-          className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
+          className="shrink-0 whitespace-nowrap rounded-lg border border-zinc-200 px-2.5 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
         >
           ← 曲库
         </button>
@@ -231,44 +231,37 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
           </div>
         )}
         <div className="flex-1" />
-        {isPlayable && (
-          <>
-            <button
-              onClick={() => exportMidi()}
-              className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
-            >
-              导出 MIDI
-            </button>
-            <button
-              onClick={() => exportSource()}
-              className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
-            >
-              导出乐谱文件
-            </button>
-          </>
-        )}
         {canRecognize && (
           <button
             onClick={() => recognize.mutate()}
             disabled={s?.status === "processing"}
-            className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-sm text-indigo-700 hover:bg-indigo-100 disabled:opacity-50"
+            className="shrink-0 whitespace-nowrap rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
           >
-            {s?.status === "processing" ? "识别中…" : "开始识别 / 重新识别"}
+            {s?.status === "processing" ? "识别中…" : s?.status === "imported" ? "开始识别" : "重新识别"}
           </button>
         )}
         {originalUrl && (
           <button
             onClick={() => setShowOriginal((v) => !v)}
-            className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
+            className={`shrink-0 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-sm ${
+              showOriginal
+                ? "border-indigo-200 bg-indigo-50 text-indigo-700"
+                : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"
+            }`}
+            title={showOriginal ? "隐藏原图对照" : "对照原图"}
           >
-            {showOriginal ? "显示识别谱" : "对照原图"}
+            原图
           </button>
+        )}
+        {isPlayable && (
+          <ExportMenu onMidi={() => exportMidi()} onSource={() => exportSource()} />
         )}
         <button
           onClick={() => del.mutate()}
-          className="rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-500 hover:bg-red-50"
+          className="shrink-0 whitespace-nowrap rounded-lg border border-zinc-200 px-2.5 py-1.5 text-sm text-zinc-400 hover:border-red-200 hover:bg-red-50 hover:text-red-500"
+          title="删除"
         >
-          删除
+          🗑
         </button>
       </header>
 
@@ -374,6 +367,50 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
             );
           }}
         />
+      )}
+    </div>
+  );
+}
+
+/// 导出下拉菜单（收拢 MIDI / 乐谱文件两个入口）
+function ExportMenu({ onMidi, onSource }: { onMidi: () => void; onSource: () => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative shrink-0">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={`whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-sm ${
+          open
+            ? "border-indigo-200 bg-indigo-50 text-indigo-700"
+            : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"
+        }`}
+      >
+        导出 ▾
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded-lg border border-zinc-200 bg-white py-1 shadow-lg">
+            <button
+              onClick={() => {
+                setOpen(false);
+                onMidi();
+              }}
+              className="block w-full px-3 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-50"
+            >
+              导出 MIDI
+            </button>
+            <button
+              onClick={() => {
+                setOpen(false);
+                onSource();
+              }}
+              className="block w-full px-3 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-50"
+            >
+              导出乐谱文件
+            </button>
+          </div>
+        </>
       )}
     </div>
   );
