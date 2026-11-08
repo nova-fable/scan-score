@@ -7,7 +7,6 @@
 use std::path::Path;
 
 const ANALYSIS_WIDTH: u32 = 800;
-const LINE_ROW_RATIO: f64 = 0.45;
 
 /// 判断图片是否像六线谱谱面
 pub fn looks_like_tab(path: &Path) -> bool {
@@ -19,8 +18,6 @@ pub fn looks_like_tab(path: &Path) -> bool {
     let scale_w = ANALYSIS_WIDTH.min(gray.width());
     let scale_h = ((gray.height() as f64) * (scale_w as f64 / gray.width() as f64)).round() as u32;
     let small = image::imageops::resize(&gray, scale_w, scale_h.max(1), image::imageops::FilterType::Triangle);
-
-    let w = small.width();
 
     // 谱线行判据：整行中位数亮度显著低于背景。
     // 谱线横贯整行 → 行中位数=线的颜色；文字行大量空白 → 中位数仍是背景白。
