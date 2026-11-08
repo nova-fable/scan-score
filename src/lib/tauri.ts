@@ -12,6 +12,7 @@ export interface Score {
   originalPath: string | null;
   musicxmlPath: string | null;
   coverPath: string | null;
+  pages: string[];
   pageCount: number;
   errorMessage: string | null;
   createdAt: string;
@@ -67,8 +68,11 @@ export interface Setting {
 
 export const api = {
   pickImportFiles: () => invoke<string[]>("pick_import_files"),
+  pickImportFolder: () => invoke<string | null>("pick_import_folder"),
+  listFolderScores: (folder: string) => invoke<string[]>("list_folder_scores", { folder }),
   importFiles: (paths: string[]) =>
     invoke<{ imported: Score[]; skipped: string[] }>("import_files", { paths }),
+  importMerged: (paths: string[]) => invoke<Score>("import_merged", { paths }),
   listScores: (query?: ScoreQuery) =>
     invoke<Score[]>("list_scores", { query: query ?? null }),
   getScore: (id: string) => invoke<Score | null>("get_score", { id }),

@@ -133,21 +133,27 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
     }
   }, [s, runningJob]);
 
-  // 原图对照（pdf/png 源）
+  // 原图对照（pdf/png 源；多页合并曲谱支持翻页）
   const [originalUrl, setOriginalUrl] = useState<string | null>(null);
   const [showOriginal, setShowOriginal] = useState(false);
+  const [pageIndex, setPageIndex] = useState(0);
+  const pages = s?.pages ?? [];
+  const originalAssetPath =
+    pages.length > 0
+      ? (pages[Math.min(pageIndex, pages.length - 1)] ?? null)
+      : (s?.originalPath ?? null);
   useEffect(() => {
-    if (!s?.originalPath || !["png", "jpg", "pdf"].includes(s.sourceType)) return;
+    if (!originalAssetPath || !["png", "jpg", "pdf"].includes(s?.sourceType ?? "")) return;
     let url: string | null = null;
     api
-      .readScoreAsset(s.originalPath)
+      .readScoreAsset(originalAssetPath)
       .then((bytes) => {
-        const mime =
-          s.sourceType === "pdf"
-            ? "application/pdf"
-            : s.sourceType === "png"
-              ? "image/png"
-              : "image/jpeg";
+        const lower = originalAssetPath.toLowerCase();
+        const mime = lower.endsWith(".pdf")
+          ? "application/pdf"
+          : lower.endsWith(".jpg") || lower.endsWith(".jpeg")
+            ? "image/jpeg"
+            : "image/png";
         url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: mime }));
         setOriginalUrl(url);
       })
@@ -155,7 +161,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
     return () => {
       if (url) URL.revokeObjectURL(url);
     };
-  }, [s?.originalPath, s?.sourceType]);
+  }, [originalAssetPath, s?.sourceType]);
 
   return (
     <div className="flex h-full flex-col">
@@ -336,8 +342,31 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
         {/* 原图对照层 */}
         {showOriginal && originalUrl && (
           <div className="max-h-[40%] shrink-0 overflow-auto border-t border-zinc-200 bg-zinc-100 p-3">
-            <div className="mb-1 text-xs text-zinc-500">原图对照</div>
-            {s?.sourceType === "pdf" ? (
+            <div className="mb-1 flex items-center gap-2 text-xs text-zinc-500">
+              <span>原图对照</span>
+              {pages.length > 1 && (
+                <span className="flex items-center gap-1">
+                  <button
+                    onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
+                    disabled={pageIndex === 0}
+                    className="rounded border border-zinc-300 px-1.5 disabled:opacity-40"
+                  >
+                    ◀
+                  </button>
+                  <span>
+                    第 {Math.min(pageIndex, pages.length - 1) + 1} / {pages.length} 页
+                  </span>
+                  <button
+                    onClick={() => setPageIndex((p) => Math.min(pages.length - 1, p + 1))}
+                    disabled={pageIndex >= pages.length - 1}
+                    className="rounded border border-zinc-300 px-1.5 disabled:opacity-40"
+                  >
+                    ▶
+                  </button>
+                </span>
+              )}
+            </div>
+            {originalAssetPath?.toLowerCase().endsWith(".pdf") ? (
               <iframe
                 src={originalUrl}
                 className="h-96 w-full rounded border bg-white"

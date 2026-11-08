@@ -116,6 +116,8 @@ export default function LibraryPage() {
   const [dragging, setDragging] = useState(false);
   const [importMsg, setImportMsg] = useState<string | null>(null);
   const dropDepth = useRef(0);
+  const [folderFiles, setFolderFiles] = useState<string[] | null>(null);
+  const [mergeChecked, setMergeChecked] = useState(true);
 
   const scores = useQuery({
     queryKey: ["scores", search, instrument],
@@ -133,6 +135,20 @@ export default function LibraryPage() {
         setImportMsg(`已导入 ${res.imported.length} 个文件${res.skipped.length ? `，跳过 ${res.skipped.length} 个` : ""}`);
         setTimeout(() => setImportMsg(null), 4000);
       }
+    },
+  });
+
+  const doImportMerged = useMutation({
+    mutationFn: (paths: string[]) => api.importMerged(paths),
+    onSuccess: () => {
+      setFolderFiles(null);
+      queryClient.invalidateQueries({ queryKey: ["scores"] });
+      setImportMsg("已合并导入为一首曲子（待识别）");
+      setTimeout(() => setImportMsg(null), 4000);
+    },
+    onError: (e) => {
+      setImportMsg(`合并导入失败：${String(e)}`);
+      setTimeout(() => setImportMsg(null), 5000);
     },
   });
 
@@ -187,6 +203,23 @@ export default function LibraryPage() {
         <div className="flex-1" />
         <button
           onClick={async () => {
+            const folder = await api.pickImportFolder();
+            if (!folder) return;
+            const files = await api.listFolderScores(folder);
+            if (!files.length) {
+              setImportMsg("文件夹里没有找到乐谱图片 / PDF");
+              setTimeout(() => setImportMsg(null), 4000);
+              return;
+            }
+            setMergeChecked(files.length > 1);
+            setFolderFiles(files);
+          }}
+          className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-700 hover:bg-indigo-100"
+        >
+          导入文件夹
+        </button>
+        <button
+          onClick={async () => {
             const paths = await api.pickImportFiles();
             doImport.mutate(paths);
           }}
@@ -226,6 +259,63 @@ export default function LibraryPage() {
       {importMsg && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-lg bg-zinc-800 px-4 py-2 text-sm text-white shadow">
           {importMsg}
+        </div>
+      )}
+
+      {/* 文件夹导入弹窗 */}
+      {folderFiles && (
+        <div className="absolute inset-0 z-20 grid place-items-center bg-black/30">
+          <div className="w-[420px] rounded-2xl bg-white p-5 shadow-xl">
+            <div className="text-base font-semibold">导入文件夹</div>
+            <div className="mt-1 text-xs text-zinc-400">
+              检测到 {folderFiles.length} 个乐谱文件
+            </div>
+            <div className="mt-3 max-h-40 overflow-auto rounded-lg border border-zinc-100 bg-zinc-50 p-2 text-xs text-zinc-600">
+              {folderFiles.map((f) => (
+                <div key={f} className="truncate py-0.5">
+                  {f.split("/").pop()}
+                </div>
+              ))}
+            </div>
+            {folderFiles.length > 1 && (
+              <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg border border-zinc-200 p-3 text-sm hover:bg-zinc-50">
+                <input
+                  type="checkbox"
+                  checked={mergeChecked}
+                  onChange={(e) => setMergeChecked(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 accent-indigo-600"
+                />
+                <span>
+                  <span className="font-medium">合并为一首曲子</span>
+                  <span className="block text-xs text-zinc-400">
+                    多张图片按文件名顺序拼接成连续谱面，一次识别（适合分页扫描的同一首）
+                  </span>
+                </span>
+              </label>
+            )}
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setFolderFiles(null)}
+                className="rounded-lg border border-zinc-200 px-4 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => {
+                  if (mergeChecked && folderFiles.length > 1) {
+                    doImportMerged.mutate(folderFiles);
+                  } else {
+                    doImport.mutate(folderFiles);
+                    setFolderFiles(null);
+                  }
+                }}
+                disabled={doImportMerged.isPending}
+                className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+              >
+                {doImportMerged.isPending ? "导入中…" : "导入"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
