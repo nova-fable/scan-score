@@ -34,3 +34,6 @@ src-tauri/resources/engine/
 
 # impeccable 每开发者私有配置（hook consent 等），不入库
 .impeccable/config.local.json
+
+# impeccable skill 为 npx 安装的第三方工具(19MB 含引擎)，不入库：npx impeccable install 可重装
+.agents/skills/impeccable/

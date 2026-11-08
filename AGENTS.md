@@ -71,7 +71,7 @@
 ## Skill 位置
 
 - ZCode 项目级 skill 读 `<repo>/.zcode/skills/` 与 `<repo>/.agents/skills/`（后者是跨工具标准，Claude/Copilot/Hermes 等也读），用户级在 `~/.agents/skills/`
-- impeccable（前端设计规范 skill，v4.8）装在 `.agents/skills/impeccable/`（跨工具共享，单一来源）；`.github/` 下 Copilot 专属副本已移除——如需 Copilot 支持重跑 `npx impeccable install` 选 GitHub 目标
+- impeccable（前端设计规范 skill，v4.8）装在 `.agents/skills/impeccable/`（跨工具共享，单一来源），**不入库**（19MB 含引擎，npx 安装物）——新环境重跑 `npx impeccable install` 即可；`.github/` 下 Copilot 专属副本已移除——如需 Copilot 支持重跑 `npx impeccable install` 选 GitHub 目标
 - 同名 skill 按发现顺序第一个生效：user .zcode → user .agents → workspace .zcode → workspace .agents → 插件
 
 ## 工作方式（用户明确要求过的）
