@@ -122,13 +122,16 @@ pub fn resolve_engine(state: &AppState) -> Result<EngineConfig, OmrError> {
 }
 
 /// 组装 Audiveris 批处理命令参数（5.11 实测验证：位置参数即可）
-pub fn build_args(inputs: &[PathBuf], out_dir: &Path) -> Vec<String> {
+pub fn build_args(inputs: &[PathBuf], out_dir: &Path, extra_args: &[String]) -> Vec<String> {
     let mut args = vec![
         "-batch".to_string(),
         "-export".to_string(),
         "-output".to_string(),
         out_dir.to_string_lossy().into_owned(),
     ];
+    for extra in extra_args {
+        args.push(extra.clone());
+    }
     for input in inputs {
         args.push(input.to_string_lossy().into_owned());
     }
@@ -137,9 +140,10 @@ pub fn build_args(inputs: &[PathBuf], out_dir: &Path) -> Vec<String> {
 
 /// 识别输入预处理：低分辨率图片自动放大（Audiveris 要求谱线间距 ≥ 约12px，300DPI 最优）。
 /// PDF 不处理（内部自带矢量信息）。放大失败时静默回退原图。
-pub fn prepare_input(input: &Path) -> PathBuf {
+pub fn prepare_input(input: &Path, target_width: u32) -> PathBuf {
     const MIN_WIDTH: u32 = 1600;
-    const TARGET_WIDTH: u32 = 2400;
+    const DEFAULT_TARGET_WIDTH: u32 = 2400;
+    let target_width = if target_width >= 1200 { target_width } else { DEFAULT_TARGET_WIDTH };
     let is_pdf = input
         .extension()
         .map(|e| e.to_string_lossy().to_lowercase() == "pdf")
@@ -153,7 +157,7 @@ pub fn prepare_input(input: &Path) -> PathBuf {
             let upscaled = input.with_extension("upscaled.png");
             let ok = std::process::Command::new("sips")
                 .arg("--resampleWidth")
-                .arg(TARGET_WIDTH.to_string())
+                .arg(target_width.to_string())
                 .arg(input)
                 .arg("--out")
                 .arg(&upscaled)
@@ -161,7 +165,7 @@ pub fn prepare_input(input: &Path) -> PathBuf {
                 .map(|o| o.status.success() && upscaled.exists())
                 .unwrap_or(false);
             if ok {
-                log::info!("识别输入分辨率 {w}px 偏低，已放大至 {TARGET_WIDTH}px");
+                log::info!("识别输入分辨率 {w}px 偏低，已放大至 {target_width}px");
                 upscaled
             } else {
                 log::warn!("图片放大失败，用原图识别");
@@ -181,6 +185,7 @@ pub fn run_batch(
     out_dir: &Path,
     cancel: Arc<CancelState>,
     log_path: &Path,
+    extra_args: &[String],
     on_progress: impl Fn(i64, &str) + Send + 'static,
 ) -> Result<Vec<PathBuf>, OmrError> {
     for input in inputs {
@@ -212,7 +217,7 @@ pub fn run_batch(
     };
 
     let mut child: Child = Command::new(&engine.launcher)
-        .args(build_args(inputs, out_dir))
+        .args(build_args(inputs, out_dir, extra_args))
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -470,8 +475,28 @@ fn execute_job(
         return execute_tab_via_ai(state, job, score, &raw_input, &out_dir, &log_path);
     }
 
+    // 识别参数（设置页可调）
+    let upscale_width: u32 = state
+        .db
+        .get_setting("upscale_width")
+        .ok()
+        .flatten()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(2400);
+    let extra_args: Vec<String> = state
+        .db
+        .get_setting("audiveris_args")
+        .ok()
+        .flatten()
+        .map(|v| {
+            v.split_whitespace()
+                .map(|s| s.to_string())
+                .collect()
+        })
+        .unwrap_or_default();
+
     // 低分辨率图片自动放大后再送识别
-    let input = prepare_input(&raw_input);
+    let input = prepare_input(&raw_input, upscale_width);
 
     let db = Arc::clone(&state.db);
     let app = state.app_handle.clone();
@@ -486,6 +511,7 @@ fn execute_job(
         &out_dir,
         cancel,
         &log_path,
+        &extra_args,
         move |progress, line| {
         log::info!("[audiveris] {line}");
         let _ = db.update_job(&job_id, "running", progress, Some(line));

@@ -44,6 +44,8 @@ export default function SettingsPage() {
   const [vlmModel, setVlmModel] = useState("");
   const [vlmModels, setVlmModels] = useState<string[]>([]);
   const [vlmThinking, setVlmThinking] = useState("on");
+  const [upscaleWidth, setUpscaleWidth] = useState("");
+  const [audiverisArgs, setAudiverisArgs] = useState("");
   const [vlmTest, setVlmTest] = useState<string | null>(null);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
   const [appVersion, setAppVersion] = useState<string | null>(null);
@@ -59,6 +61,8 @@ export default function SettingsPage() {
       setVlmKey(settings.data.find((s) => s.key === "vlm_api_key")?.value ?? "");
       setVlmModel(settings.data.find((s) => s.key === "vlm_model")?.value ?? "");
       setVlmThinking(settings.data.find((s) => s.key === "vlm_thinking")?.value ?? "on");
+      setUpscaleWidth(settings.data.find((s) => s.key === "upscale_width")?.value ?? "");
+      setAudiverisArgs(settings.data.find((s) => s.key === "audiveris_args")?.value ?? "");
     }
   }, [settings.data]);
 
@@ -242,6 +246,44 @@ export default function SettingsPage() {
           <code className="block break-all rounded bg-zinc-100 px-2 py-1.5 text-xs text-zinc-600">
             {info.data?.dataDir ?? "…"}
           </code>
+        </Row>
+
+
+        <Row
+          label="识别参数"
+          hint="低分辨率图片自动放大的目标宽度（谱线间距越大约识别越稳，默认 2400px）；Audiveris 附加命令行参数（留空即可）。"
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-1 text-xs text-zinc-500">
+              放大宽度
+              <input
+                value={upscaleWidth}
+                onChange={(e) => setUpscaleWidth(e.target.value)}
+                placeholder="2400"
+                className="w-24 rounded-lg border border-zinc-200 px-2 py-1.5 text-sm outline-none focus:border-indigo-400"
+              />
+            </label>
+            <label className="flex min-w-0 flex-1 items-center gap-1 text-xs text-zinc-500">
+              附加参数
+              <input
+                value={audiverisArgs}
+                onChange={(e) => setAudiverisArgs(e.target.value)}
+                placeholder="留空"
+                className="min-w-0 flex-1 rounded-lg border border-zinc-200 px-2 py-1.5 text-sm outline-none focus:border-indigo-400"
+              />
+            </label>
+            <button
+              onClick={async () => {
+                await api.setSetting("upscale_width", upscaleWidth);
+                await api.setSetting("audiveris_args", audiverisArgs);
+                setSavedMsg("已保存");
+                setTimeout(() => setSavedMsg(null), 2000);
+              }}
+              className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-500"
+            >
+              保存
+            </button>
+          </div>
         </Row>
 
         <Row label="关于" hint={`ScanScore v${appVersion ?? "…"}`}>

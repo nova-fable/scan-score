@@ -38,7 +38,7 @@ fn test_full_recognition_pipeline() {
 
     let cancel = CancelState::new();
     let log_path = out_dir.join("test.log");
-    let produced = run_batch(&engine, &[input], &out_dir, cancel, &log_path, |_, _| {})
+    let produced = run_batch(&engine, &[input], &out_dir, cancel, &log_path, &[], |_, _| {})
         .expect("识别失败");
 
     assert!(!produced.is_empty(), "未产出 .mxl");

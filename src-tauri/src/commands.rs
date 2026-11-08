@@ -472,7 +472,7 @@ pub fn list_jobs(score_id: Option<String>, state: Ctx) -> Result<Vec<Job>, Strin
 
 #[tauri::command]
 pub fn get_settings(state: Ctx) -> Result<Vec<Setting>, String> {
-    let keys = ["engine_path", "vlm_api_base", "vlm_api_key", "vlm_model", "vlm_thinking"];
+    let keys = ["engine_path", "vlm_api_base", "vlm_api_key", "vlm_model", "vlm_thinking", "upscale_width", "audiveris_args"];
     Ok(keys
         .iter()
         .filter_map(|k| {
@@ -490,7 +490,7 @@ pub fn get_settings(state: Ctx) -> Result<Vec<Setting>, String> {
 pub fn set_setting(key: String, value: String, state: Ctx) -> Result<(), String> {
     if !matches!(
         key.as_str(),
-        "engine_path" | "vlm_api_base" | "vlm_api_key" | "vlm_model" | "vlm_thinking"
+        "engine_path" | "vlm_api_base" | "vlm_api_key" | "vlm_model" | "vlm_thinking" | "upscale_width" | "audiveris_args"
     ) {
         return Err(format!("未知设置项: {key}"));
     }
