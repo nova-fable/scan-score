@@ -67,7 +67,21 @@ jobs:
               "$DEST/tessdata/eng.traineddata"
           fi
       - run: npm ci
-      - run: npm run tauri build
+      - name: Build app
+        shell: bash
+        run: |
+          set -eo pipefail
+          npm run tauri build 2>&1 | tee "$RUNNER_TEMP/build.log"
+      - name: Build log tail (debug)
+        if: failure()
+        shell: bash
+        run: |
+          [ -f "$RUNNER_TEMP/build.log" ] || exit 0
+          { echo "### tauri build tail (macos)"
+            echo '```'
+            tail -n 80 "$RUNNER_TEMP/build.log"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
           name: ScanScore-macos-dmg
@@ -127,7 +141,21 @@ jobs:
             Fetch "https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata" "$dest/tessdata/eng.traineddata"
           }
       - run: npm ci
-      - run: npm run tauri build
+      - name: Build app
+        shell: bash
+        run: |
+          set -eo pipefail
+          npm run tauri build 2>&1 | tee "$RUNNER_TEMP/build.log"
+      - name: Build log tail (debug)
+        if: failure()
+        shell: bash
+        run: |
+          [ -f "$RUNNER_TEMP/build.log" ] || exit 0
+          { echo "### tauri build tail (windows)"
+            echo '```'
+            tail -n 80 "$RUNNER_TEMP/build.log"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
           name: ScanScore-windows

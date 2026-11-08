@@ -61,6 +61,14 @@
 - 前端拖拽监听（`getCurrentWebview().onDragDropEvent`）在纯浏览器预览会抛异常——必须 try/catch 包住，否则 React 整树崩掉（白屏）
 - **重复构建时报 `Permission denied (os error 13)`，日志停在 `TAURI_ENV_TARGET_TRIPLE` 后**：Tauri 复制 Audiveris/JRE 资源时保留 `0444` 权限，下次 `fs::copy` 无法覆盖生成副本。`build_support.rs` 在复制前仅为 Cargo 输出目录 `resources/engine` 内的普通文件补 owner-write，保留执行位、不跟随符号链接、不修改源码资源；不要只手动 chmod 一次（下次复制又会变只读）。回归测试：在 `src-tauri` 下运行 `cargo test --test build_resources`
 
+## CI 打包（2026-11 实测）
+
+- `src-tauri/resources/engine/`（185MB，gitignore）CI 里没人拷贝——工作流在构建前从 **Audiveris 官方 Release** 拉取：macOS 挂载 dmg 拷 `.app`，Windows `msiexec /a` 管理提取得 `bin/Audiveris.exe`+JRE；tessdata 用 tessdata 主仓库 legacy 包。按 `engine-<版本>-<平台>` 进 actions/cache，只有首跑下载。**Audiveris 的 Release tag 无 `v` 前缀**（`releases/download/5.11.0/...`），拼 `v5.11.0` 会 404
+- **`macos-14` runner 已退役**，报错是 `The configuration 'macos-14-arm64-us-default' is not supported`（内部区域标签）——用 `macos-15`
+- **curl 大文件从 GitHub Releases 下载会被中途 reset（exit 56），且不在 `--retry` 的瞬态错误清单里**（只覆盖超时/HTTP 408/429/5xx）——要 `--retry-all-errors` + `-C -` 断点续传 + 外层重试循环
+- `msiexec /a` 的 `TARGETDIR` 要 **Windows 反斜杠 + 尾反斜杠**；但尾反斜杠紧跟引号会转义引号（`\"`）——路径无空格时干脆不加引号
+- 诊断 CI 失败不依赖 gh 登录：build 步骤 `tee` 日志、失败时 `tail` 进 `$GITHUB_STEP_SUMMARY`（公开可读）
+
 ## 发布流程
 
 - 版本号存在三处：package.json / src-tauri/Cargo.toml / src-tauri/tauri.conf.json（+ Cargo.lock）——**不要手改**，跑 `bash scripts/release.sh x.y.z`（校验工作区干净/远端不分叉/tag 不重复，push 失败自动走 7890 代理）
