@@ -37,3 +37,6 @@ src-tauri/resources/engine/
 
 # impeccable skill 为 npx 安装的第三方工具(19MB 含引擎)，不入库：npx impeccable install 可重装
 .agents/skills/impeccable/
+
+# Temporary SQLite DBs
+/src-tauri/:memtest_*
