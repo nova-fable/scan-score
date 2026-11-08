@@ -58,33 +58,54 @@ const SYSTEM_PROMPT: &str = r#"你是吉他六线谱(TAB)转录专家。把图�
 pub fn transcribe_tab(image_path: &Path, cfg: &VlmConfig) -> Result<String, String> {
     let data_url = encode_image_data_url(image_path)?;
 
-    let body = serde_json::json!({
-        "model": cfg.model,
-        "temperature": 0.2,
-        "max_tokens": 8192,
-        "messages": [
-            { "role": "system", "content": SYSTEM_PROMPT },
-            { "role": "user", "content": [
-                { "type": "image_url", "image_url": { "url": data_url } },
-                { "type": "text", "text": "请把这张六线谱图转录为 alphaTex。" }
-            ]}
-        ]
-    });
-
     let url = format!("{}/chat/completions", cfg.api_base);
     let client = reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(180))
+        .timeout(std::time::Duration::from_secs(300))
         .build()
         .map_err(|e| e.to_string())?;
-    let resp = client
-        .post(&url)
-        .header("Authorization", format!("Bearer {}", cfg.api_key))
-        .json(&body)
-        .send()
-        .map_err(|e| format!("请求识别服务失败: {e}"))?;
 
-    let status = resp.status();
-    let text = resp.text().map_err(|e| e.to_string())?;
+    let make_body = |thinking: bool| {
+        let mut body = serde_json::json!({
+            "model": cfg.model,
+            "temperature": 0.2,
+            "max_tokens": 8192,
+            "messages": [
+                { "role": "system", "content": SYSTEM_PROMPT },
+                { "role": "user", "content": [
+                    { "type": "image_url", "image_url": { "url": data_url } },
+                    { "type": "text", "text": "请把这张六线谱图转录为 alphaTex。" }
+                ]}
+            ]
+        });
+        // 推理型模型（如 deepseek-flash）会把输出预算耗在思考上导致空 content；
+        // 支持该参数的端点关闭思考，不认识的端点由 400 回退处理
+        if thinking {
+            body["thinking"] = serde_json::json!({ "type": "disabled" });
+        }
+        body
+    };
+
+    let send = |body: &serde_json::Value| -> Result<(reqwest::StatusCode, String), String> {
+        let resp = client
+            .post(&url)
+            .header("Authorization", format!("Bearer {}", cfg.api_key))
+            .json(body)
+            .send()
+            .map_err(|e| format!("请求识别服务失败: {e}"))?;
+        let status = resp.status();
+        let text = resp.text().map_err(|e| e.to_string())?;
+        Ok((status, text))
+    };
+
+    let (mut status, mut text) = send(&make_body(true))?;
+    if status == reqwest::StatusCode::BAD_REQUEST {
+        // 严格端点不认识 thinking 字段 → 去掉重试
+        log::info!("端点拒绝 thinking 参数，去掉后重试");
+        let (s2, t2) = send(&make_body(false))?;
+        status = s2;
+        text = t2;
+    }
+
     if !status.is_success() {
         return Err(format!(
             "识别服务返回 {status}: {}",
@@ -96,7 +117,14 @@ pub fn transcribe_tab(image_path: &Path, cfg: &VlmConfig) -> Result<String, Stri
         serde_json::from_str(&text).map_err(|e| format!("响应解析失败: {e}"))?;
     let content = json["choices"][0]["message"]["content"]
         .as_str()
-        .ok_or_else(|| format!("响应缺少 content: {}", text.chars().take(200).collect::<String>()))?;
+        .unwrap_or("")
+        .trim();
+    if content.is_empty() {
+        let finish = json["choices"][0]["finish_reason"].as_str().unwrap_or("?");
+        return Err(format!(
+            "模型返回了空内容 (finish_reason={finish})——若为推理型模型，请在服务端关闭思考模式或改用非推理模型（如 deepseek-chat / glm-4.6v）"
+        ));
+    }
 
     Ok(normalize_alpha_tex(content))
 }
