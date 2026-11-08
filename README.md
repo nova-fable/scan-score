@@ -8,7 +8,7 @@
 - **框架**：Tauri 2 + React 19 + TypeScript + Vite + Tailwind CSS
 - **OMR 识别**：Audiveris 5.11（独立进程 CLI 批处理，输出 MusicXML/.mxl）
 - **乐谱渲染与播放**：[alphaTab](https://alphatab.net)（SVG 渲染 + WebAudio 合成器）
-- **PDF 光栅化**：pdfium-render（封面缩略图/页数）
+- **PDF 处理**：macOS 内置 `sips` / `mdls`（封面缩略图/页数，零外部依赖）
 - **存储**：SQLite（rusqlite），数据目录 `~/Library/Application Support/com.dsjerry.scan-score/`
 
 ## 开发
@@ -24,7 +24,6 @@ cargo test            # 在 src-tauri 下跑 Rust 单测
 | 变量 | 作用 |
 |---|---|
 | `AUDIVERIS_CMD` | Audiveris 启动器路径（如 `/Applications/Audiveris.app/Contents/MacOS/Audiveris`） |
-| `PDFIUM_DYLIB` | pdfium 动态库路径（如 bblanchon/pdfium-binaries 的 `pdfium.dylib`） |
 
 也可在应用「设置」页里持久化配置（存 SQLite settings 表）。
 

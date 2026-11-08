@@ -26,13 +26,11 @@ export default function SettingsPage() {
   const settings = useQuery({ queryKey: ["settings"], queryFn: () => api.getSettings() });
 
   const [enginePath, setEnginePath] = useState("");
-  const [pdfiumPath, setPdfiumPath] = useState("");
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (settings.data) {
       setEnginePath(settings.data.find((s) => s.key === "engine_path")?.value ?? "");
-      setPdfiumPath(settings.data.find((s) => s.key === "pdfium_path")?.value ?? "");
     }
   }, [settings.data]);
 
@@ -79,38 +77,6 @@ export default function SettingsPage() {
                 <span className="text-emerald-600">已找到 ✓ {info.data.enginePath}</span>
               ) : (
                 <span className="text-red-500">未找到 ✗（请安装 Audiveris 或填写路径）</span>
-              )
-            ) : (
-              "检测中…"
-            )}
-          </div>
-        </Row>
-
-        <Row
-          label="pdfium 动态库路径"
-          hint="用于 PDF 光栅化与封面生成。留空自动探测：PDFIUM_DYLIB 环境变量 → 应用资源 → 可执行文件目录。"
-        >
-          <div className="flex gap-2">
-            <input
-              value={pdfiumPath}
-              onChange={(e) => setPdfiumPath(e.target.value)}
-              placeholder="自动探测"
-              className="flex-1 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm outline-none focus:border-indigo-400"
-            />
-            <button
-              onClick={() => save("pdfium_path", pdfiumPath)}
-              className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-500"
-            >
-              保存
-            </button>
-          </div>
-          <div className="mt-2 text-xs">
-            当前状态：
-            {info.data ? (
-              info.data.pdfiumFound ? (
-                <span className="text-emerald-600">已绑定 ✓</span>
-              ) : (
-                <span className="text-amber-600">未绑定（PDF 封面/页数功能不可用）</span>
               )
             ) : (
               "检测中…"

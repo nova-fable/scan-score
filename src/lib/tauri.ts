@@ -58,7 +58,6 @@ export interface AppInfo {
   resourceDir: string | null;
   engineFound: boolean;
   enginePath: string | null;
-  pdfiumFound: boolean;
 }
 
 export interface Setting {

@@ -236,7 +236,7 @@ fn convert_to_png(src: &Path, target: &Path) -> bool {
         .unwrap_or(false)
 }
 
-/// 导入文件：复制进应用数据目录并建立曲库条目（含 pdfium 封面渲染，放后台线程）。
+/// 导入文件：复制进应用数据目录并建立曲库条目（含 PDF 封面渲染，放后台线程）。
 /// - MusicXML/GP：立即可用 (status=ready)
 /// - PDF/图片：待识别 (status=imported)
 #[tauri::command]
@@ -289,18 +289,14 @@ fn import_files_impl(state: &AppState, paths: Vec<String>) -> Result<ImportResul
         let mut cover_path = None;
         let mut page_count = 0i64;
         if source_type == "pdf" {
-            if let Ok(pdfium) = bind_pdfium(state) {
-                if let Ok(n) = pdf::page_count(&pdfium, &original) {
-                    page_count = n as i64;
-                }
-                let cover = state.data_dir.join("covers").join(format!("{id}.png"));
-                let _ = std::fs::create_dir_all(cover.parent().unwrap());
-                match pdf::render_first_page(&pdfium, &original, &cover, 400) {
-                    Ok(()) => cover_path = Some(cover.to_string_lossy().into_owned()),
-                    Err(e) => log::warn!("封面生成失败: {e}"),
-                }
-            } else {
-                log::warn!("pdfium 未绑定，跳过 PDF 页数/封面");
+            if let Some(n) = pdf::page_count(&original) {
+                page_count = n;
+            }
+            let cover = state.data_dir.join("covers").join(format!("{id}.png"));
+            let _ = std::fs::create_dir_all(cover.parent().unwrap());
+            match pdf::render_first_page(&original, &cover) {
+                Ok(()) => cover_path = Some(cover.to_string_lossy().into_owned()),
+                Err(e) => log::warn!("封面生成失败: {e}"),
             }
         } else if matches!(source_type, "png" | "jpg") {
             // 图片源直接用原图做封面
@@ -363,21 +359,6 @@ fn import_files_impl(state: &AppState, paths: Vec<String>) -> Result<ImportResul
     }
 
     Ok(ImportResult { imported, skipped })
-}
-
-fn bind_pdfium(state: &AppState) -> Result<pdfium_render::prelude::Pdfium, pdf::PdfError> {
-    let explicit = state
-        .db
-        .get_setting("pdfium_path")
-        .ok()
-        .flatten()
-        .map(PathBuf::from);
-    let lib = pdf::find_pdfium_lib(
-        explicit.as_deref(),
-        state.resource_dir.as_deref(),
-    )
-    .ok_or(pdf::PdfError::NotBound("无候选路径".into()))?;
-    pdf::open_pdfium(&lib)
 }
 
 // ---------------------------------------------------------------------------
@@ -491,7 +472,7 @@ pub fn list_jobs(score_id: Option<String>, state: Ctx) -> Result<Vec<Job>, Strin
 
 #[tauri::command]
 pub fn get_settings(state: Ctx) -> Result<Vec<Setting>, String> {
-    let keys = ["engine_path", "pdfium_path"];
+    let keys = ["engine_path"];
     Ok(keys
         .iter()
         .filter_map(|k| {
@@ -507,7 +488,7 @@ pub fn get_settings(state: Ctx) -> Result<Vec<Setting>, String> {
 
 #[tauri::command]
 pub fn set_setting(key: String, value: String, state: Ctx) -> Result<(), String> {
-    if !matches!(key.as_str(), "engine_path" | "pdfium_path") {
+    if !matches!(key.as_str(), "engine_path") {
         return Err(format!("未知设置项: {key}"));
     }
     state.db.set_setting(&key, &value).map_err(err)
@@ -520,13 +501,11 @@ pub struct AppInfo {
     pub resource_dir: Option<String>,
     pub engine_found: bool,
     pub engine_path: Option<String>,
-    pub pdfium_found: bool,
 }
 
 #[tauri::command]
 pub fn get_app_info(state: Ctx) -> Result<AppInfo, String> {
     let engine = omr::resolve_engine(state.inner()).ok();
-    let pdfium_found = bind_pdfium(state.inner()).is_ok();
     Ok(AppInfo {
         data_dir: state.data_dir.to_string_lossy().into_owned(),
         resource_dir: state
@@ -535,7 +514,6 @@ pub fn get_app_info(state: Ctx) -> Result<AppInfo, String> {
             .map(|p| p.to_string_lossy().into_owned()),
         engine_found: engine.is_some(),
         engine_path: engine.map(|c| c.launcher.to_string_lossy().into_owned()),
-        pdfium_found,
     })
 }
 
