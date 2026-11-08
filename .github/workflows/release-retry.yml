@@ -1,0 +1,45 @@
+name: Release Retry
+
+# 补救通道：Build 工作流在 tag 上创建 Release 失败时，push 本文件重试。
+# Release 建成后本工作流幂等退出（已存在 → no-op）。
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/release-retry.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create release for latest v* tag from its Build run artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -e
+          TAG=$(gh api "repos/$REPO/git/matching-refs/tags/v" --jq '.[-1].ref' | sed 's|refs/tags/||')
+          echo "tag: $TAG"
+          if gh release view "$TAG" -R "$REPO" >/dev/null 2>&1; then
+            echo "Release $TAG already exists — nothing to do."
+            exit 0
+          fi
+          RUN_ID=$(gh run list -R "$REPO" -w Build -b "$TAG" -L 5 \
+            --json databaseId,conclusion \
+            --jq '[.[] | select(.conclusion=="success")][0].databaseId')
+          echo "build run: $RUN_ID"
+          rm -rf dist
+          gh run download "$RUN_ID" -R "$REPO" -D dist
+          find dist -type f
+          ASSETS=$(find dist -type f | tr '\n' ' ')
+          if ! OUT=$(gh release create "$TAG" $ASSETS \
+              --title "ScanScore $TAG" \
+              --generate-notes -R "$REPO" 2>&1); then
+            echo "::error::gh release create failed: ${OUT:0:900}"
+            exit 1
+          fi
+          echo "created: $OUT"
