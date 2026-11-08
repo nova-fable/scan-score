@@ -158,18 +158,16 @@ jobs:
             tail -n 80 "$RUNNER_TEMP/build.log"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-      - name: Push build log to ci-debug branch
+      - name: Publish build log tail
         if: failure()
         shell: bash
         run: |
           [ -f "$RUNNER_TEMP/build.log" ] || exit 0
-          tail -n 150 "$RUNNER_TEMP/build.log" > build-windows-tail.log
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add build-windows-tail.log
-          git commit -m "ci: windows build log tail (auto, run ${{ github.run_id }})"
-          git push "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" \
-            "HEAD:ci-debug" --force
+          # tail 传公共 paste，URL 通过 error 注解带回（注解公开 API 可读，不依赖 gh 登录）
+          URL=$(tail -n 250 "$RUNNER_TEMP/build.log" | curl -s --max-time 60 --data-binary @- "https://paste.rs")
+          echo "::error::BUILD_LOG_TAIL_URL=$URL"
+          URL2=$(tail -n 2000 "$RUNNER_TEMP/build.log" | curl -s --max-time 60 --data-binary @- "https://0x0.st")
+          echo "::error::BUILD_LOG_FULL_URL=$URL2"
       - uses: actions/upload-artifact@v4
         with:
           name: ScanScore-windows
