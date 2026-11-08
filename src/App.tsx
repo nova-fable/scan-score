@@ -11,9 +11,7 @@ function Sidebar() {
   return (
     <aside className="flex w-52 shrink-0 flex-col border-r border-zinc-200 bg-white">
       <div className="flex items-center gap-2 px-4 py-4">
-        <span className="grid h-8 w-8 place-items-center rounded-lg bg-indigo-600 text-white">
-          ♪
-        </span>
+        <img src="/app-icon.png" alt="" className="h-9 w-9 shrink-0" />
         <div>
           <div className="text-sm font-semibold">ScanScore</div>
           <div className="text-xs text-zinc-400">曲谱扫描与播放</div>
