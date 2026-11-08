@@ -84,9 +84,13 @@ bash scripts/release.sh 0.3.0   # 统一改版本号 → 打 tag → 推送 → 
 
 更多工程细节与踩坑笔记：[AGENTS.md](AGENTS.md)。
 
+## 🤝 贡献
+
+Issue 与 PR 均欢迎——提交前请读[贡献指南](CONTRIBUTING.md)与 [AGENTS.md](AGENTS.md)（工程踩坑笔记）。
+
 ## 📄 许可
 
-- 本项目代码：MIT
+- 本项目代码：[MIT](LICENSE)
 - [Audiveris](https://github.com/Audiveris/audiveris)：AGPL-3.0，以独立进程方式调用；商用分发前请自行确认合规
 - [alphaTab](https://alphatab.net)：MIT
 - 音源：GeneralUser GS（S. Christian Collins，免费分发）· SONiVOX EAS（Apache-2.0）

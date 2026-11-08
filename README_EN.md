@@ -84,9 +84,13 @@ Key modules:
 
 More engineering notes and pitfalls: [AGENTS.md](AGENTS.md).
 
+## 🤝 Contributing
+
+Issues and PRs are welcome — please read [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md) (engineering pitfalls) first.
+
 ## 📄 License
 
-- This project: MIT
+- This project: [MIT](LICENSE)
 - [Audiveris](https://github.com/Audiveris/audiveris): AGPL-3.0, invoked as a separate process — verify compliance before commercial redistribution
 - [alphaTab](https://alphatab.net): MIT
 - Soundfonts: GeneralUser GS (by S. Christian Collins, free to redistribute) · SONiVOX EAS (Apache-2.0)
