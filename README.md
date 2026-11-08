@@ -1,4 +1,7 @@
-# ScanScore — 乐谱扫描与播放
+<div align="center">
+  <img src="public/app-icon.png" width="128" alt="ScanScore 图标" />
+  <h1>ScanScore — 乐谱扫描与播放</h1>
+</div>
 
 桌面应用：导入乐谱 → 识别 → 曲库 → 浏览与播放。
 
