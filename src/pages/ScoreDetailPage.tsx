@@ -140,6 +140,8 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
   const [originalUrl, setOriginalUrl] = useState<string | null>(null);
   const [showOriginal, setShowOriginal] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
+  const [logText, setLogText] = useState<string | null>(null);
+  const [showLog, setShowLog] = useState(false);
   const pages = s?.pages ?? [];
   const originalAssetPath =
     pages.length > 0
@@ -294,6 +296,20 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
             className="shrink-0 whitespace-nowrap rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
           >
             {s?.status === "processing" ? "识别中…" : s?.status === "imported" ? "开始识别" : "重新识别"}
+          </button>
+        )}
+        {jobs.data && jobs.data.length > 0 && (
+          <button
+            onClick={async () => {
+              const last = jobs.data![0];
+              const log = await api.readJobLog(last.id);
+              setLogText(log ?? "（该任务无日志记录）");
+              setShowLog(true);
+            }}
+            className="shrink-0 whitespace-nowrap rounded-lg border border-zinc-200 px-2.5 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
+            title="查看最近一次识别的引擎日志"
+          >
+            日志
           </button>
         )}
         {s?.status === "failed" && (s.errorMessage ?? "").includes("六线谱") && (
@@ -460,6 +476,25 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
           }}
         />
       )}
+      {showLog && (
+        <div className="absolute inset-0 z-30 grid place-items-center bg-black/40" onClick={() => setShowLog(false)}>
+          <div
+            className="flex h-[80%] w-[720px] max-w-[90%] flex-col rounded-2xl bg-white p-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-semibold">识别引擎日志</div>
+              <button onClick={() => setShowLog(false)} className="text-zinc-400 hover:text-zinc-600">
+                ✕
+              </button>
+            </div>
+            <pre className="mt-3 flex-1 overflow-auto whitespace-pre-wrap rounded-lg bg-zinc-900 p-3 text-[11px] leading-4 text-zinc-100">
+              {logText}
+            </pre>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

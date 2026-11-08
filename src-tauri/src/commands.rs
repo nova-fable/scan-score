@@ -601,6 +601,25 @@ pub async fn test_vlm_connection(
     .map_err(err)?
 }
 
+/// 读取识别任务的引擎日志
+#[tauri::command]
+pub fn read_job_log(job_id: String, state: Ctx) -> Result<Option<String>, String> {
+    let job = state
+        .db
+        .get_job(&job_id)
+        .map_err(err)?
+        .ok_or_else(|| "任务不存在".to_string())?;
+    let log_path = state
+        .data_dir
+        .join("scores")
+        .join(&job.score_id)
+        .join(format!("job-{job_id}.log"));
+    if !log_path.exists() {
+        return Ok(None);
+    }
+    Some(std::fs::read_to_string(&log_path).map_err(err)).transpose()
+}
+
 /// 测试事件通道（开发用）
 #[tauri::command]
 pub fn emit_test_progress(state: Ctx) -> Result<(), String> {

@@ -173,12 +173,14 @@ pub fn prepare_input(input: &Path) -> PathBuf {
 }
 
 /// 单次批处理执行：流式读取 stdout，回调进度；可取消（SIGTERM 子进程）。
+/// 引擎输出全文写入 log_path（供 UI 查看）。
 /// 返回本次运行产出的 .mxl 文件列表（按 mtime ≥ 运行开始判定，兼容重跑覆盖同名文件的场景）。
 pub fn run_batch(
     engine: &EngineConfig,
     inputs: &[PathBuf],
     out_dir: &Path,
     cancel: Arc<CancelState>,
+    log_path: &Path,
     on_progress: impl Fn(i64, &str) + Send + 'static,
 ) -> Result<Vec<PathBuf>, OmrError> {
     for input in inputs {
@@ -188,6 +190,9 @@ pub fn run_batch(
     }
     let _ = std::fs::create_dir_all(out_dir);
     let run_started = std::time::SystemTime::now() - std::time::Duration::from_secs(2);
+    let log_file = std::fs::File::create(log_path)?;
+    let log_writer = std::io::BufWriter::new(log_file);
+    let log_shared = Arc::new(Mutex::new(log_writer));
 
     // 引擎日志尾部环形缓冲（失败时附到错误信息里）
     let log_tail: Arc<Mutex<std::collections::VecDeque<String>>> =
@@ -239,6 +244,12 @@ pub fn run_batch(
     let tail_out = Arc::clone(&log_tail);
     let reader = thread::spawn(move || {
         for line in BufReader::new(stdout).lines().map_while(Result::ok) {
+            {
+                if let Ok(mut w) = log_shared.lock() {
+                    use std::io::Write;
+                    let _ = writeln!(w, "{line}");
+                }
+            }
             push_tail(line.clone(), &tail_out);
             // 粗粒度进度：处理中的步骤日志 → 50；导出 → 95
             let progress = if line.contains("Exporting") || line.contains("Exported") {
@@ -254,6 +265,12 @@ pub fn run_batch(
         }
         for line in BufReader::new(stderr).lines().map_while(Result::ok) {
             log::warn!("[audiveris:err] {line}");
+            {
+                if let Ok(mut w) = log_shared.lock() {
+                    use std::io::Write;
+                    let _ = writeln!(w, "[stderr] {line}");
+                }
+            }
             push_tail(line, &tail_out);
         }
     });
@@ -451,7 +468,14 @@ fn execute_job(
     let queue = Arc::clone(&state.queue);
     let cancel_for_cb = Arc::clone(&cancel);
 
-    let produced = run_batch(&engine, std::slice::from_ref(&input), &out_dir, cancel, move |progress, line| {
+    let log_path = out_dir.join(format!("job-{}.log", job.id));
+    let produced = run_batch(
+        &engine,
+        std::slice::from_ref(&input),
+        &out_dir,
+        cancel,
+        &log_path,
+        move |progress, line| {
         log::info!("[audiveris] {line}");
         let _ = db.update_job(&job_id, "running", progress, Some(line));
         let _ = app.emit(
@@ -481,6 +505,12 @@ fn execute_job(
     // 六线谱（TAB）检出：优先尝试云端多模态识别（若已配置），否则报错提示
     if mxl::count_pitched_notes(&xml_text) < 10 {
         log::info!("识别结果几乎无音符，疑似六线谱输入");
+        {
+            use std::io::Write;
+            if let Ok(mut w) = std::fs::OpenOptions::new().append(true).open(&log_path) {
+                let _ = writeln!(w, "\n=== TAB 检出 ===");
+            }
+        }
         if let Some(cfg) = vlm::load_config(&state.db) {
             let msg = if cfg.thinking {
                 "六线谱检出，AI 识别中（推理模式约需 1-5 分钟）…"
@@ -502,6 +532,13 @@ fn execute_job(
                 Ok(tex) if vlm::looks_like_alpha_tex(&tex) => {
                     let atx_path = out_dir.join("score.atx");
                     std::fs::write(&atx_path, &tex)?;
+                    {
+                        use std::io::Write;
+                        if let Ok(mut w) = std::fs::OpenOptions::new().append(true).open(&log_path) {
+                            let _ = writeln!(w, "=== AI 识别成功 (alphaTex {} 字符) ===", tex.len());
+                            let _ = writeln!(w, "{tex}");
+                        }
+                    }
                     state.db.update_score_recognition(
                         &score.id,
                         &atx_path.to_string_lossy(),
@@ -514,10 +551,22 @@ fn execute_job(
                 }
                 Ok(_) => {
                     log::warn!("AI 输出不像 alphaTex，按失败处理");
+                    {
+                        use std::io::Write;
+                        if let Ok(mut w) = std::fs::OpenOptions::new().append(true).open(&log_path) {
+                            let _ = writeln!(w, "=== AI 输出不像 alphaTex，按失败处理 ===");
+                        }
+                    }
                     return Err(OmrError::TabNotRecognized);
                 }
                 Err(e) => {
                     log::warn!("AI 六线谱识别失败: {e}");
+                    {
+                        use std::io::Write;
+                        if let Ok(mut w) = std::fs::OpenOptions::new().append(true).open(&log_path) {
+                            let _ = writeln!(w, "=== AI 六线谱识别失败: {e} ===");
+                        }
+                    }
                     return Err(OmrError::AiTabFailed(e));
                 }
             }

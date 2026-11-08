@@ -60,6 +60,7 @@ pub fn run() {
             commands::start_recognition,
             commands::cancel_recognition,
             commands::list_jobs,
+            commands::read_job_log,
             commands::get_settings,
             commands::set_setting,
             commands::test_vlm_connection,
