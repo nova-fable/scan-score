@@ -85,6 +85,8 @@ export const api = {
   cancelRecognition: (jobId: string) => invoke<void>("cancel_recognition", { jobId }),
   listJobs: (scoreId?: string) => invoke<Job[]>("list_jobs", { scoreId: scoreId ?? null }),
   readJobLog: (jobId: string) => invoke<string | null>("read_job_log", { jobId }),
+  saveAlphaTex: (scoreId: string, content: string) =>
+    invoke<Score>("save_alpha_tex", { scoreId, content }),
   getSettings: () => invoke<Setting[]>("get_settings"),
   setSetting: (key: string, value: string) => invoke<void>("set_setting", { key, value }),
   getAppInfo: () => invoke<AppInfo>("get_app_info"),

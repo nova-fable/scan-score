@@ -62,6 +62,7 @@ pub fn run() {
             commands::cancel_recognition,
             commands::list_jobs,
             commands::read_job_log,
+            commands::save_alpha_tex,
             commands::get_settings,
             commands::set_setting,
             commands::test_vlm_connection,

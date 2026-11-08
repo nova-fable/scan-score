@@ -142,6 +142,9 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
   const [pageIndex, setPageIndex] = useState(0);
   const [logText, setLogText] = useState<string | null>(null);
   const [showLog, setShowLog] = useState(false);
+  const [showAtxEditor, setShowAtxEditor] = useState(false);
+  const [atxDraft, setAtxDraft] = useState("");
+  const [atxMsg, setAtxMsg] = useState<string | null>(null);
   const pages = s?.pages ?? [];
   const originalAssetPath =
     pages.length > 0
@@ -296,6 +299,20 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
             className="shrink-0 whitespace-nowrap rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
           >
             {s?.status === "processing" ? "识别中…" : s?.status === "imported" ? "开始识别" : "重新识别"}
+          </button>
+        )}
+        {s?.musicxmlPath?.endsWith(".atx") && (
+          <button
+            onClick={async () => {
+              const bytes = await readAssetBytes(s.musicxmlPath!);
+              setAtxDraft(new TextDecoder().decode(bytes));
+              setAtxMsg(null);
+              setShowAtxEditor(true);
+            }}
+            className="shrink-0 whitespace-nowrap rounded-lg border border-zinc-200 px-2.5 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
+            title="手动校对 AI 转录的 alphaTex"
+          >
+            编辑谱
           </button>
         )}
         {jobs.data && jobs.data.length > 0 && (
@@ -475,6 +492,52 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
             );
           }}
         />
+      )}
+      {showAtxEditor && (
+        <div className="absolute inset-0 z-30 grid place-items-center bg-black/40">
+          <div className="flex h-[85%] w-[860px] max-w-[95%] flex-col rounded-2xl bg-white p-4 shadow-xl">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-semibold">编辑 alphaTex（AI 转录结果校对）</div>
+              <button onClick={() => setShowAtxEditor(false)} className="text-zinc-400 hover:text-zinc-600">
+                ✕
+              </button>
+            </div>
+            <div className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              语法：品.弦（如 5.4 = 4弦5品），:4/:8/:16 时值前缀，r 休止，x.弦 闷音，{"{h}"}{"{p}"}{"{s}"} 击勾滑，| 分小节。保存后立即重新渲染。
+            </div>
+            <textarea
+              value={atxDraft}
+              onChange={(e) => setAtxDraft(e.target.value)}
+              spellCheck={false}
+              className="mt-2 flex-1 resize-none rounded-lg border border-zinc-200 p-3 font-mono text-xs outline-none focus:border-indigo-400"
+            />
+            {atxMsg && <div className="mt-1 text-xs text-emerald-600">{atxMsg}</div>}
+            <div className="mt-2 flex justify-end gap-2">
+              <button
+                onClick={() => setShowAtxEditor(false)}
+                className="rounded-lg border border-zinc-200 px-4 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    await api.saveAlphaTex(scoreId, atxDraft);
+                    setAtxMsg("已保存");
+                    setShowAtxEditor(false);
+                    setLoadKey((k) => k + 1); // 强制重新渲染
+                    queryClient.invalidateQueries({ queryKey: ["asset"] });
+                  } catch (e) {
+                    setAtxMsg(`保存失败：${String(e)}`);
+                  }
+                }}
+                className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm text-white hover:bg-indigo-500"
+              >
+                保存并刷新
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       {showLog && (
         <div className="absolute inset-0 z-30 grid place-items-center bg-black/40" onClick={() => setShowLog(false)}>

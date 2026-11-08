@@ -620,6 +620,30 @@ pub fn read_job_log(job_id: String, state: Ctx) -> Result<Option<String>, String
     Some(std::fs::read_to_string(&log_path).map_err(err)).transpose()
 }
 
+
+/// 保存 AI 六线谱产出的 alphaTex（人工校对）
+#[tauri::command]
+pub fn save_alpha_tex(score_id: String, content: String, state: Ctx) -> Result<Score, String> {
+    let score = state
+        .db
+        .get_score(&score_id)
+        .map_err(err)?
+        .ok_or_else(|| "条目不存在".to_string())?;
+    let atx = score
+        .musicxml_path
+        .filter(|p| p.ends_with(".atx"))
+        .ok_or_else(|| "该曲谱不是 alphaTex（仅支持 AI 六线谱识别结果）".to_string())?;
+    if !content.trim_start().starts_with('\\') {
+        return Err("内容不是合法的 alphaTex（应以 \\ 开头）".into());
+    }
+    std::fs::write(&atx, &content).map_err(err)?;
+    state
+        .db
+        .get_score(&score_id)
+        .map_err(err)?
+        .ok_or_else(|| "条目不存在".into())
+}
+
 /// 测试事件通道（开发用）
 #[tauri::command]
 pub fn emit_test_progress(state: Ctx) -> Result<(), String> {
