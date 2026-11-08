@@ -109,6 +109,85 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
     }
   };
 
+  const [showAtxEditor, setShowAtxEditor] = useState(false);
+  const [atxDraft, setAtxDraft] = useState("");
+  const [atxMsg, setAtxMsg] = useState<string | null>(null);
+  const [atxPageIndex, setAtxPageIndex] = useState(0);
+  const [atxSync, setAtxSync] = useState(true);
+  const [atxImageUrl, setAtxImageUrl] = useState<string | null>(null);
+  const [atxCaretBar, setAtxCaretBar] = useState(0);
+  const [atxJumpTo, setAtxJumpTo] = useState("");
+  const atxTextRef = useRef<HTMLTextAreaElement>(null);
+  const atxImgRef = useRef<HTMLDivElement>(null);
+  const atxSyncing = useRef(false);
+  const editorPages = s?.pages.length ? s.pages : s?.originalPath ? [s.originalPath] : [];
+  const atxBarCount = Math.max(1, (atxDraft.match(/\|/g) || []).length);
+
+  // 校对编辑器的原图页
+  useEffect(() => {
+    if (!showAtxEditor) return;
+    const path = editorPages.length
+      ? (editorPages[Math.min(atxPageIndex, editorPages.length - 1)] ?? null)
+      : null;
+    if (!path) {
+      setAtxImageUrl(null);
+      return;
+    }
+    let url: string | null = null;
+    api
+      .readScoreAsset(path)
+      .then((bytes) => {
+        url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: "image/png" }));
+        setAtxImageUrl(url);
+      })
+      .catch(() => setAtxImageUrl(null));
+    return () => {
+      if (url) URL.revokeObjectURL(url);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showAtxEditor, atxPageIndex]);
+
+  // 滚动同步（比例映射，双向；用标记防循环）
+  const syncScroll = (source: "text" | "img", el: HTMLTextAreaElement | HTMLDivElement) => {
+    if (!atxSync || atxSyncing.current) return;
+    const maxSelf = el.scrollHeight - el.clientHeight;
+    if (maxSelf <= 0) return;
+    const ratio = el.scrollTop / maxSelf;
+    atxSyncing.current = true;
+    if (source === "text" && atxImgRef.current) {
+      const img = atxImgRef.current;
+      img.scrollTop = ratio * (img.scrollHeight - img.clientHeight);
+    } else if (source === "img" && atxTextRef.current) {
+      const tx = atxTextRef.current;
+      tx.scrollTop = ratio * (tx.scrollHeight - tx.clientHeight);
+    }
+    requestAnimationFrame(() => {
+      atxSyncing.current = false;
+    });
+  };
+
+  // 小节跳转：移动光标到第 n 小节起始并滚动编辑区
+  const goToBar = (n: number) => {
+    if (!Number.isFinite(n) || n < 1 || !atxTextRef.current) return;
+    let offset = 0;
+    let seen = 1;
+    if (n > 1) {
+      const text = atxDraft;
+      let idx = -1;
+      for (let k = 0; k < n - 1; k++) {
+        idx = text.indexOf("|", idx + 1);
+        if (idx === -1) break;
+        seen = k + 2;
+      }
+      offset = idx === -1 ? text.length : idx + 2;
+    }
+    const line = atxDraft.slice(0, Math.min(offset, atxDraft.length)).split("\n").length - 1;
+    atxTextRef.current.focus();
+    atxTextRef.current.setSelectionRange(Math.min(offset, atxDraft.length), Math.min(offset, atxDraft.length));
+    atxTextRef.current.scrollTop = Math.max(0, line * 16 - 40);
+    setAtxCaretBar(seen);
+  };
+
   // 识别产物路径变化 → 强制刷新资产并重载
   const prevMxlRef = useRef<string | null>(null);
   useEffect(() => {
@@ -142,9 +221,6 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
   const [pageIndex, setPageIndex] = useState(0);
   const [logText, setLogText] = useState<string | null>(null);
   const [showLog, setShowLog] = useState(false);
-  const [showAtxEditor, setShowAtxEditor] = useState(false);
-  const [atxDraft, setAtxDraft] = useState("");
-  const [atxMsg, setAtxMsg] = useState<string | null>(null);
   const pages = s?.pages ?? [];
   const originalAssetPath =
     pages.length > 0
@@ -307,6 +383,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
               const bytes = await readAssetBytes(s.musicxmlPath!);
               setAtxDraft(new TextDecoder().decode(bytes));
               setAtxMsg(null);
+              setAtxPageIndex(0);
               setShowAtxEditor(true);
             }}
             className="shrink-0 whitespace-nowrap rounded-lg border border-zinc-200 px-2.5 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
@@ -495,22 +572,101 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
       )}
       {showAtxEditor && (
         <div className="absolute inset-0 z-30 grid place-items-center bg-black/40">
-          <div className="flex h-[85%] w-[860px] max-w-[95%] flex-col rounded-2xl bg-white p-4 shadow-xl">
+          <div className="flex h-[88%] w-[1100px] max-w-[96%] flex-col rounded-2xl bg-white p-4 shadow-xl">
             <div className="flex items-center justify-between">
-              <div className="text-sm font-semibold">编辑 alphaTex（AI 转录结果校对）</div>
-              <button onClick={() => setShowAtxEditor(false)} className="text-zinc-400 hover:text-zinc-600">
-                ✕
-              </button>
+              <div className="text-sm font-semibold">校对编辑器 — 原图对照 · alphaTex</div>
+              <div className="flex items-center gap-3">
+                <label className="flex cursor-pointer items-center gap-1 text-xs text-zinc-500">
+                  <input
+                    type="checkbox"
+                    checked={atxSync}
+                    onChange={(e) => setAtxSync(e.target.checked)}
+                    className="h-3.5 w-3.5 accent-indigo-600"
+                  />
+                  滚动同步
+                </label>
+                <button onClick={() => setShowAtxEditor(false)} className="text-zinc-400 hover:text-zinc-600">
+                  ✕
+                </button>
+              </div>
             </div>
-            <div className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-              语法：品.弦（如 5.4 = 4弦5品），:4/:8/:16 时值前缀，r 休止，x.弦 闷音，{"{h}"}{"{p}"}{"{s}"} 击勾滑，| 分小节。保存后立即重新渲染。
+
+            <div className="mt-2 flex min-h-0 flex-1 gap-3">
+              {/* 左：原图对照 */}
+              <div className="flex w-1/2 min-w-0 flex-col rounded-lg border border-zinc-200 bg-zinc-50">
+                <div className="flex items-center justify-between border-b border-zinc-100 px-2 py-1.5 text-xs text-zinc-500">
+                  <span>原始扫描图</span>
+                  {editorPages.length > 1 && (
+                    <span className="flex items-center gap-1">
+                      <button
+                        onClick={() => setAtxPageIndex((p) => Math.max(0, p - 1))}
+                        disabled={atxPageIndex === 0}
+                        className="rounded border border-zinc-300 px-1.5 disabled:opacity-40"
+                      >
+                        ◀
+                      </button>
+                      第 {atxPageIndex + 1} / {editorPages.length} 页
+                      <button
+                        onClick={() => setAtxPageIndex((p) => Math.min(editorPages.length - 1, p + 1))}
+                        disabled={atxPageIndex >= editorPages.length - 1}
+                        className="rounded border border-zinc-300 px-1.5 disabled:opacity-40"
+                      >
+                        ▶
+                      </button>
+                    </span>
+                  )}
+                </div>
+                <div ref={atxImgRef} className="min-h-0 flex-1 overflow-auto p-2">
+                  {atxImageUrl ? (
+                    <img src={atxImageUrl} alt="原图" className="mx-auto w-full" />
+                  ) : (
+                    <div className="grid h-full place-items-center text-xs text-zinc-400">无原图</div>
+                  )}
+                </div>
+              </div>
+
+              {/* 右：alphaTex 编辑区 */}
+              <div className="flex w-1/2 min-w-0 flex-col rounded-lg border border-zinc-200">
+                <div className="flex items-center justify-between border-b border-zinc-100 px-2 py-1.5 text-xs text-zinc-500">
+                  <span>
+                    alphaTex · 共 {atxBarCount} 小节
+                    {atxCaretBar > 0 && (
+                      <span className="ml-2 text-indigo-500">光标在第 {atxCaretBar} 小节</span>
+                    )}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <input
+                      value={atxJumpTo}
+                      onChange={(e) => setAtxJumpTo(e.target.value)}
+                      placeholder="小节"
+                      className="w-14 rounded border border-zinc-200 px-1.5 py-0.5 text-right"
+                    />
+                    <button
+                      onClick={() => goToBar(Number(atxJumpTo))}
+                      className="rounded border border-zinc-200 px-1.5 py-0.5 hover:bg-zinc-50"
+                    >
+                      跳转
+                    </button>
+                  </span>
+                </div>
+                <div className="rounded-lg bg-amber-50 px-3 py-1.5 text-[11px] text-amber-700">
+                  品.弦（5.4 = 4弦5品）· :4/:8/:16 时值 · r 休止 · x.弦 闷音 · {"{h}"}{"{p}"}{"{s}"} 击勾滑 · | 分小节
+                </div>
+                <textarea
+                  ref={atxTextRef}
+                  value={atxDraft}
+                  onChange={(e) => setAtxDraft(e.target.value)}
+                  onSelect={(e) => {
+                    const pos = (e.target as HTMLTextAreaElement).selectionStart;
+                    setAtxCaretBar(atxDraft.slice(0, pos).split("|").length);
+                  }}
+                  onScroll={(e) => syncScroll("text", e.currentTarget)}
+                  spellCheck={false}
+                  className="min-h-0 flex-1 resize-none p-3 font-mono text-xs leading-4 outline-none focus:border-indigo-400"
+                />
+              </div>
             </div>
-            <textarea
-              value={atxDraft}
-              onChange={(e) => setAtxDraft(e.target.value)}
-              spellCheck={false}
-              className="mt-2 flex-1 resize-none rounded-lg border border-zinc-200 p-3 font-mono text-xs outline-none focus:border-indigo-400"
-            />
+
             {atxMsg && <div className="mt-1 text-xs text-emerald-600">{atxMsg}</div>}
             <div className="mt-2 flex justify-end gap-2">
               <button
@@ -525,7 +681,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                     await api.saveAlphaTex(scoreId, atxDraft);
                     setAtxMsg("已保存");
                     setShowAtxEditor(false);
-                    setLoadKey((k) => k + 1); // 强制重新渲染
+                    setLoadKey((k) => k + 1);
                     queryClient.invalidateQueries({ queryKey: ["asset"] });
                   } catch (e) {
                     setAtxMsg(`保存失败：${String(e)}`);
