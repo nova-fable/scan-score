@@ -21,6 +21,10 @@ const INSTRUMENT_LABEL: Record<string, string> = {
   other: "其他",
 };
 
+/// 导出文件名消毒：Windows 禁用字符（/ \ : * ? " < > |）与首尾空白
+const safeName = (s: string) =>
+  s.replace(/[\\/:*?"<>|]/g, "_").trim().replace(/^\.+/, "_") || "score";
+
 export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
   const openLibrary = useUi((s) => s.openLibrary);
   const softDeleteScores = useUi((s) => s.softDeleteScores);
@@ -92,7 +96,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
     const generator = new midi.MidiFileGenerator(score, null, handler);
     generator.generate();
     const bytes = midiFile.toBinary();
-    const target = await api.pickSavePath(`${s?.title ?? "score"}.mid`, "mid");
+    const target = await api.pickSavePath(`${safeName(s?.title ?? "score")}.mid`, "mid");
     if (target) {
       await api.writeExportBytes(target, bytes);
     }
@@ -102,7 +106,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
     if (!s) return;
     const isGp = s.sourceType === "gp";
     const ext = isGp ? "gp" : "xml";
-    const target = await api.pickSavePath(`${s.title}.${ext}`, ext);
+    const target = await api.pickSavePath(`${safeName(s.title)}.${ext}`, ext);
     if (target) {
       await api.exportScoreSource(s.id, target);
     }

@@ -30,6 +30,7 @@ export default function PlayerBar({
   const [loopA, setLoopA] = useState<number | null>(null);
   const [loopB, setLoopB] = useState<number | null>(null);
   const [metronome, setMetronome] = useState(false);
+  const [volume, setVolume] = useState(100);
 
   if (!api || !api.player) return null;
   const pct = endTimeMs > 0 ? Math.min(100, (currentTimeMs / endTimeMs) * 100) : 0;
@@ -243,9 +244,11 @@ export default function PlayerBar({
           type="range"
           min={0}
           max={100}
-          defaultValue={100}
+          value={volume}
           onChange={(e) => {
-            api.player!.masterVolume = Number(e.target.value) / 100;
+            const v = Number(e.target.value);
+            setVolume(v);
+            api.player!.masterVolume = v / 100;
           }}
           className="w-20"
           aria-label="音量"

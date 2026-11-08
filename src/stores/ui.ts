@@ -23,11 +23,15 @@ interface UiState {
   openSettings: () => void;
   showToast: (toast: ToastState, durationMs?: number) => void;
   dismissToast: () => void;
+  pauseToast: () => void;
+  resumeToast: () => void;
   softDeleteScores: (ids: string[], label: string, queryClient: QueryClient) => void;
   undoPendingDelete: () => void;
 }
 
 let toastTimer: number | undefined;
+let toastRemaining = 0;
+let toastDeadline = 0;
 let deleteTimer: number | undefined;
 let pendingQueryClient: QueryClient | null = null;
 
@@ -66,6 +70,8 @@ export const useUi = create<UiState>((set, get) => ({
     if (toastTimer !== undefined) clearTimeout(toastTimer);
     set({ toast });
     if (durationMs > 0) {
+      toastRemaining = durationMs;
+      toastDeadline = Date.now() + durationMs;
       toastTimer = window.setTimeout(() => set({ toast: null }), durationMs);
     }
   },
@@ -75,6 +81,22 @@ export const useUi = create<UiState>((set, get) => ({
       toastTimer = undefined;
     }
     set({ toast: null });
+  },
+  // 悬停暂停 / 移出恢复：长提示（如带撤销的删除）读不完就被清掉是纯损耗
+  pauseToast: () => {
+    if (toastTimer === undefined) return;
+    clearTimeout(toastTimer);
+    toastTimer = undefined;
+    toastRemaining = Math.max(0, toastDeadline - Date.now());
+  },
+  resumeToast: () => {
+    if (toastTimer !== undefined || !get().toast) return;
+    if (toastRemaining <= 0) {
+      set({ toast: null });
+      return;
+    }
+    toastDeadline = Date.now() + toastRemaining;
+    toastTimer = window.setTimeout(() => set({ toast: null }), toastRemaining);
   },
   softDeleteScores: (ids, label, queryClient) => {
     pendingQueryClient = queryClient;

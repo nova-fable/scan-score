@@ -43,7 +43,7 @@ function ScoreCard({
 }: {
   score: Score;
   checked: boolean;
-  onToggleCheck: () => void;
+  onToggleCheck: (shift: boolean) => void;
   onOpen: () => void;
   onRequestDelete: () => void;
 }) {
@@ -81,7 +81,7 @@ function ScoreCard({
       <button
         onClick={(e) => {
           e.stopPropagation();
-          onToggleCheck();
+          onToggleCheck(e.shiftKey);
         }}
         aria-label={checked ? `取消选择 ${score.title}` : `选择 ${score.title}`}
         className={`absolute left-2 top-2 z-10 grid h-6 w-6 place-items-center rounded-md border text-xs shadow ${
@@ -165,8 +165,10 @@ export default function LibraryPage() {
   const [search, setSearch] = useState("");
   const [instrument, setInstrument] = useState("");
   const [status, setStatus] = useState("");
+  const [sort, setSort] = useState<"default" | "title">("default");
   const queryClient = useQueryClient();
   const searchRef = useRef<HTMLInputElement>(null);
+  const lastCheckedRef = useRef<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const dropDepth = useRef(0);
   const [folderFiles, setFolderFiles] = useState<string[] | null>(null);
@@ -224,6 +226,27 @@ export default function LibraryPage() {
       else next.add(id);
       return next;
     });
+  };
+
+  /// 多选：支持 Shift 范围选（以最近一次点击为锚点，填充到当前项）
+  const handleToggleCheck = (id: string, shift: boolean) => {
+    if (shift && lastCheckedRef.current && lastCheckedRef.current !== id) {
+      const ids = sortedScores.map((s) => s.id);
+      const a = ids.indexOf(lastCheckedRef.current);
+      const b = ids.indexOf(id);
+      if (a !== -1 && b !== -1) {
+        const [lo, hi] = a < b ? [a, b] : [b, a];
+        setSelected((prev) => {
+          const next = new Set(prev);
+          for (let i = lo; i <= hi; i++) next.add(ids[i]);
+          return next;
+        });
+        lastCheckedRef.current = id;
+        return;
+      }
+    }
+    toggleSelect(id);
+    lastCheckedRef.current = id;
   };
 
   const batchRecognize = useMutation({
@@ -311,11 +334,17 @@ export default function LibraryPage() {
     setConfirmState(null);
   };
 
-  // 软删除中的曲谱立即从列表隐藏
+  // 软删除中的曲谱立即从列表隐藏；排序为纯客户端行为
   const visibleScores = useMemo(
     () => scoresList.filter((s) => !pendingDeleteIds.includes(s.id)),
     [scoresList, pendingDeleteIds],
   );
+  const sortedScores = useMemo(() => {
+    if (sort === "title") {
+      return [...visibleScores].sort((a, b) => a.title.localeCompare(b.title, "zh-Hans-CN"));
+    }
+    return visibleScores;
+  }, [visibleScores, sort]);
   const hasFilter = !!(search || instrument || status);
   const isBatchMode = selected.size > 0;
   // 首次空库时，空态里的「导入乐谱」是唯一主按钮，头部入口让位隐藏
@@ -365,6 +394,15 @@ export default function LibraryPage() {
               </option>
             ))}
           </select>
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as "default" | "title")}
+            aria-label="排序方式"
+            className="rounded-lg border border-zinc-200 px-2 py-1.5 text-sm outline-none"
+          >
+            <option value="default">排序：添加顺序</option>
+            <option value="title">排序：标题</option>
+          </select>
         </div>
         <div className="flex-1" />
         {queuedCount > 0 && (
@@ -376,6 +414,12 @@ export default function LibraryPage() {
         {isBatchMode && (
           <div className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-1" role="group" aria-label="批量操作">
             <span className="ml-1.5 text-xs text-zinc-500">已选 {selected.size}</span>
+            <button
+              onClick={() => setSelected(new Set(sortedScores.map((s) => s.id)))}
+              className="whitespace-nowrap rounded-md px-2 py-1 text-xs text-zinc-600 hover:bg-zinc-100"
+            >
+              全选
+            </button>
             <button
               onClick={() => batchRecognize.mutate()}
               disabled={batchRecognize.isPending}
@@ -473,12 +517,12 @@ export default function LibraryPage() {
           </div>
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
-            {visibleScores.map((s) => (
+            {sortedScores.map((s) => (
               <ScoreCard
                 key={s.id}
                 score={s}
                 checked={selected.has(s.id)}
-                onToggleCheck={() => toggleSelect(s.id)}
+                onToggleCheck={(shift) => handleToggleCheck(s.id, shift)}
                 onOpen={() => openScore(s.id)}
                 onRequestDelete={() => setConfirmState({ kind: "single", score: s })}
               />
