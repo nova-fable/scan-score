@@ -8,8 +8,15 @@ VERSION="${1:-}"
 cd "$(dirname "$0")/.."
 
 [[ -z $(git status --porcelain) ]] || { echo "✗ 工作区不干净，先提交或暂存"; exit 1; }
-if git fetch origin main --quiet 2>/dev/null; then
-  [[ "$(git rev-parse main)" == "$(git rev-parse origin/main)" ]] || { echo "✗ 本地 main 与远端分叉，先同步"; exit 1; }
+fetch_origin_main() {
+  git fetch origin main --quiet 2>/dev/null && return 0
+  git -c http.proxy=http://127.0.0.1:7890 fetch origin main --quiet 2>/dev/null && return 0
+  return 1
+}
+if fetch_origin_main; then
+  # 仅拒绝"远端有本地没有的提交"（真分叉）；本地领先是正常的，会随发布一起推上去
+  behind=$(git rev-list --count main..origin/main)
+  [[ "$behind" -eq 0 ]] || { echo "✗ 远端 main 有 $behind 个本地缺失的提交，先 pull 同步"; exit 1; }
 else
   echo "⚠ 无法连接远端，跳过分叉检查（离线环境）"
 fi
