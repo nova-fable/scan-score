@@ -31,3 +31,6 @@ spike/cucaracha-from-omr.xml
 
 # 引擎发行包不入库（体积大，打包前从 /Applications 拷贝）
 src-tauri/resources/engine/
+
+# impeccable 每开发者私有配置（hook consent 等），不入库
+.impeccable/config.local.json

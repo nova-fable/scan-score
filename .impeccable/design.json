@@ -1,0 +1,398 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-08",
+  "title": "Design System: ScanScore",
+  "extensions": {
+    "colorMeta": {
+      "metronome-indigo": {
+        "role": "primary",
+        "displayName": "节拍器靛蓝 Metronome Indigo",
+        "canonical": "#4f46e5",
+        "tonalRamp": [
+          "#1e1b4b",
+          "#312e81",
+          "#3730a3",
+          "#4338ca",
+          "#4f46e5",
+          "#6366f1",
+          "#818cf8",
+          "#a5b4fc"
+        ]
+      },
+      "metronome-indigo-soft": {
+        "role": "primary",
+        "displayName": "节拍器靛蓝·浅底",
+        "canonical": "#eef2ff",
+        "tonalRamp": [
+          "#1e1b4b",
+          "#312e81",
+          "#3730a3",
+          "#4338ca",
+          "#4f46e5",
+          "#6366f1",
+          "#818cf8",
+          "#a5b4fc"
+        ]
+      },
+      "danger-hover": {
+        "role": "neutral",
+        "displayName": "危险红·悬停/实底",
+        "canonical": "#dc2626",
+        "tonalRamp": [
+          "#7f1d1d",
+          "#991b1b",
+          "#b91c1c",
+          "#dc2626",
+          "#ef4444",
+          "#f87171",
+          "#fca5a5",
+          "#fecaca"
+        ]
+      },
+      "page-bg": {
+        "role": "neutral",
+        "displayName": "琴房纸面 Practice-Room Paper",
+        "canonical": "#f6f7f9",
+        "tonalRamp": [
+          "#27272a",
+          "#3f3f46",
+          "#52525b",
+          "#71717a",
+          "#a1a1aa",
+          "#d4d4d8",
+          "#e4e4e7",
+          "#f6f7f9"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "纯白琴谱 Score White",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#3f3f46",
+          "#52525b",
+          "#71717a",
+          "#a1a1aa",
+          "#d4d4d8",
+          "#e4e4e7",
+          "#f4f4f5",
+          "#ffffff"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "描边灰 Hairline Zinc",
+        "canonical": "#e4e4e7",
+        "tonalRamp": [
+          "#18181b",
+          "#3f3f46",
+          "#52525b",
+          "#71717a",
+          "#a1a1aa",
+          "#d4d4d8",
+          "#e4e4e7",
+          "#f4f4f5"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "墨色 Ink",
+        "canonical": "#1f2937",
+        "tonalRamp": [
+          "#18181b",
+          "#27272a",
+          "#3f3f46",
+          "#52525b",
+          "#71717a",
+          "#a1a1aa",
+          "#d4d4d8",
+          "#e4e4e7"
+        ]
+      },
+      "danger": {
+        "role": "neutral",
+        "displayName": "危险红 Danger Red",
+        "canonical": "#ef4444",
+        "tonalRamp": [
+          "#7f1d1d",
+          "#991b1b",
+          "#b91c1c",
+          "#dc2626",
+          "#ef4444",
+          "#f87171",
+          "#fca5a5",
+          "#fecaca"
+        ]
+      },
+      "status-waiting": {
+        "role": "neutral",
+        "displayName": "待识别·琥珀",
+        "canonical": "#fef3c7",
+        "tonalRamp": [
+          "#78350f",
+          "#92400e",
+          "#b45309",
+          "#d97706",
+          "#f59e0b",
+          "#fbbf24",
+          "#fcd34d",
+          "#fef3c7"
+        ]
+      },
+      "status-working": {
+        "role": "neutral",
+        "displayName": "识别中·蓝",
+        "canonical": "#dbeafe",
+        "tonalRamp": [
+          "#1e3a8a",
+          "#1e40af",
+          "#1d4ed8",
+          "#2563eb",
+          "#3b82f6",
+          "#60a5fa",
+          "#93c5fd",
+          "#dbeafe"
+        ]
+      },
+      "status-ready": {
+        "role": "neutral",
+        "displayName": "可播放·翡翠",
+        "canonical": "#d1fae5",
+        "tonalRamp": [
+          "#064e3b",
+          "#065f46",
+          "#047857",
+          "#059669",
+          "#10b981",
+          "#34d399",
+          "#6ee7b7",
+          "#d1fae5"
+        ]
+      },
+      "status-failed": {
+        "role": "neutral",
+        "displayName": "识别失败·红",
+        "canonical": "#fee2e2",
+        "tonalRamp": [
+          "#7f1d1d",
+          "#991b1b",
+          "#b91c1c",
+          "#dc2626",
+          "#ef4444",
+          "#f87171",
+          "#fca5a5",
+          "#fee2e2"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "page-title": {
+        "displayName": "Page Title",
+        "purpose": "页面级标题，每屏至多一个（设置页 h1）。"
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "卡片/弹窗/应用名——小而实的标题层，600 字重。"
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "UI 正文、按钮与输入框基准字号（14px）。"
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "标签、状态 pill、辅助说明（12px）。"
+      },
+      "micro": {
+        "displayName": "Micro",
+        "purpose": "时间戳、微注、日志（11px）。"
+      },
+      "editor-mono": {
+        "displayName": "Editor Mono",
+        "purpose": "alphaTex 校对编辑区与引擎日志终端。"
+      }
+    },
+    "shadows": [
+      {
+        "name": "card-rest",
+        "value": "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+        "purpose": "卡片静止态，几乎不可察觉。"
+      },
+      {
+        "name": "card-hover",
+        "value": "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
+        "purpose": "卡片悬停——卡片抬起的唯一时刻。"
+      },
+      {
+        "name": "floating-action",
+        "value": "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)",
+        "purpose": "悬浮在封面上的卡片操作按钮与多选框。"
+      },
+      {
+        "name": "dropdown",
+        "value": "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
+        "purpose": "下拉菜单与弹层。"
+      },
+      {
+        "name": "modal",
+        "value": "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)",
+        "purpose": "模态弹窗，配合 rgba(0,0,0,0.3–0.4) 遮罩。"
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-standard",
+        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Tailwind 默认过渡曲线，150ms，用于 hover/opacity 等全部状态切换。"
+      },
+      {
+        "name": "ease-out-entrance",
+        "value": "cubic-bezier(0, 0, 0.2, 1)",
+        "purpose": "入场动画（模态上浮 180ms / 遮罩淡入 150ms / toast 滑入 200ms）专用指数缓出；prefers-reduced-motion 下取消。"
+      },
+      {
+        "name": "beat-pulse",
+        "value": "impeccable-beat 0.8s ease-in-out infinite",
+        "purpose": "节拍器激活光环脉动（北极星「节拍器灯」）；prefers-reduced-motion 下取消。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "主动作按钮——每屏至多一个，靛蓝亮起即行动处。",
+      "html": "<button class=\"ds-btn-primary\">导入乐谱</button>",
+      "css": ".ds-btn-primary { background: #4f46e5; color: #ffffff; border: none; border-radius: 8px; padding: 6px 16px; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', 'Microsoft YaHei', sans-serif; font-size: 14px; cursor: pointer; transition: background 0.15s cubic-bezier(0.4, 0, 0.2, 1); } .ds-btn-primary:hover { background: #6366f1; } .ds-btn-primary:focus-visible { outline: none; box-shadow: inset 0 0 0 1px #818cf8; } .ds-btn-primary:disabled { opacity: 0.5; cursor: default; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "工具栏默认形态：白底细边框，hover 微灰。",
+      "html": "<button class=\"ds-btn-secondary\">取消</button>",
+      "css": ".ds-btn-secondary { background: #ffffff; color: #52525b; border: 1px solid #e4e4e7; border-radius: 8px; padding: 6px 16px; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', 'Microsoft YaHei', sans-serif; font-size: 14px; cursor: pointer; transition: background 0.15s cubic-bezier(0.4, 0, 0.2, 1); } .ds-btn-secondary:hover { background: #fafafa; } .ds-btn-secondary:focus-visible { outline: none; box-shadow: inset 0 0 0 1px #818cf8; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "标准输入框——focus 仅边框变色，无 ring 无光晕。",
+      "html": "<input class=\"ds-input\" placeholder=\"搜索标题 / 作曲者…\" />",
+      "css": ".ds-input { background: #ffffff; color: #1f2937; border: 1px solid #e4e4e7; border-radius: 8px; padding: 6px 12px; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', 'Microsoft YaHei', sans-serif; font-size: 14px; outline: none; transition: border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1); } .ds-input::placeholder { color: #a1a1aa; } .ds-input:focus { border-color: #818cf8; }"
+    },
+    {
+      "name": "Sidebar Navigation",
+      "kind": "nav",
+      "refersTo": "nav-item-active",
+      "description": "侧栏导航项：激活=靛蓝浅底深字，未激活=次级墨色。",
+      "html": "<nav class=\"ds-nav\"><button class=\"ds-nav-item ds-nav-item--active\">曲库</button><button class=\"ds-nav-item\">设置</button></nav>",
+      "css": ".ds-nav { display: flex; flex-direction: column; gap: 4px; padding: 0 8px; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', 'Microsoft YaHei', sans-serif; } .ds-nav-item { text-align: left; padding: 8px 12px; border-radius: 8px; border: none; background: transparent; font-size: 14px; color: #52525b; cursor: pointer; transition: background 0.15s cubic-bezier(0.4, 0, 0.2, 1); } .ds-nav-item:hover { background: #f4f4f5; } .ds-nav-item--active { background: #eef2ff; color: #4338ca; font-weight: 600; } .ds-nav-item--active:hover { background: #eef2ff; }"
+    },
+    {
+      "name": "Score Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "曲库卡片：白卡 xl 圆角，静止 shadow-sm、hover 抬起，封面占位灰。",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-cover\">♫</div><div class=\"ds-card-body\"><div class=\"ds-card-title\">小星星变奏曲</div><div class=\"ds-card-meta\"><span>钢琴</span><span class=\"ds-pill ds-pill--ready\">可播放</span></div></div></div>",
+      "css": ".ds-card { max-width: 220px; background: #ffffff; border: 1px solid #e4e4e7; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); transition: box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1); font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', 'Microsoft YaHei', sans-serif; } .ds-card:hover { box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); } .ds-card-cover { height: 96px; background: #f4f4f5; display: grid; place-items: center; color: #d4d4d8; font-size: 24px; } .ds-card-body { padding: 12px; } .ds-card-title { font-size: 14px; font-weight: 500; color: #1f2937; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .ds-card-meta { margin-top: 2px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: #71717a; }"
+    },
+    {
+      "name": "Status Pill",
+      "kind": "chip",
+      "refersTo": "pill-ready",
+      "description": "识别流水线信号灯：浅底 100 + 深字 700，四态齐全。",
+      "html": "<span class=\"ds-pill ds-pill--waiting\">待识别</span> <span class=\"ds-pill ds-pill--working\">识别中</span> <span class=\"ds-pill ds-pill--ready\">可播放</span> <span class=\"ds-pill ds-pill--failed\">识别失败</span>",
+      "css": ".ds-pill { display: inline-block; padding: 2px 10px; font-size: 12px; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', 'Microsoft YaHei', sans-serif; } .ds-pill--waiting { background: #fef3c7; color: #b45309; } .ds-pill--working { background: #dbeafe; color: #1d4ed8; } .ds-pill--ready { background: #d1fae5; color: #047857; } .ds-pill--failed { background: #fee2e2; color: #b91c1c; }"
+    },
+    {
+      "name": "Track Chip",
+      "kind": "chip",
+      "refersTo": "card",
+      "description": "播放条轨道开关：激活=靛蓝浅底，静音=灰+删除线。",
+      "html": "<button class=\"ds-chip\">Piano</button> <button class=\"ds-chip ds-chip--muted\">Guitar</button>",
+      "css": ".ds-chip { max-width: 112px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: #eef2ff; border: 1px solid #c7d2fe; color: #4338ca; border-radius: 6px; padding: 4px 8px; font-size: 12px; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', 'Microsoft YaHei', sans-serif; cursor: pointer; transition: background 0.15s cubic-bezier(0.4, 0, 0.2, 1); } .ds-chip:hover { background: #e0e7ff; } .ds-chip--muted { background: #ffffff; border-color: #e4e4e7; color: #a1a1aa; text-decoration: line-through; }"
+    },
+    {
+      "name": "Transport Buttons",
+      "kind": "custom",
+      "refersTo": "button-primary",
+      "description": "走带控件：实心靛蓝播放键 + 描边圆形切换键。",
+      "html": "<div class=\"ds-transport\"><button class=\"ds-btn-play\">▶</button><button class=\"ds-btn-toggle\">■</button><button class=\"ds-btn-toggle ds-btn-toggle--active\">⟳</button></div>",
+      "css": ".ds-transport { display: flex; gap: 8px; align-items: center; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', 'Microsoft YaHei', sans-serif; } .ds-btn-play { width: 36px; height: 36px; border-radius: 9999px; background: #4f46e5; color: #ffffff; border: none; display: grid; place-items: center; font-size: 11px; cursor: pointer; transition: background 0.15s cubic-bezier(0.4, 0, 0.2, 1); } .ds-btn-play:hover { background: #6366f1; } .ds-btn-toggle { width: 32px; height: 32px; border-radius: 9999px; background: #ffffff; border: 1px solid #e4e4e7; color: #71717a; display: grid; place-items: center; font-size: 10px; cursor: pointer; transition: background 0.15s, border-color 0.15s; } .ds-btn-toggle:hover { background: #fafafa; } .ds-btn-toggle--active { background: #eef2ff; border-color: #c7d2fe; color: #4f46e5; }"
+    },
+    {
+      "name": "Modal Sheet",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "模态弹窗：遮罩上居中白色 2xl 圆角面板 + shadow-xl。",
+      "html": "<div class=\"ds-modal\"><div class=\"ds-modal-sheet\"><div class=\"ds-modal-title\">导入文件夹</div><div class=\"ds-modal-hint\">检测到 12 个乐谱文件</div><div class=\"ds-modal-actions\"><button class=\"ds-btn-secondary\">取消</button><button class=\"ds-btn-primary\">导入</button></div></div></div>",
+      "css": ".ds-modal { padding: 24px; background: rgb(0 0 0 / 0.35); display: grid; place-items: center; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', 'Microsoft YaHei', sans-serif; } .ds-modal-sheet { background: #ffffff; border-radius: 16px; padding: 20px; box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1); width: 100%; max-width: 420px; } .ds-modal-title { font-size: 16px; font-weight: 600; color: #1f2937; } .ds-modal-hint { margin-top: 4px; font-size: 12px; color: #a1a1aa; } .ds-modal-actions { margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px; } .ds-modal-actions .ds-btn-secondary { background: #ffffff; color: #52525b; border: 1px solid #e4e4e7; border-radius: 8px; padding: 6px 16px; font-size: 14px; cursor: pointer; } .ds-modal-actions .ds-btn-primary { background: #4f46e5; color: #ffffff; border: none; border-radius: 8px; padding: 6px 16px; font-size: 14px; font-weight: 500; cursor: pointer; }"
+    },
+    {
+      "name": "Toast",
+      "kind": "custom",
+      "refersTo": "toast",
+      "description": "底部居中深色提示条，4–6 秒自动消失。",
+      "html": "<div class=\"ds-toast\">已导入 3 个文件</div>",
+      "css": ".ds-toast { display: inline-block; background: #27272a; color: #ffffff; border-radius: 8px; padding: 8px 16px; font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', 'Microsoft YaHei', sans-serif; box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "安静的琴房",
+    "overview": "ScanScore 是一间安静的琴房：白墙式的中性界面、克制的密度，让谱面与声音当主角。界面是房间里的家具——触手可及、毫不喧哗；唯一的亮点是那盏节拍器指示灯（节拍器靛蓝，#4f46e5），它亮起的地方就是该行动的地方。气质调性是安静专注与干净利落：面向长时间练琴与曲库整理的桌面重度使用，信息密度优先，装饰近乎为零。系统是紧凑的桌面工具语汇：小尺寸控件、细边框、悬停才浮现的次要操作。深度靠 1px 边框与白卡对灰底的色调分层表达，阴影只在交互与浮层出现。五个状态色（琥珀/蓝/翡翠/红）是识别流水线的信号灯，不是调色盘上的第五、第六种口味。明确排斥：SaaS 仪表盘感与渐变/玻璃拟态。",
+    "keyCharacteristics": [
+      "单一强调色：靛蓝只属于可点击的主动作与激活态",
+      "边框优先：1px 锌灰边框承担分隔，阴影是交互的回应而非常态",
+      "紧凑桌面密度：text-sm 为基准、py-1.5/px-3 级别的控件内边距",
+      "原生系统字体（含 CJK 栈），零 webfont——离线应用的一致选择",
+      "白卡浮在冷灰纸面（#f6f7f9）上，滚动区即工作区"
+    ],
+    "rules": [
+      {
+        "name": "The One Light Rule",
+        "body": "节拍器靛蓝是整个应用唯一的强调色，用于主动作与激活态，占任意屏幕 ≤10%。若一个界面需要第二个强调色，先怀疑布局，不要加颜色。",
+        "section": "colors"
+      },
+      {
+        "name": "The Signal-Not-Decor Rule",
+        "body": "琥珀/蓝/翡翠/红只用于识别流水线状态、危险操作与明确警示；绝不作装饰、图表或氛围色。",
+        "section": "colors"
+      },
+      {
+        "name": "The Native Voice Rule",
+        "body": "只用系统字体栈，不引入任何 webfont。字重只用 400（正文/按钮）与 600（标题/激活态）两档；禁止 500——Microsoft YaHei 没有 500，font-medium 在 Windows 上静默回落 400。micro（11px/1.34）只用于等宽/数字语境。",
+        "section": "typography"
+      },
+      {
+        "name": "The Border-First Rule",
+        "body": "分隔与结构靠 1px 描边灰边框和白卡对灰底的色调分层表达；阴影不是常态，是回应——只有悬停和浮层才允许它出现。",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do 让靛蓝只出现在可点击的主动作、激活态与进度上；一个界面一个主按钮。",
+      "Do 用 1px 描边灰 (#e4e4e7) 边框做一切静态分隔；卡片白底浮在纸面灰 (#f6f7f9) 上。",
+      "Do 用状态 pill 模式（浅底 100 + 深字 700）表达识别流水线的四种状态。",
+      "Do 把次要操作藏进悬停浮现（卡片操作组）与下拉菜单（导出），保持工具栏安静。",
+      "Do 保持紧凑密度：text-sm 基准、py-1.5 控件内边距、16px 网格间距。",
+      "Do 引擎/系统级的“技术黑盒”内容（日志、路径）用终端黑或代码灰块呈现。",
+      "Do 键盘焦点用全局 :focus-visible 描边（#818cf8，2px）表达——只对键盘导航出现。",
+      "Do 每个 icon-only 控件带 aria-label；悬停浮现的操作组必须同时响应 group-focus-within。",
+      "Do 破坏性操作走确认模态 + 6 秒撤销 toast（软删除）；错误与日志文字必须可选中复制。",
+      "Do 浏览器表面随系统主题化：细滚条、光标主色、tabular-nums 等宽数字。",
+      "Do 动效只做状态回应：按钮颜色 150ms、卡片悬停微抬、模态/toast/菜单入场淡入上浮；prefers-reduced-motion 下一律取消。"
+    ],
+    "donts": [
+      "Don't 使用渐变文字、玻璃拟态（backdrop-blur 面板）、发光阴影——已确认为反例。",
+      "Don't 做 SaaS 仪表盘式的彩色统计卡/图表卡——这是琴房，不是后台。",
+      "Don't 引入第二个强调色，或把状态色（琥珀/蓝/翡翠/红）当装饰用。",
+      "Don't 给静止元素加阴影；阴影只回应悬停与浮层。",
+      "Don't 给输入框 focus 加 ring 或光晕——边框变色到 #818cf8 就是全部。",
+      "Don't 引入 webfont 或 400/600 之外的 regular 字重。",
+      "Don't 把 emoji 当插画体系用——它只属于空状态字形与走带键。",
+      "Don't 用 #a1a1aa 承载信息文字（白底 2.1:1，WCAG AA 失败）；信息文字下限 #71717a。",
+      "Don't 使用 window.confirm/alert——wry/WKWebView 不实现，一律走确认模态。"
+    ]
+  }
+}
