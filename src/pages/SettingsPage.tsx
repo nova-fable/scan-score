@@ -143,22 +143,35 @@ export default function SettingsPage() {
                 value={vlmKey}
                 onChange={(e) => setVlmKey(e.target.value)}
                 placeholder="API Key"
-                className="flex-1 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm outline-none focus:border-indigo-400"
+                className="min-w-0 flex-1 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm outline-none focus:border-indigo-400"
               />
-              <div className="relative">
-                <input
-                  value={vlmModel}
-                  onChange={(e) => setVlmModel(e.target.value)}
-                  list="vlm-model-list"
-                  placeholder="模型"
-                  className="w-56 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm outline-none focus:border-indigo-400"
-                />
-                <datalist id="vlm-model-list">
-                  {vlmModels.map((m) => (
-                    <option key={m} value={m} />
-                  ))}
-                </datalist>
-              </div>
+              <input
+                value={vlmModel}
+                onChange={(e) => setVlmModel(e.target.value)}
+                list="vlm-model-list"
+                placeholder="模型"
+                className="w-44 shrink-0 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm outline-none focus:border-indigo-400"
+              />
+              <datalist id="vlm-model-list">
+                {vlmModels.map((m) => (
+                  <option key={m} value={m} />
+                ))}
+              </datalist>
+              <button
+                onClick={async () => {
+                  setVlmTest("获取模型列表中…");
+                  try {
+                    const models = await api.fetchVlmModels(vlmBase, vlmKey);
+                    setVlmModels(models);
+                    setVlmTest(`获取到 ${models.length} 个模型，下拉即可选择`);
+                  } catch (e) {
+                    setVlmTest(`该平台不支持列表接口（${String(e).slice(0, 80)}…），可手动输入模型名`);
+                  }
+                }}
+                className="shrink-0 whitespace-nowrap rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
+              >
+                获取模型列表
+              </button>
             </div>
             <label className="flex items-center gap-2 text-xs text-zinc-500">
               推理模式
@@ -188,21 +201,6 @@ export default function SettingsPage() {
                 className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-500"
               >
                 保存
-              </button>
-              <button
-                onClick={async () => {
-                  setVlmTest("获取模型列表中…");
-                  try {
-                    const models = await api.fetchVlmModels(vlmBase, vlmKey);
-                    setVlmModels(models);
-                    setVlmTest(`获取到 ${models.length} 个模型，下拉即可选择`);
-                  } catch (e) {
-                    setVlmTest(`该平台不支持列表接口（${String(e).slice(0, 80)}…），可手动输入模型名`);
-                  }
-                }}
-                className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
-              >
-                获取模型列表
               </button>
               <button
                 onClick={async () => {
