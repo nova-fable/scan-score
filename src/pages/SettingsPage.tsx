@@ -29,6 +29,7 @@ export default function SettingsPage() {
   const [vlmBase, setVlmBase] = useState("");
   const [vlmKey, setVlmKey] = useState("");
   const [vlmModel, setVlmModel] = useState("");
+  const [vlmTest, setVlmTest] = useState<string | null>(null);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -116,21 +117,48 @@ export default function SettingsPage() {
                 className="w-40 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm outline-none focus:border-indigo-400"
               />
             </div>
-            <button
-              onClick={async () => {
-                await api.setSetting("vlm_api_base", vlmBase);
-                await api.setSetting("vlm_model", vlmModel);
-                if (vlmKey.trim()) {
-                  await api.setSetting("vlm_api_key", vlmKey);
-                }
-                queryClient.invalidateQueries({ queryKey: ["appInfo"] });
-                setSavedMsg("已保存");
-                setTimeout(() => setSavedMsg(null), 2000);
-              }}
-              className="self-start rounded-lg bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-500"
-            >
-              保存
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  await api.setSetting("vlm_api_base", vlmBase);
+                  await api.setSetting("vlm_model", vlmModel);
+                  if (vlmKey.trim()) {
+                    await api.setSetting("vlm_api_key", vlmKey);
+                  }
+                  queryClient.invalidateQueries({ queryKey: ["appInfo"] });
+                  setSavedMsg("已保存");
+                  setTimeout(() => setSavedMsg(null), 2000);
+                }}
+                className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-500"
+              >
+                保存
+              </button>
+              <button
+                onClick={async () => {
+                  setVlmTest("测试中…");
+                  try {
+                    const res = await api.testVlmConnection(vlmBase, vlmKey, vlmModel);
+                    setVlmTest(res);
+                  } catch (e) {
+                    setVlmTest(`失败：${String(e)}`);
+                  }
+                }}
+                className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
+              >
+                测试连接
+              </button>
+            </div>
+            {vlmTest && (
+              <div
+                className={`text-xs ${
+                  vlmTest.startsWith("测试中") || vlmTest.startsWith("连通")
+                    ? "text-emerald-600"
+                    : "text-red-500"
+                }`}
+              >
+                {vlmTest}
+              </div>
+            )}
           </div>
           <div className="mt-2 text-xs">
             当前状态：

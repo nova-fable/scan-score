@@ -87,6 +87,8 @@ export const api = {
   getSettings: () => invoke<Setting[]>("get_settings"),
   setSetting: (key: string, value: string) => invoke<void>("set_setting", { key, value }),
   getAppInfo: () => invoke<AppInfo>("get_app_info"),
+  testVlmConnection: (apiBase: string, apiKey: string, model: string) =>
+    invoke<string>("test_vlm_connection", { apiBase, apiKey, model }),
   pickSavePath: (fileName: string, ext: string) =>
     invoke<string | null>("pick_save_path", { fileName, ext }),
   writeExportBytes: (path: string, bytes: Uint8Array) =>

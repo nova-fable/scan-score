@@ -573,6 +573,25 @@ pub fn export_score_source(id: String, target: String, state: Ctx) -> Result<(),
     Ok(())
 }
 
+/// 测试 VLM 服务连通性（用当前表单值，不必先保存）
+#[tauri::command]
+pub async fn test_vlm_connection(
+    api_base: String,
+    api_key: String,
+    model: String,
+) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let cfg = crate::vlm::VlmConfig {
+            api_base: api_base.trim().trim_end_matches('/').to_string(),
+            api_key: api_key.trim().to_string(),
+            model: model.trim().to_string(),
+        };
+        crate::vlm::ping(&cfg)
+    })
+    .await
+    .map_err(err)?
+}
+
 /// 测试事件通道（开发用）
 #[tauri::command]
 pub fn emit_test_progress(state: Ctx) -> Result<(), String> {

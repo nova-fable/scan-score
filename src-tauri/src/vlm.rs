@@ -121,6 +121,35 @@ pub fn normalize_alpha_tex(raw: &str) -> String {
     text.to_string()
 }
 
+/// 测试连通性：发一个 1-token 的文本请求，返回模型回复或错误
+pub fn ping(cfg: &VlmConfig) -> Result<String, String> {
+    let url = format!("{}/chat/completions", cfg.api_base);
+    let body = serde_json::json!({
+        "model": cfg.model,
+        "max_tokens": 4,
+        "messages": [{ "role": "user", "content": "ping" }]
+    });
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let resp = client
+        .post(&url)
+        .header("Authorization", format!("Bearer {}", cfg.api_key))
+        .json(&body)
+        .send()
+        .map_err(|e| format!("连接失败: {e}"))?;
+    let status = resp.status();
+    let text = resp.text().map_err(|e| e.to_string())?;
+    if !status.is_success() {
+        return Err(format!("HTTP {status}: {}", text.chars().take(200).collect::<String>()));
+    }
+    let json: serde_json::Value =
+        serde_json::from_str(&text).map_err(|e| format!("响应解析失败: {e}"))?;
+    let model = json["model"].as_str().unwrap_or(&cfg.model);
+    Ok(format!("连通 ✓（模型 {model}）"))
+}
+
 /// alphaTex 基本合法性检查（\开头指令 + 至少一个 音符.弦 记号）
 pub fn looks_like_alpha_tex(text: &str) -> bool {
     let has_directive = text.trim_start().starts_with('\\');
