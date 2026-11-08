@@ -5,8 +5,6 @@ use std::path::{Path, PathBuf};
 
 /// 自然排序比较："page2.png" < "page10.png"
 pub fn natural_cmp(a: &str, b: &str) -> Ordering {
-    let mut ia = a.char_indices().peekable();
-    let mut ib = b.char_indices().peekable();
     let ab = a.as_bytes();
     let bb = b.as_bytes();
 

@@ -5,6 +5,8 @@
 //!
 //! 新平台支持时只需实现 imp 模块，调用方（import 流程）不改。
 
+use std::path::Path;
+
 /// 统计 PDF 页数（拿不到时返回 None）
 pub fn page_count(path: &Path) -> Option<i64> {
     imp::page_count(path)
