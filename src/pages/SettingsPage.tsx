@@ -286,6 +286,40 @@ export default function SettingsPage() {
           </div>
         </Row>
 
+
+        <Row
+          label="备份与恢复"
+          hint="备份包含曲库数据库与全部乐谱文件。恢复会覆盖现有数据，完成后需重启应用。"
+        >
+          <div className="flex gap-2">
+            <button
+              onClick={async () => {
+                const target = await api.pickBackupTarget();
+                if (!target) return;
+                await api.exportBackup(target);
+                setSavedMsg("已导出备份");
+                setTimeout(() => setSavedMsg(null), 3000);
+              }}
+              className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
+            >
+              导出备份…
+            </button>
+            <button
+              onClick={async () => {
+                if (!confirm("恢复备份将覆盖当前全部曲库数据，确定继续？")) return;
+                const source = await api.pickBackupSource();
+                if (!source) return;
+                const n = await api.importBackup(source);
+                setSavedMsg(`已恢复 ${n} 个文件，请重启应用生效`);
+                setTimeout(() => setSavedMsg(null), 6000);
+              }}
+              className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm text-amber-700 hover:bg-amber-100"
+            >
+              从备份恢复…
+            </button>
+          </div>
+        </Row>
+
         <Row label="关于" hint={`ScanScore v${appVersion ?? "…"}`}>
           <ul className="space-y-1 text-xs text-zinc-500">
             <li>· 本项目以 MIT 许可发布</li>

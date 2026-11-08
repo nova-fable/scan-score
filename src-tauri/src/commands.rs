@@ -644,6 +644,57 @@ pub fn save_alpha_tex(score_id: String, content: String, state: Ctx) -> Result<S
         .ok_or_else(|| "条目不存在".into())
 }
 
+
+/// 导出曲库备份 zip（用户经对话框选择位置）
+#[tauri::command]
+pub async fn export_backup(target: String, state: Ctx<'_>) -> Result<(), String> {
+    let state = Arc::clone(&state);
+    tauri::async_runtime::spawn_blocking(move || crate::backup::export_backup(&state, Path::new(&target)))
+        .await
+        .map_err(err)?
+}
+
+/// 从备份 zip 恢复（覆盖现有数据，恢复后需重启应用）
+#[tauri::command]
+pub async fn import_backup(source: String, state: Ctx<'_>) -> Result<usize, String> {
+    let state = Arc::clone(&state);
+    tauri::async_runtime::spawn_blocking(move || crate::backup::import_backup(&state, Path::new(&source)))
+        .await
+        .map_err(err)?
+}
+
+
+#[tauri::command]
+pub async fn pick_backup_target(app: AppHandle) -> Result<Option<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        Ok(app
+            .dialog()
+            .file()
+            .set_file_name("scan-score-backup.zip")
+            .add_filter("备份文件", &["zip"])
+            .blocking_pick_file()
+            .and_then(|f| f.into_path().ok())
+            .map(|p| p.to_string_lossy().into_owned()))
+    })
+    .await
+    .map_err(err)?
+}
+
+#[tauri::command]
+pub async fn pick_backup_source(app: AppHandle) -> Result<Option<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        Ok(app
+            .dialog()
+            .file()
+            .add_filter("备份文件", &["zip"])
+            .blocking_pick_file()
+            .and_then(|f| f.into_path().ok())
+            .map(|p| p.to_string_lossy().into_owned()))
+    })
+    .await
+    .map_err(err)?
+}
+
 /// 测试事件通道（开发用）
 #[tauri::command]
 pub fn emit_test_progress(state: Ctx) -> Result<(), String> {

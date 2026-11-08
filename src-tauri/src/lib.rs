@@ -1,3 +1,4 @@
+pub mod backup;
 pub mod commands;
 pub mod db;
 pub mod import;
@@ -63,6 +64,10 @@ pub fn run() {
             commands::list_jobs,
             commands::read_job_log,
             commands::save_alpha_tex,
+            commands::pick_backup_target,
+            commands::pick_backup_source,
+            commands::export_backup,
+            commands::import_backup,
             commands::get_settings,
             commands::set_setting,
             commands::test_vlm_connection,

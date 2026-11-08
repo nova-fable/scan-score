@@ -87,6 +87,10 @@ export const api = {
   readJobLog: (jobId: string) => invoke<string | null>("read_job_log", { jobId }),
   saveAlphaTex: (scoreId: string, content: string) =>
     invoke<Score>("save_alpha_tex", { scoreId, content }),
+  pickBackupTarget: () => invoke<string | null>("pick_backup_target"),
+  pickBackupSource: () => invoke<string | null>("pick_backup_source"),
+  exportBackup: (target: string) => invoke<void>("export_backup", { target }),
+  importBackup: (source: string) => invoke<number>("import_backup", { source }),
   getSettings: () => invoke<Setting[]>("get_settings"),
   setSetting: (key: string, value: string) => invoke<void>("set_setting", { key, value }),
   getAppInfo: () => invoke<AppInfo>("get_app_info"),
