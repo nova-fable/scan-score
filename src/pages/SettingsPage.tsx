@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getVersion } from "@tauri-apps/api/app";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/tauri";
 
@@ -45,6 +46,11 @@ export default function SettingsPage() {
   const [vlmThinking, setVlmThinking] = useState("on");
   const [vlmTest, setVlmTest] = useState<string | null>(null);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
+  const [appVersion, setAppVersion] = useState<string | null>(null);
+
+  useEffect(() => {
+    getVersion().then(setAppVersion).catch(() => setAppVersion(null));
+  }, []);
 
   useEffect(() => {
     if (settings.data) {
@@ -236,6 +242,37 @@ export default function SettingsPage() {
           <code className="block break-all rounded bg-zinc-100 px-2 py-1.5 text-xs text-zinc-600">
             {info.data?.dataDir ?? "…"}
           </code>
+        </Row>
+
+        <Row label="关于" hint={`ScanScore v${appVersion ?? "…"}`}>
+          <ul className="space-y-1 text-xs text-zinc-500">
+            <li>· 本项目以 MIT 许可发布</li>
+            <li>
+              · OMR 引擎{" "}
+              <a
+                className="text-indigo-500 hover:underline"
+                href="https://github.com/Audiveris/audiveris"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Audiveris
+              </a>{" "}
+              （AGPL-3.0，独立进程调用）
+            </li>
+            <li>
+              · 渲染/播放{" "}
+              <a
+                className="text-indigo-500 hover:underline"
+                href="https://alphatab.net"
+                target="_blank"
+                rel="noreferrer"
+              >
+                alphaTab
+              </a>{" "}
+              （MIT）
+            </li>
+            <li>· 音源 GeneralUser GS（S. Christian Collins，免费分发）· SONiVOX EAS（Apache-2.0）</li>
+          </ul>
         </Row>
       </div>
     </div>

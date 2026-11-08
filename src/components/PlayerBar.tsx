@@ -27,14 +27,38 @@ export default function PlayerBar({
 }: Props) {
   const [speed, setSpeed] = useState(1);
   const [loop, setLoop] = useState(false);
+  const [loopA, setLoopA] = useState<number | null>(null);
+  const [loopB, setLoopB] = useState<number | null>(null);
+  const [metronome, setMetronome] = useState(false);
 
   if (!api || !api.player) return null;
   const pct = endTimeMs > 0 ? Math.min(100, (currentTimeMs / endTimeMs) * 100) : 0;
+  const abActive = loopA !== null && loopB !== null;
+
+  const markLoop = (which: "a" | "b") => {
+    const tick = api.player!.tickPosition;
+    const a = which === "a" ? tick : loopA;
+    const b = which === "b" ? tick : loopB;
+    if (which === "a") setLoopA(tick);
+    else setLoopB(tick);
+    if (a !== null && b !== null) {
+      api.player!.playbackRange = { startTick: Math.min(a, b), endTick: Math.max(a, b) };
+      api.player!.isLooping = true;
+      setLoop(true);
+    }
+  };
+
+  const clearAB = () => {
+    setLoopA(null);
+    setLoopB(null);
+    api.player!.playbackRange = null;
+    api.player!.isLooping = false;
+    setLoop(false);
+  };
 
   const seek = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    // tick 位置 setter（IAlphaSynth.tickPosition 可写）
     api.player!.tickPosition = Math.round(ratio * api.endTick);
   };
 
@@ -69,6 +93,37 @@ export default function PlayerBar({
       >
         ⟳
       </button>
+      <div className="flex items-center gap-0.5" title="A-B 循环：播放到目标位置时依次按下 A、B">
+        <button
+          onClick={() => markLoop("a")}
+          className={`h-8 w-7 rounded-l-md border text-xs ${
+            loopA !== null
+              ? "border-indigo-300 bg-indigo-50 text-indigo-600"
+              : "border-zinc-200 text-zinc-500 hover:bg-zinc-50"
+          }`}
+        >
+          A
+        </button>
+        <button
+          onClick={() => markLoop("b")}
+          className={`h-8 w-7 rounded-r-md border text-xs ${
+            loopB !== null
+              ? "border-indigo-300 bg-indigo-50 text-indigo-600"
+              : "border-zinc-200 text-zinc-500 hover:bg-zinc-50"
+          }`}
+        >
+          B
+        </button>
+        {abActive && (
+          <button
+            onClick={clearAB}
+            className="ml-0.5 h-8 w-6 rounded-md border border-zinc-200 text-xs text-zinc-400 hover:bg-red-50 hover:text-red-500"
+            title="清除 A-B 循环"
+          >
+            ✕
+          </button>
+        )}
+      </div>
 
       <div className="flex-1">
         <div className="relative h-2 cursor-pointer rounded-full bg-zinc-200" onClick={seek}>
@@ -81,6 +136,22 @@ export default function PlayerBar({
           {fmtTime(currentTimeMs)} / {fmtTime(endTimeMs)}
         </div>
       </div>
+
+      <button
+        onClick={() => {
+          const next = !metronome;
+          setMetronome(next);
+          api.player!.metronomeVolume = next ? 0.8 : 0;
+        }}
+        className={`grid h-8 w-8 place-items-center rounded-full border text-sm ${
+          metronome
+            ? "border-amber-300 bg-amber-50 text-amber-600"
+            : "border-zinc-200 text-zinc-500 hover:bg-zinc-50"
+        }`}
+        title="节拍器"
+      >
+        🥁
+      </button>
 
       <label className="flex items-center gap-1 text-xs text-zinc-500">
         速度
