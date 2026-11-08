@@ -278,8 +278,7 @@ pub fn run_batch(
 
     let produced: Vec<PathBuf> = snapshot_mxl(out_dir)
         .into_iter()
-        .filter(|(p, m)| *m >= run_started)
-        .map(|(p, _)| p)
+        .filter_map(|(p, m)| if m >= run_started { Some(p) } else { None })
         .collect();
     if produced.is_empty() {
         // 正常退出但没导出：常见于转写失败（如 Sheet ignored），日志里通常有原因

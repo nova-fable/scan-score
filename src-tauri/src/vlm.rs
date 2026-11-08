@@ -166,8 +166,11 @@ pub fn transcribe_tab(image_path: &Path, cfg: &VlmConfig) -> Result<String, Stri
     while let Some((thinking, max_tokens)) = attempts.pop() {
         let text = match send(&make_body(thinking, max_tokens)) {
             SendOutcome::Ok(text) => text,
-            SendOutcome::BadRequest(_) => {
-                log::info!("端点拒绝当前参数组合（thinking/max_tokens），降级到下一档");
+            SendOutcome::BadRequest(text) => {
+                log::info!(
+                    "端点拒绝当前参数组合（thinking/max_tokens），降级到下一档: {}",
+                    text.chars().take(150).collect::<String>()
+                );
                 continue;
             }
             SendOutcome::Failed(e) => return Err(e),
