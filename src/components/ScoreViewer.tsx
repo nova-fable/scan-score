@@ -15,8 +15,8 @@ interface Props {
   callbacks?: ViewerCallbacks;
 }
 
-/// 声音字体（打包进 public/soundfont/）
-export const SOUNDFONT_URL = "/soundfont/sonivox.sf2";
+/// 声音字体（GeneralUser GS，打包进 public/soundfont/）
+export const SOUNDFONT_URL = "/soundfont/GeneralUser.sf2";
 
 // alphaTab 通过该全局变量定位 Bravura 字体目录
 // （Vite 打包后 import.meta.url 不可靠；public/font/ 双保险）
