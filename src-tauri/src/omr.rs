@@ -25,6 +25,8 @@ pub enum OmrError {
     NoOutput,
     #[error("识别结果没有有效音符——这很可能是六线谱（TAB）谱。开源 OMR 无法识别六线谱，请改用 Guitar Pro (.gp/.gp5) 文件导入该曲目")]
     TabNotRecognized,
+    #[error("图片分辨率太低（谱线间距不足），自动放大后仍无法识别。请使用 300DPI 扫描件或更高清的图片")]
+    LowResolution,
     #[error("任务已取消")]
     Canceled,
     #[error("进程异常退出: {0}")]
@@ -130,6 +132,43 @@ pub fn build_args(inputs: &[PathBuf], out_dir: &Path) -> Vec<String> {
     args
 }
 
+/// 识别输入预处理：低分辨率图片自动放大（Audiveris 要求谱线间距 ≥ 约12px，300DPI 最优）。
+/// PDF 不处理（内部自带矢量信息）。放大失败时静默回退原图。
+pub fn prepare_input(input: &Path) -> PathBuf {
+    const MIN_WIDTH: u32 = 1600;
+    const TARGET_WIDTH: u32 = 2400;
+    let is_pdf = input
+        .extension()
+        .map(|e| e.to_string_lossy().to_lowercase() == "pdf")
+        .unwrap_or(false);
+    if is_pdf {
+        return input.to_path_buf();
+    }
+    let dims = image::image_dimensions(input);
+    match dims {
+        Ok((w, _)) if w < MIN_WIDTH => {
+            let upscaled = input.with_extension("upscaled.png");
+            let ok = std::process::Command::new("sips")
+                .arg("--resampleWidth")
+                .arg(TARGET_WIDTH.to_string())
+                .arg(input)
+                .arg("--out")
+                .arg(&upscaled)
+                .output()
+                .map(|o| o.status.success() && upscaled.exists())
+                .unwrap_or(false);
+            if ok {
+                log::info!("识别输入分辨率 {w}px 偏低，已放大至 {TARGET_WIDTH}px");
+                upscaled
+            } else {
+                log::warn!("图片放大失败，用原图识别");
+                input.to_path_buf()
+            }
+        }
+        _ => input.to_path_buf(),
+    }
+}
+
 /// 单次批处理执行：流式读取 stdout，回调进度；可取消（SIGTERM 子进程）。
 /// 返回输出目录中新产出的 .mxl 文件列表。
 pub fn run_batch(
@@ -146,6 +185,23 @@ pub fn run_batch(
     }
     let _ = std::fs::create_dir_all(out_dir);
     let before = snapshot_mxl(out_dir);
+
+    // 引擎日志尾部环形缓冲（失败时附到错误信息里）
+    let log_tail: Arc<Mutex<std::collections::VecDeque<String>>> =
+        Arc::new(Mutex::new(std::collections::VecDeque::with_capacity(8)));
+    let push_tail = |line: String, buf: &Arc<Mutex<std::collections::VecDeque<String>>>| {
+        if let Ok(mut b) = buf.lock() {
+            if b.len() == 8 {
+                b.pop_front();
+            }
+            b.push_back(line);
+        }
+    };
+    let tail_for_err = |buf: &Arc<Mutex<std::collections::VecDeque<String>>>| {
+        buf.lock()
+            .map(|b| b.iter().cloned().collect::<Vec<_>>().join("\n"))
+            .unwrap_or_default()
+    };
 
     let mut child: Child = Command::new(&engine.launcher)
         .args(build_args(inputs, out_dir))
@@ -177,8 +233,10 @@ pub fn run_batch(
 
     let stdout = child.stdout.take().unwrap();
     let stderr = child.stderr.take().unwrap();
+    let tail_out = Arc::clone(&log_tail);
     let reader = thread::spawn(move || {
         for line in BufReader::new(stdout).lines().map_while(Result::ok) {
+            push_tail(line.clone(), &tail_out);
             // 粗粒度进度：处理中的步骤日志 → 50；导出 → 95
             let progress = if line.contains("Exporting") || line.contains("Exported") {
                 95
@@ -193,6 +251,7 @@ pub fn run_batch(
         }
         for line in BufReader::new(stderr).lines().map_while(Result::ok) {
             log::warn!("[audiveris:err] {line}");
+            push_tail(line, &tail_out);
         }
     });
 
@@ -200,11 +259,16 @@ pub fn run_batch(
     let _ = reader.join();
 
     if !status.success() {
+        let tail = tail_for_err(&log_tail);
         if cancel.cancel_requested() {
             return Err(OmrError::Canceled);
         }
+        // 分辨率不足的典型特征
+        if tail.contains("resolution is too low") || tail.contains("too low interline") {
+            return Err(OmrError::LowResolution);
+        }
         return Err(OmrError::Process(format!(
-            "Audiveris 退出码 {:?}",
+            "Audiveris 退出码 {:?}\n引擎日志尾部:\n{tail}",
             status.code()
         )));
     }
@@ -215,6 +279,16 @@ pub fn run_batch(
         .filter(|p| !before.contains(p))
         .collect();
     if produced.is_empty() {
+        // 正常退出但没导出：常见于转写失败（如 Sheet ignored），日志里通常有原因
+        let tail = tail_for_err(&log_tail);
+        if tail.contains("resolution is too low") || tail.contains("too low interline") {
+            return Err(OmrError::LowResolution);
+        }
+        if !tail.is_empty() {
+            return Err(OmrError::Process(format!(
+                "Audiveris 未能导出\n引擎日志尾部:\n{tail}"
+            )));
+        }
         return Err(OmrError::NoOutput);
     }
     Ok(produced)
@@ -353,12 +427,14 @@ fn execute_job(
     cancel: Arc<CancelState>,
 ) -> Result<PathBuf, OmrError> {
     let engine = resolve_engine(state)?;
-    let input = PathBuf::from(
+    let raw_input = PathBuf::from(
         score
             .original_path
             .as_ref()
             .ok_or(OmrError::InputMissing)?,
     );
+    // 低分辨率图片自动放大后再送识别
+    let input = prepare_input(&raw_input);
     let out_dir = state.data_dir.join("scores").join(&score.id);
 
     let db = Arc::clone(&state.db);
