@@ -58,12 +58,54 @@ mod imp {
     }
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(windows)]
+mod imp {
+    // Windows: pdfium-render + 随包 pdfium.dll（Cargo.toml [target.'cfg(windows)'.dependencies]）
+    use std::path::Path;
+    use pdfium_render::prelude::*;
+
+    fn open(path: &Path) -> Result<Pdfium, String> {
+        // 解析 pdfium.dll: 可执行文件目录 / 资源目录 / PDFIUM_DLL 环境变量
+        let mut candidates = Vec::new();
+        if let Ok(env_path) = std::env::var("PDFIUM_DLL") {
+            candidates.push(PathBuf::from(env_path));
+        }
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(dir) = exe.parent() {
+                candidates.push(dir.join("pdfium.dll"));
+            }
+        }
+        let lib = candidates
+            .into_iter()
+            .find(|p| p.exists())
+            .ok_or("未找到 pdfium.dll（应随应用打包）")?;
+        let bindings = Pdfium::bind_to_library(&lib).map_err(|e| e.to_string())?;
+        Ok(Pdfium::new(bindings))
+    }
+
+    pub fn page_count(path: &Path) -> Option<i64> {
+        let pdfium = open(path).ok()?;
+        let doc = pdfium.load_pdf_from_file(path, None).ok()?;
+        Some(doc.pages().len() as i64)
+    }
+
+    pub fn render_first_page(path: &Path, out_png: &Path) -> Result<(), String> {
+        let pdfium = open(path)?;
+        let doc = pdfium.load_pdf_from_file(path, None).map_err(|e| e.to_string())?;
+        let page = doc.pages().get(0).map_err(|e| e.to_string())?;
+        let config = PdfRenderConfig::new().set_target_width(800);
+        let bitmap = page.render_with_config(&config).map_err(|e| e.to_string())?;
+        bitmap
+            .as_image()
+            .save_with_format(out_png, image::ImageFormat::Png)
+            .map_err(|e| e.to_string())
+    }
+    use std::path::PathBuf;
+}
+
+#[cfg(not(any(target_os = "macos", windows)))]
 mod imp {
     use std::path::Path;
-
-    // Windows/Linux 计划实现：pdfium-render + 随应用打包 pdfium 动态库。
-    // 在此之前优雅降级：封面缺失、页数为 0，不影响导入与识别主流程。
 
     pub fn page_count(_path: &Path) -> Option<i64> {
         None

@@ -110,9 +110,23 @@ pub fn resolve_engine(state: &AppState) -> Result<EngineConfig, OmrError> {
     if let Ok(env_path) = std::env::var("AUDIVERIS_CMD") {
         candidates.push(PathBuf::from(env_path));
     }
-    candidates.push(PathBuf::from(
-        "/Applications/Audiveris.app/Contents/MacOS/Audiveris",
-    ));
+    if cfg!(target_os = "macos") {
+        candidates.push(PathBuf::from(
+            "/Applications/Audiveris.app/Contents/MacOS/Audiveris",
+        ));
+    }
+    if cfg!(windows) {
+        // Audiveris Windows msi 安装位置（5.11 默认）＋ 环境变量
+        for d in [
+            "C:\\Program Files\\Audiveris\\bin\\Audiveris.exe",
+            "C:\\Program Files (x86)\\Audiveris\\bin\\Audiveris.exe",
+        ] {
+            candidates.push(PathBuf::from(d));
+        }
+        if let Ok(pf) = std::env::var("ProgramFiles") {
+            candidates.push(PathBuf::from(format!("{pf}\\Audiveris\\bin\\Audiveris.exe")));
+        }
+    }
 
     let launcher = candidates
         .into_iter()
