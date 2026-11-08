@@ -1,7 +1,14 @@
 # ScanScore — 乐谱扫描与播放
 
-桌面应用：导入 PDF/PNG 乐谱 → OMR 光学识别（Audiveris）→ 曲库管理 → 浏览与播放（alphaTab）。
-支持钢琴谱、吉他五线谱扫描识别；吉他六线谱通过 Guitar Pro 文件（.gp3~.gp5/.gpx）直接导入。
+桌面应用：导入乐谱 → 识别 → 曲库 → 浏览与播放。
+
+- 📷 **扫描识别**：PNG / JPG / AVIF / WebP / PDF 五线谱，本地离线 OMR（Audiveris）；低清图片自动放大；识别参数可调
+- 🎸 **六线谱（TAB）**：图像自动检测 → AI 视觉模型转录 alphaTex（可选，支持 DeepSeek/智谱/硅基流动/Ollama 等 OpenAI 兼容端点）；Guitar Pro 文件（.gp3–.gp5/.gpx）直接导入
+- 🎼 **曲库**：SQLite 管理、封面、搜索筛选、文件夹批量导入、多图合并为一首、批量识别/删除、备份恢复
+- ▶️ **播放**：WebAudio 合成器（GeneralUser GS 音源）、A-B 循环、节拍器、变速 0.5–2x、轨道静音、横向/分页布局、缩放
+- 📤 **导出**：MIDI、MusicXML/alphaTex；alphaTex 编辑器（AI 结果人工校对）
+- 🔍 **透明度**：每次识别的引擎日志可在界面查看
+- 🔒 **隐私**：五线谱识别全程本地；仅 AI 六线谱转录（可选功能）需联网
 
 ## 技术栈
 
