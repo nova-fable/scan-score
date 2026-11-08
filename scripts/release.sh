@@ -8,8 +8,11 @@ VERSION="${1:-}"
 cd "$(dirname "$0")/.."
 
 [[ -z $(git status --porcelain) ]] || { echo "✗ 工作区不干净，先提交或暂存"; exit 1; }
-git fetch origin main --quiet
-[[ "$(git rev-parse main)" == "$(git rev-parse origin/main)" ]] || { echo "✗ 本地 main 与远端分叉，先同步"; exit 1; }
+if git fetch origin main --quiet 2>/dev/null; then
+  [[ "$(git rev-parse main)" == "$(git rev-parse origin/main)" ]] || { echo "✗ 本地 main 与远端分叉，先同步"; exit 1; }
+else
+  echo "⚠ 无法连接远端，跳过分叉检查（离线环境）"
+fi
 
 TAG="v$VERSION"
 git rev-parse -q --verify "refs/tags/$TAG" >/dev/null && { echo "✗ tag $TAG 已存在"; exit 1; }
