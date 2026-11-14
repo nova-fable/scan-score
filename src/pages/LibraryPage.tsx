@@ -5,6 +5,7 @@ import { api, type Score } from "../lib/tauri";
 import { useUi } from "../stores/ui";
 import { useDialog } from "../lib/useDialog";
 import ConfirmDialog from "../components/ConfirmDialog";
+import { IconCheck } from "../components/icons";
 
 const STATUS_LABEL: Record<Score["status"], string> = {
   imported: "待识别",
@@ -13,11 +14,12 @@ const STATUS_LABEL: Record<Score["status"], string> = {
   failed: "识别失败",
 };
 
-const STATUS_STYLE: Record<Score["status"], string> = {
-  imported: "bg-amber-100 text-amber-700",
-  processing: "bg-blue-100 text-blue-700",
-  ready: "bg-emerald-100 text-emerald-700",
-  failed: "bg-red-100 text-red-700",
+/// 状态 = 封面上的专色贴纸(-2° 微旋,像贴上去的标签)
+const STATUS_BADGE: Record<Score["status"], string> = {
+  imported: "bg-spot-wait text-paper",
+  processing: "bg-spot-run text-paper",
+  ready: "bg-spot-ok text-paper",
+  failed: "bg-spot-fail text-paper",
 };
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [
@@ -34,14 +36,44 @@ const INSTRUMENT_LABEL: Record<string, string> = {
   other: "其他",
 };
 
+const SOURCE_LABEL: Record<Score["sourceType"], string> = {
+  pdf: "PDF",
+  png: "图片",
+  jpg: "图片",
+  musicxml: "MusicXML",
+  gp: "Guitar Pro",
+};
+
+/// 无封面时的排印封面:上双细线 + 下单细线的仪式框里放曲名与作者
+function TypeCover({ score }: { score: Score }) {
+  return (
+    <div className="flex min-h-[150px] flex-1 flex-col items-center justify-center py-2 text-center">
+      <div className="cover-rule w-full px-1 pb-2.5 pt-3">
+        <div className="font-disp text-[21px] font-black leading-tight line-clamp-3" title={score.title}>
+          {score.title}
+        </div>
+      </div>
+      {score.composer && (
+        <div className="mt-2.5 text-[11px] font-bold tracking-[0.18em] opacity-85">
+          {score.composer}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ScoreCard({
   score,
+  paper,
+  progress,
   checked,
   onToggleCheck,
   onOpen,
   onRequestDelete,
 }: {
   score: Score;
+  paper: boolean;
+  progress: number | null;
   checked: boolean;
   onToggleCheck: (shift: boolean) => void;
   onOpen: () => void;
@@ -75,69 +107,88 @@ function ScoreCard({
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["scores"] }),
   });
 
+  const spine = [
+    score.composer,
+    INSTRUMENT_LABEL[score.instrument] ?? "其他",
+    SOURCE_LABEL[score.sourceType],
+    score.pageCount > 0 ? `${score.pageCount} 页` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
-    <div className="group relative overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm transition-[box-shadow,transform] duration-150 hover:-translate-y-0.5 hover:shadow-md">
-      {/* 多选框（左上角常驻；DOM 在前保证键盘顺序 = 视觉顺序） */}
+    <div
+      className={`book-card group relative flex flex-col rounded-lg p-4 transition-[transform,box-shadow] duration-200 ${
+        paper ? "paper-card" : ""
+      }`}
+    >
+      {/* 多选框(左上角;静默态=发丝线描边,不压书封) */}
       <button
         onClick={(e) => {
           e.stopPropagation();
           onToggleCheck(e.shiftKey);
         }}
         aria-label={checked ? `取消选择 ${score.title}` : `选择 ${score.title}`}
-        className={`absolute left-2 top-2 z-10 grid h-6 w-6 place-items-center rounded-md border text-xs shadow ${
+        className={`absolute left-2.5 top-2.5 z-10 grid h-6 w-6 place-items-center rounded-md border ${
           checked
-            ? "border-indigo-600 bg-indigo-600 text-white"
-            : "border-zinc-300 bg-white/90 text-transparent hover:text-zinc-400"
+            ? "border-paper bg-paper text-ink"
+            : "border-[color:var(--line)] bg-transparent text-transparent opacity-70 hover:opacity-100 group-focus-within:opacity-100"
         }`}
       >
-        ✓
+        <IconCheck size={13} />
       </button>
+      {/* 状态贴纸 */}
+      <span
+        className={`absolute right-3 top-3 z-10 -rotate-2 rounded-full px-2.5 py-0.5 text-[11px] font-bold tracking-wide ${STATUS_BADGE[score.status]}`}
+      >
+        {score.status === "processing" && progress !== null
+          ? `识别中 ${progress}%`
+          : STATUS_LABEL[score.status]}
+      </span>
       <button onClick={onOpen} className="block w-full text-left">
-        <div className="grid h-36 place-items-center bg-zinc-100">
-          {coverUrl ? (
-            <img src={coverUrl} alt="" className="max-h-36 w-full object-cover" />
-          ) : (
-            /// 无封面占位：五线谱 + 四分音符（手绘 SVG，与领域同源）
-            <svg width="56" height="56" viewBox="0 0 56 56" fill="none" aria-hidden="true">
-              {[14, 21, 28, 35, 42].map((y) => (
-                <line key={y} x1="7" y1={y} x2="49" y2={y} stroke="#d4d4d8" strokeWidth="1.5" strokeLinecap="round" />
-              ))}
-              <ellipse cx="33" cy="33.5" rx="5.5" ry="4.2" transform="rotate(-20 33 33.5)" fill="#a1a1aa" />
-              <path
-                d="M38 32.5 V11.5 c4.5 1.2 7.5 3.2 7.5 6.2"
-                stroke="#a1a1aa"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                fill="none"
-              />
-            </svg>
-          )}
-        </div>
-        <div className="p-3">
-          <div className="truncate text-sm font-semibold" title={score.title}>
-            {score.title}
-          </div>
-          <div className="mt-1 flex items-center gap-2 text-xs text-zinc-500">
-            <span>{INSTRUMENT_LABEL[score.instrument] ?? "其他"}</span>
-            <span className={STATUS_STYLE[score.status]}>
-              {score.status === "processing" ? "识别中…" : STATUS_LABEL[score.status]}
-            </span>
-          </div>
-          {score.errorMessage && (
-            <div
-              className="mt-1 truncate select-text text-xs text-red-600"
-              title={score.errorMessage}
-            >
-              {score.errorMessage}
+        {coverUrl ? (
+          <>
+            {/* 有封面图的册子仍是书:排印标题带在上,封面图是图版,书脊信息行在下 */}
+            <div className="cover-rule w-full px-1 pb-1.5 pt-2">
+              <div
+                className="font-disp text-[15px] font-black leading-tight line-clamp-1"
+                title={score.title}
+              >
+                {score.title}
+              </div>
             </div>
-          )}
+            <img src={coverUrl} alt="" className="mt-2.5 h-36 w-full rounded-sm object-cover" />
+          </>
+        ) : (
+          <TypeCover score={score} />
+        )}
+        {score.status === "processing" && progress !== null && (
+          <div className="mt-3 h-[5px] w-full overflow-hidden rounded-full [background-color:rgba(28,36,32,0.12)]">
+            <div
+              className="h-full rounded-full bg-spot-run transition-[width] duration-300"
+              style={{ width: `${Math.max(progress, 4)}%` }}
+            />
+          </div>
+        )}
+        {score.errorMessage && (
+          <div
+            className="mt-2 line-clamp-1 select-text text-xs text-spot-fail"
+            title={score.errorMessage}
+          >
+            {score.errorMessage}
+          </div>
+        )}
+        {/* 书脊信息行 */}
+        <div className="mt-3 border-t pt-2.5 text-center text-[11.5px] tracking-wide opacity-80 [border-color:var(--line)]">
+          {spine}
         </div>
       </button>
-      <div className="absolute right-2 top-2 flex gap-1 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
+      {/* 悬停浮现的操作(失败卡带重试 = 识别) */}
+      <div className="absolute bottom-2.5 right-2.5 z-10 flex gap-1 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
         {canRecognize && (
           <button
             onClick={() => recognize.mutate()}
-            className="rounded-md bg-white/90 px-2 py-1 text-xs text-indigo-600 shadow hover:bg-indigo-50"
+            className="rounded-md bg-paper-bright/95 px-2 py-1 text-xs font-semibold text-ink shadow-sm hover:bg-paper-dim"
           >
             识别
           </button>
@@ -147,7 +198,7 @@ function ScoreCard({
             e.stopPropagation();
             onRequestDelete();
           }}
-          className="rounded-md bg-white/90 px-2 py-1 text-xs text-red-600 shadow hover:bg-red-50"
+          className="rounded-md bg-paper-bright/95 px-2 py-1 text-xs font-semibold text-spot-fail shadow-sm hover:bg-spot-fail/10"
         >
           删除
         </button>
@@ -208,7 +259,7 @@ export default function LibraryPage() {
       }),
   });
 
-  // 识别队列状态（用于角标展示）——仅在曲库中有识别任务进行中时轮询
+  // 识别队列状态(用于角标展示)——仅在曲库中有识别任务进行中时轮询
   const scoresList = useMemo(() => scores.data ?? [], [scores.data]);
   const hasProcessing = scoresList.some((s) => s.status === "processing");
   const allJobs = useQuery({
@@ -218,6 +269,16 @@ export default function LibraryPage() {
   });
   const queuedCount =
     allJobs.data?.filter((j) => j.state === "queued" || j.state === "running").length ?? 0;
+  // 识别中卡片的实时进度(Job.progress 兼容 0-1 与 0-100 两种刻度)
+  const progressByScore = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const j of allJobs.data ?? []) {
+      if (j.state !== "running" && j.state !== "queued") continue;
+      const p = j.progress <= 1 ? Math.round(j.progress * 100) : Math.round(j.progress);
+      m.set(j.scoreId, Math.min(Math.max(p, 0), 100));
+    }
+    return m;
+  }, [allJobs.data]);
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
@@ -352,7 +413,14 @@ export default function LibraryPage() {
 
   return (
     <div className="relative flex h-full flex-col">
-      <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-zinc-200 bg-white px-5 py-3">
+      <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-hair px-5 py-3">
+        {/* 书架题名 */}
+        <div className="flex items-baseline gap-2">
+          <span className="font-disp text-xl font-black text-bind">曲库</span>
+          <span className="text-xs text-bind/55">
+            {hasFilter ? `${sortedScores.length} / ${scoresList.length} 册` : `共 ${scoresList.length} 册`}
+          </span>
+        </div>
         {/* 筛选簇 */}
         <div className="flex min-w-0 items-center gap-2">
           <input
@@ -369,13 +437,13 @@ export default function LibraryPage() {
             }}
             placeholder="搜索标题 / 作曲者…"
             aria-label="搜索标题或作曲者"
-            className="w-56 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm outline-none focus:border-indigo-400"
+            className="w-56 rounded-lg border border-hair-strong bg-paper-bright px-3 py-1.5 text-sm text-bind outline-none placeholder:text-bind/45 focus:border-ink"
           />
           <select
             value={instrument}
             onChange={(e) => setInstrument(e.target.value)}
             aria-label="按乐器筛选"
-            className="rounded-lg border border-zinc-200 px-2 py-1.5 text-sm outline-none"
+            className="rounded-lg border border-hair-strong bg-paper-bright px-2 py-1.5 text-sm text-bind outline-none focus:border-ink"
           >
             <option value="">全部乐器</option>
             <option value="piano">钢琴</option>
@@ -386,7 +454,7 @@ export default function LibraryPage() {
             value={status}
             onChange={(e) => setStatus(e.target.value)}
             aria-label="按状态筛选"
-            className="rounded-lg border border-zinc-200 px-2 py-1.5 text-sm outline-none"
+            className="rounded-lg border border-hair-strong bg-paper-bright px-2 py-1.5 text-sm text-bind outline-none focus:border-ink"
           >
             {STATUS_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
@@ -398,7 +466,7 @@ export default function LibraryPage() {
             value={sort}
             onChange={(e) => setSort(e.target.value as "default" | "title")}
             aria-label="排序方式"
-            className="rounded-lg border border-zinc-200 px-2 py-1.5 text-sm outline-none"
+            className="rounded-lg border border-hair-strong bg-paper-bright px-2 py-1.5 text-sm text-bind outline-none focus:border-ink"
           >
             <option value="default">排序：添加顺序</option>
             <option value="title">排序：标题</option>
@@ -406,36 +474,40 @@ export default function LibraryPage() {
         </div>
         <div className="flex-1" />
         {queuedCount > 0 && (
-          <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs text-blue-700">
+          <span className="rounded-full bg-spot-run/15 px-2.5 py-1 text-xs font-semibold text-spot-run">
             队列 {queuedCount}
           </span>
         )}
         {/* 批量簇：独立容器，与相邻簇保持 16px */}
         {isBatchMode && (
-          <div className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-1" role="group" aria-label="批量操作">
-            <span className="ml-1.5 text-xs text-zinc-500">已选 {selected.size}</span>
+          <div
+            className="flex items-center gap-2 rounded-lg border border-hair-strong bg-paper-dim/70 p-1"
+            role="group"
+            aria-label="批量操作"
+          >
+            <span className="ml-1.5 text-xs text-bind/60">已选 {selected.size}</span>
             <button
               onClick={() => setSelected(new Set(sortedScores.map((s) => s.id)))}
-              className="whitespace-nowrap rounded-md px-2 py-1 text-xs text-zinc-600 hover:bg-zinc-100"
+              className="whitespace-nowrap rounded-md px-2 py-1 text-xs text-bind/70 hover:bg-paper-dim"
             >
               全选
             </button>
             <button
               onClick={() => batchRecognize.mutate()}
               disabled={batchRecognize.isPending}
-              className="whitespace-nowrap rounded-md bg-indigo-600 px-3 py-1 text-sm text-white hover:bg-indigo-500 disabled:opacity-50"
+              className="whitespace-nowrap rounded-md bg-ink px-3 py-1 text-sm font-semibold text-paper hover:bg-ink-bright disabled:opacity-50"
             >
               识别所选
             </button>
             <button
               onClick={() => setConfirmState({ kind: "batch", ids: [...selected] })}
-              className="whitespace-nowrap rounded-md border border-red-200 px-3 py-1 text-sm text-red-600 hover:bg-red-50"
+              className="whitespace-nowrap rounded-md border border-spot-fail/40 px-3 py-1 text-sm text-spot-fail hover:bg-spot-fail/10"
             >
               删除所选
             </button>
             <button
               onClick={() => setSelected(new Set())}
-              className="whitespace-nowrap rounded-md px-3 py-1 text-sm text-zinc-600 hover:bg-zinc-100"
+              className="whitespace-nowrap rounded-md px-3 py-1 text-sm text-bind/70 hover:bg-paper-dim"
             >
               取消
             </button>
@@ -456,20 +528,20 @@ export default function LibraryPage() {
                 setMergeChecked(files.length > 1);
                 setFolderFiles(files);
               }}
-              className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-sm ${
+              className={`whitespace-nowrap rounded-lg border px-3 py-1.5 text-sm ${
                 isBatchMode
-                  ? "border border-zinc-200 text-zinc-600 hover:bg-zinc-50"
-                  : "border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                  ? "border-hair-strong text-bind/70 hover:bg-paper-dim"
+                  : "border-ink/35 text-ink hover:bg-paper-dim"
               }`}
             >
               导入文件夹
             </button>
             <button
               onClick={pickAndImport}
-              className={`whitespace-nowrap rounded-lg px-4 py-1.5 text-sm ${
+              className={`whitespace-nowrap rounded-lg px-4 py-1.5 text-sm font-semibold ${
                 isBatchMode
-                  ? "border border-zinc-200 text-zinc-600 hover:bg-zinc-50"
-                  : "bg-indigo-600 text-white shadow hover:bg-indigo-500"
+                  ? "border border-hair-strong text-bind/70 hover:bg-paper-dim"
+                  : "bg-ink text-paper shadow-sm hover:bg-ink-bright"
               }`}
             >
               导入乐谱
@@ -480,18 +552,40 @@ export default function LibraryPage() {
 
       <div className="flex-1 overflow-auto p-5">
         {scores.isLoading ? (
-          <div className="grid h-full place-items-center text-sm text-zinc-500">加载中…</div>
+          <div className="grid h-full place-items-center text-sm text-bind/55">加载中…</div>
         ) : visibleScores.length === 0 && scoresList.length === 0 && !hasFilter ? (
           <div className="grid h-full place-items-center">
             <div className="text-center">
-              <div className="text-4xl">🎼</div>
-              <div className="mt-2 text-sm text-zinc-500">曲库还是空的</div>
-              <div className="mt-1 text-xs text-zinc-500">
+              {/* 空谱台 monument:网格上的五线谱与休止符——体系内唯一的展示字形 */}
+              <svg width="240" height="130" viewBox="0 0 240 130" fill="none" aria-hidden="true" className="mx-auto">
+                <g stroke="#e3dab8" strokeWidth="1">
+                  {Array.from({ length: 11 }, (_, i) => (
+                    <line key={`v${i}`} x1={20 + i * 20} y1="10" x2={20 + i * 20} y2="120" />
+                  ))}
+                </g>
+                <g stroke="#b9ad8a" strokeWidth="1.5">
+                  {[35, 50, 65, 80, 95].map((y) => (
+                    <line key={y} x1="20" y1={y} x2="220" y2={y} />
+                  ))}
+                </g>
+                <rect x="128" y="50" width="34" height="11" rx="2" fill="#1e4636" />
+                <path d="M162 50 V95" stroke="#1e4636" strokeWidth="2" strokeLinecap="round" />
+                <ellipse cx="80" cy="80" rx="11" ry="8" transform="rotate(-20 80 80)" fill="#1e4636" />
+                <path
+                  d="M90.5 78 V35 c7 2 12 5 12 10"
+                  stroke="#1e4636"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                  fill="none"
+                />
+              </svg>
+              <div className="mt-4 text-sm text-bind/70">谱架还是空的</div>
+              <div className="mt-1 text-xs text-bind/55">
                 把 PDF / PNG / MusicXML / Guitar Pro 文件拖进来，或
               </div>
               <button
                 onClick={pickAndImport}
-                className="mt-3 rounded-lg bg-indigo-600 px-4 py-1.5 text-sm text-white shadow hover:bg-indigo-500"
+                className="mt-3 rounded-lg bg-ink px-4 py-1.5 text-sm font-semibold text-paper shadow-sm hover:bg-ink-bright"
               >
                 导入乐谱
               </button>
@@ -499,9 +593,21 @@ export default function LibraryPage() {
           </div>
         ) : visibleScores.length === 0 ? (
           <div className="grid h-full place-items-center">
-            <div className="text-center text-zinc-500">
-              <div className="text-4xl">🔍</div>
-              <div className="mt-2 text-sm">没有匹配的曲谱</div>
+            <div className="text-center text-bind/60">
+              <svg width="150" height="90" viewBox="0 0 150 90" fill="none" aria-hidden="true" className="mx-auto">
+                <g stroke="#ddd3b8" strokeWidth="1">
+                  {Array.from({ length: 7 }, (_, i) => (
+                    <line key={`v${i}`} x1={15 + i * 20} y1="8" x2={15 + i * 20} y2="82" />
+                  ))}
+                </g>
+                <g stroke="#b9ad8a" strokeWidth="1.5">
+                  {[25, 37, 49, 61, 73].map((y) => (
+                    <line key={y} x1="15" y1={y} x2="135" y2={y} />
+                  ))}
+                </g>
+                <rect x="62" y="31" width="26" height="9" rx="2" fill="#1e4636" />
+              </svg>
+              <div className="mt-3 text-sm">没有匹配的曲谱</div>
               <button
                 onClick={() => {
                   setSearchInput("");
@@ -509,18 +615,20 @@ export default function LibraryPage() {
                   setInstrument("");
                   setStatus("");
                 }}
-                className="mt-3 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
+                className="mt-3 rounded-lg border border-hair-strong px-3 py-1.5 text-sm text-bind/80 hover:bg-paper-dim"
               >
                 清除筛选
               </button>
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
-            {sortedScores.map((s) => (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-4 pr-2">
+            {sortedScores.map((s, i) => (
               <ScoreCard
                 key={s.id}
                 score={s}
+                paper={i % 2 === 1}
+                progress={progressByScore.get(s.id) ?? null}
                 checked={selected.has(s.id)}
                 onToggleCheck={(shift) => handleToggleCheck(s.id, shift)}
                 onOpen={() => openScore(s.id)}
@@ -532,8 +640,8 @@ export default function LibraryPage() {
       </div>
 
       {dragging && (
-        <div className="pointer-events-none absolute inset-0 z-10 m-5 grid place-items-center rounded-2xl border-2 border-dashed border-indigo-400 bg-indigo-50/70">
-          <div className="text-sm font-semibold text-indigo-600">松开以导入乐谱</div>
+        <div className="pointer-events-none absolute inset-0 z-10 m-5 grid place-items-center rounded-2xl border-2 border-dashed border-ink bg-paper-bright/75">
+          <div className="text-sm font-semibold text-ink">松开以导入乐谱</div>
         </div>
       )}
 
@@ -545,13 +653,11 @@ export default function LibraryPage() {
             role="dialog"
             aria-modal="true"
             aria-label="导入文件夹"
-            className="anim-pop-in w-[420px] rounded-2xl bg-white p-5 shadow-xl"
+            className="anim-pop-in w-[420px] rounded-xl border border-hair bg-paper-bright p-5 shadow-xl"
           >
-            <div className="text-sm font-semibold">导入文件夹</div>
-            <div className="mt-1 text-xs text-zinc-500">
-              检测到 {folderFiles.length} 个乐谱文件
-            </div>
-            <div className="mt-3 max-h-40 overflow-auto rounded-lg border border-zinc-100 bg-zinc-50 p-2 text-xs text-zinc-600">
+            <div className="text-sm font-semibold text-bind">导入文件夹</div>
+            <div className="mt-1 text-xs text-bind/60">检测到 {folderFiles.length} 个乐谱文件</div>
+            <div className="mt-3 max-h-40 overflow-auto rounded-lg border border-hair bg-paper-dim/60 p-2 text-xs text-bind/70">
               {folderFiles.map((f) => (
                 <div key={f} className="truncate py-0.5">
                   {f.split("/").pop()}
@@ -559,16 +665,16 @@ export default function LibraryPage() {
               ))}
             </div>
             {folderFiles.length > 1 && (
-              <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg border border-zinc-200 p-3 text-sm hover:bg-zinc-50">
+              <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg border border-hair p-3 text-sm hover:bg-paper-dim/60">
                 <input
                   type="checkbox"
                   checked={mergeChecked}
                   onChange={(e) => setMergeChecked(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 accent-indigo-600"
+                  className="mt-0.5 h-4 w-4 accent-[#1e4636]"
                 />
                 <span>
-                  <span className="font-semibold">合并为一首曲子</span>
-                  <span className="block text-xs text-zinc-500">
+                  <span className="font-semibold text-bind">合并为一首曲子</span>
+                  <span className="block text-xs text-bind/60">
                     多张图片按文件名顺序拼接成连续谱面，一次识别（适合分页扫描的同一首）
                   </span>
                 </span>
@@ -578,7 +684,7 @@ export default function LibraryPage() {
               <button
                 onClick={() => setFolderFiles(null)}
                 disabled={doImportMerged.isPending}
-                className="rounded-lg border border-zinc-200 px-4 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50 disabled:opacity-50"
+                className="rounded-lg border border-hair-strong px-4 py-1.5 text-sm text-bind/80 hover:bg-paper-dim disabled:opacity-50"
               >
                 取消
               </button>
@@ -592,7 +698,7 @@ export default function LibraryPage() {
                   }
                 }}
                 disabled={doImportMerged.isPending}
-                className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm text-white hover:bg-indigo-500 disabled:opacity-50"
+                className="rounded-lg bg-ink px-4 py-1.5 text-sm font-semibold text-paper hover:bg-ink-bright disabled:opacity-50"
               >
                 {doImportMerged.isPending ? "导入中…" : "导入"}
               </button>

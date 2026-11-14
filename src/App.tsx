@@ -8,48 +8,57 @@ import SettingsPage from "./pages/SettingsPage";
 import Toast from "./components/Toast";
 import ShortcutsDialog from "./components/ShortcutsDialog";
 
+/// 侧栏 = 书的封面:深墨绿油墨底、奶油字、烫金双细线。
+/// 主区 = 内页:奶油纸面,左缘一道书脊装订阴影。
 function Sidebar({ onOpenHelp }: { onOpenHelp: () => void }) {
   const { view, openLibrary, openSettings } = useUi();
   return (
-    <aside className="flex w-52 shrink-0 flex-col border-r border-zinc-200 bg-white">
-      <div className="flex items-center gap-2 px-4 py-4">
+    <aside className="on-ink flex w-56 shrink-0 flex-col bg-ink-deep px-5 pb-5 pt-7 text-paper">
+      <div className="flex items-center gap-2.5">
         <img src="/app-icon.png" alt="" className="h-9 w-9 shrink-0" />
         <div>
-          <div className="text-sm font-semibold">ScanScore</div>
-          <div className="text-xs text-zinc-500">曲谱扫描与播放</div>
+          <div className="font-disp text-[21px] font-black leading-none tracking-wide">
+            ScanScore
+          </div>
+          <div className="mt-1.5 text-[10.5px] font-semibold tracking-[0.3em] text-ink-faint">
+            扫描 · 识别 · 播放
+          </div>
         </div>
       </div>
-      <nav className="mt-2 flex flex-col gap-1 px-2">
+      <div className="mt-4 border-t-4 border-double border-gold/45" />
+      <nav className="mt-6 flex flex-col gap-1.5">
         <button
           onClick={openLibrary}
-          className={`rounded-lg px-3 py-2 text-left text-sm ${
+          className={`flex items-center justify-between rounded-lg px-3.5 py-2.5 text-left text-sm font-semibold ${
             view !== "settings"
-              ? "bg-indigo-50 font-semibold text-indigo-700"
-              : "text-zinc-600 hover:bg-zinc-100"
+              ? "bg-paper/15 text-paper shadow-[inset_3px_0_0_0_#f7f1de]"
+              : "text-ink-faint hover:bg-ink-bright"
           }`}
         >
           曲库
         </button>
         <button
           onClick={openSettings}
-          className={`rounded-lg px-3 py-2 text-left text-sm ${
+          className={`flex items-center justify-between rounded-lg px-3.5 py-2.5 text-left text-sm font-semibold ${
             view === "settings"
-              ? "bg-indigo-50 font-semibold text-indigo-700"
-              : "text-zinc-600 hover:bg-zinc-100"
+              ? "bg-paper/15 text-paper shadow-[inset_3px_0_0_0_#f7f1de]"
+              : "text-ink-faint hover:bg-ink-bright"
           }`}
         >
           设置
         </button>
       </nav>
-      <div className="mt-auto px-4 pb-3 pt-2">
+      <div className="mt-auto">
         <button
           onClick={onOpenHelp}
           title="快捷键说明（按 ?）"
-          className="text-xs text-zinc-500 hover:text-indigo-600"
+          className="text-xs text-ink-faint hover:text-gold"
         >
-          快捷键（?）
+          快捷键（<span className="text-gold">?</span>）
         </button>
-        <div className="mt-1 text-xs text-zinc-500">OMR: Audiveris · 渲染播放: alphaTab</div>
+        <div className="mt-1.5 text-[10.5px] leading-relaxed text-ink-faint">
+          OMR: Audiveris · 渲染播放: alphaTab
+        </div>
       </div>
     </aside>
   );
@@ -105,7 +114,7 @@ export default function App() {
   return (
     <div className="flex h-full">
       <Sidebar onOpenHelp={() => setHelpOpen(true)} />
-      <main className="flex min-w-0 flex-1 flex-col">
+      <main className="flex min-w-0 flex-1 flex-col shadow-[inset_12px_0_16px_-12px_rgba(28,36,32,0.4)]">
         {view === "library" && <LibraryPage />}
         {view === "detail" && scoreId && <ScoreDetailPage key={scoreId} scoreId={scoreId} />}
         {view === "settings" && <SettingsPage />}

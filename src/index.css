@@ -1,7 +1,30 @@
 @import "tailwindcss";
+/* Bitter 拉丁书封展示体(OFL,本地打包;中文自动回落系统黑体) */
+@import "@fontsource/bitter/700.css";
+@import "@fontsource/bitter/900.css";
 
-/* 排印 token：micro 角色（11px/1.34），生成 text-micro 工具类 */
+/* ── 墨绿书封世界令牌 ──
+   一本摊开的 Real Book:封面文化(深墨绿油墨+奶油纸)承载壳,
+   内页文化(干净纸面)承载工作区;状态四色是纸上专色。 */
 @theme {
+  --color-ink: #1e4636; /* 深墨绿油墨:主按钮、激活底 */
+  --color-ink-deep: #16312a; /* 侧栏壳底 */
+  --color-ink-bright: #2a5847; /* 壳上 hover */
+  --color-paper: #f7f1de; /* 奶油纸:工作区底 */
+  --color-paper-bright: #fffdf4; /* 亮纸:输入框、内嵌面 */
+  --color-paper-dim: #e9dfc4; /* 纸上 hover / 凹槽 */
+  --color-bind: #1c2420; /* 雕版黑:纸上文字 */
+  --color-gold: #c7a94e; /* 烫金:品牌分隔、壳上焦点、A-B 标记 */
+  --color-spot-ok: #17684a; /* 专色·可播放(深到可承载奶油字/纸上小字) */
+  --color-spot-run: #2a5580; /* 专色·识别中 */
+  --color-spot-fail: #a83324; /* 专色·识别失败/危险 */
+  --color-spot-wait: #8a5a1c; /* 专色·排队/警示 */
+  --color-hair: #ddd3b8; /* 纸上细线 */
+  --color-hair-strong: #b9ad8a; /* 纸上重细线 */
+  --color-ink-faint: rgba(247, 241, 222, 0.72); /* 壳上次级文字 */
+  --font-disp: "Bitter", -apple-system, BlinkMacSystemFont, "PingFang SC",
+    "Segoe UI", "Microsoft YaHei", sans-serif;
+  /* 排印 token:micro 角色(11px/1.34) */
   --text-micro: 0.6875rem;
   --text-micro--line-height: 1.34;
 }
@@ -11,22 +34,26 @@ body,
 #root {
   height: 100%;
   margin: 0;
-  background: #f6f7f9;
-  color: #1f2937;
+  background: var(--color-paper);
+  color: var(--color-bind);
   font-family:
     -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI",
     "Microsoft YaHei", sans-serif;
-  /* 实时更新的数字（时间/百分比/计数）统一等宽，避免跳动 */
+  /* 实时更新的数字(时间/百分比/计数)统一等宽,避免跳动 */
   font-variant-numeric: tabular-nums;
   -webkit-user-select: none;
   user-select: none;
 }
 
-/* 键盘导航的焦点指示（仅 :focus-visible 触发，鼠标点击不显示；输入类控件以边框变色表达）
-   #6366f1：白底 4.5:1，满足 WCAG 2.2 焦点外观 3:1 */
+/* 键盘导航的焦点指示(仅 :focus-visible 触发,鼠标点击不显示;输入类控件以边框变色表达)
+   纸面上用雕版黑(#1c2420,≥10:1);墨绿壳内(侧栏/深底浮层)切烫金(#c7a94e,≈4.5:1) */
 :focus-visible {
-  outline: 2px solid #6366f1;
+  outline: 2px solid var(--color-bind);
   outline-offset: 1px;
+}
+aside :focus-visible,
+.on-ink :focus-visible {
+  outline-color: var(--color-gold);
 }
 input:focus-visible,
 textarea:focus-visible,
@@ -34,7 +61,7 @@ select:focus-visible {
   outline: none;
 }
 
-/* 错误消息 / 引擎日志 / 代码 / 输入内容可选中复制（透明可校对原则） */
+/* 错误消息 / 引擎日志 / 代码 / 输入内容可选中复制(透明可校对原则) */
 pre,
 code,
 textarea,
@@ -43,18 +70,18 @@ input {
   -webkit-user-select: text;
 }
 
-/* 选区用主色浅底，不暴露浏览器默认蓝 */
+/* 选区用烫金浅底,不暴露浏览器默认蓝 */
 ::selection {
-  background: #c7d2fe;
+  background: #e3d7a8;
 }
 
-/* 光标颜色随主色 */
+/* 光标颜色随雕版黑 */
 input,
 textarea {
-  caret-color: #4f46e5;
+  caret-color: var(--color-bind);
 }
 
-/* 浏览器表面：细滚条（thumb 内缩留轨缝），替代默认宽灰条 */
+/* 浏览器表面:细滚条(thumb 内缩留轨缝),替代默认宽灰条 */
 *::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -63,25 +90,27 @@ textarea {
   background: transparent;
 }
 *::-webkit-scrollbar-thumb {
-  background: #d4d4d8;
+  background: var(--color-hair-strong);
   border-radius: 9999px;
   border: 3px solid transparent;
   background-clip: content-box;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background-color: #a1a1aa;
+  background-color: #8a7f5e;
 }
 
-/* 全按钮统一的颜色过渡时长（与 DESIGN.md motion 一致） */
+/* 全按钮统一的颜色过渡时长 */
 button {
   transition:
     background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
     border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
-    color 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* 入场微动效：模态淡入 + 面板/浮层上浮 + toast 滑入；respect prefers-reduced-motion */
-@keyframes impeccable-fade-in {
+/* 入场微动效:模态淡入 + 面板/浮层上浮 + toast 滑入;respect prefers-reduced-motion */
+@keyframes fade-in {
   from {
     opacity: 0;
   }
@@ -89,7 +118,7 @@ button {
     opacity: 1;
   }
 }
-@keyframes impeccable-pop-in {
+@keyframes pop-in {
   from {
     opacity: 0;
     transform: translateY(8px) scale(0.98);
@@ -99,7 +128,7 @@ button {
     transform: none;
   }
 }
-@keyframes impeccable-toast-in {
+@keyframes toast-in {
   from {
     opacity: 0;
     transform: translate(-50%, 12px);
@@ -110,17 +139,17 @@ button {
   }
 }
 .anim-fade-in {
-  animation: impeccable-fade-in 0.15s cubic-bezier(0, 0, 0.2, 1) both;
+  animation: fade-in 0.15s cubic-bezier(0, 0, 0.2, 1) both;
 }
 .anim-pop-in {
-  animation: impeccable-pop-in 0.18s cubic-bezier(0, 0, 0.2, 1) both;
+  animation: pop-in 0.18s cubic-bezier(0, 0, 0.2, 1) both;
 }
 .anim-toast-in {
-  animation: impeccable-toast-in 0.2s cubic-bezier(0, 0, 0.2, 1) both;
+  animation: toast-in 0.2s cubic-bezier(0, 0, 0.2, 1) both;
 }
 
-/* 节拍器脉动灯：激活态的节拍呼吸（≈0.8s 循环） */
-@keyframes impeccable-beat {
+/* 节拍器脉动灯:激活态的节拍呼吸(≈0.8s 循环)——房间里唯一的琥珀色节拍 */
+@keyframes beat {
   0%,
   100% {
     transform: scale(1);
@@ -132,7 +161,7 @@ button {
   }
 }
 .anim-beat {
-  animation: impeccable-beat 0.8s ease-in-out infinite;
+  animation: beat 0.8s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) {
   .anim-fade-in,
@@ -141,6 +170,56 @@ button {
   .anim-beat {
     animation: none;
   }
+  .book-card,
+  .book-card::after {
+    transition: none;
+  }
+  .book-card:hover {
+    transform: none;
+  }
+}
+
+/* 书封卡:绿/奶油交替的封面语言(曲库网格用) */
+.book-card {
+  --line: rgba(247, 241, 222, 0.5);
+  background: var(--color-ink);
+  color: var(--color-paper);
+  box-shadow: 0 2px 6px rgba(28, 36, 32, 0.2);
+}
+.book-card.paper-card {
+  --line: rgba(30, 70, 54, 0.45);
+  background: var(--color-paper-bright);
+  color: var(--color-ink);
+  border: 1.5px solid rgba(30, 70, 54, 0.55);
+  box-shadow: 0 2px 8px rgba(28, 36, 32, 0.14);
+}
+.book-card:hover {
+  transform: translateY(-8px) rotate(-0.5deg);
+  box-shadow: 0 18px 32px rgba(28, 36, 32, 0.35);
+  z-index: 5;
+}
+/* 签名动作:右缘「页缘条」——开书的暗示 */
+.book-card::after {
+  content: "";
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  right: -8px;
+  width: 8px;
+  border-radius: 0 4px 4px 0;
+  border: 1px solid rgba(30, 70, 54, 0.5);
+  background: repeating-linear-gradient(to bottom, #f7f1de 0 3px, #d9cfa9 3px 4.5px);
+  opacity: 0;
+  transition: opacity 0.15s ease-out;
+  pointer-events: none;
+}
+.book-card:hover::after {
+  opacity: 1;
+}
+/* 封面排印框:上双细线 + 下单细线(书封标题的仪式框) */
+.cover-rule {
+  border-top: 3px double var(--line);
+  border-bottom: 1px solid var(--line);
 }
 
 /* alphaTab 容器 */

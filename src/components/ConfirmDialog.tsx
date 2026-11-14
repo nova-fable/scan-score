@@ -11,8 +11,8 @@ interface Props {
   onCancel: () => void;
 }
 
-/// 统一确认模态（DESIGN.md 420px 规格）：标题 + 说明 + 危险红色确认 + 取消。
-/// window.confirm 在 wry/WKWebView 不可用，一切确认走这里。
+/// 统一确认模态(420px 奶油纸卡):标题 + 说明 + 危险专色红确认 + 取消。
+/// window.confirm 在 wry/WKWebView 不可用,一切确认走这里。
 export default function ConfirmDialog({
   open,
   title,
@@ -32,22 +32,22 @@ export default function ConfirmDialog({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="anim-pop-in w-[420px] rounded-2xl bg-white p-5 shadow-xl"
+        className="anim-pop-in w-[420px] rounded-xl border border-hair bg-paper-bright p-5 shadow-xl"
       >
-        <div className="text-sm font-semibold">{title}</div>
-        <div className="mt-1 text-sm leading-5 text-zinc-500">{message}</div>
+        <div className="text-sm font-semibold text-bind">{title}</div>
+        <div className="mt-1 text-sm leading-5 text-bind/70">{message}</div>
         <div className="mt-4 flex justify-end gap-2">
           <button
             onClick={onCancel}
             disabled={busy}
-            className="rounded-lg border border-zinc-200 px-4 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50 disabled:opacity-50"
+            className="rounded-lg border border-hair-strong px-4 py-1.5 text-sm text-bind/80 hover:bg-paper-dim disabled:opacity-50"
           >
             {cancelLabel}
           </button>
           <button
             onClick={onConfirm}
             disabled={busy}
-            className="rounded-lg bg-red-500 px-4 py-1.5 text-sm text-white hover:bg-red-600 disabled:opacity-50"
+            className="rounded-lg bg-spot-fail px-4 py-1.5 text-sm font-semibold text-paper-bright hover:brightness-95 disabled:opacity-50"
           >
             {confirmLabel}
           </button>

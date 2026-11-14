@@ -8,6 +8,16 @@ import { useDialog, useDismissOnEsc } from "../lib/useDialog";
 import ScoreViewer from "../components/ScoreViewer";
 import PlayerBar from "../components/PlayerBar";
 import ConfirmDialog from "../components/ConfirmDialog";
+import {
+  IconCaretDown,
+  IconCaretLeft,
+  IconCaretRight,
+  IconClose,
+  IconEdit,
+  IconLayoutHorizontal,
+  IconLayoutPage,
+  IconOverflow,
+} from "../components/icons";
 
 interface TrackInfo {
   track: model.Track;
@@ -397,10 +407,10 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex items-center gap-3 border-b border-zinc-200 bg-white px-5 py-3">
+      <header className="flex items-center gap-3 border-b border-hair px-5 py-3">
         <button
           onClick={openLibrary}
-          className="shrink-0 whitespace-nowrap rounded-lg border border-zinc-200 px-2.5 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
+          className="shrink-0 whitespace-nowrap rounded-lg border border-hair-strong px-2.5 py-1.5 text-sm text-bind/80 hover:bg-paper-dim"
         >
           ← 曲库
         </button>
@@ -414,7 +424,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
               }}
               placeholder="标题"
               aria-label="标题"
-              className="w-48 rounded-lg border border-zinc-300 px-2 py-1 text-sm outline-none focus:border-indigo-400"
+              className="w-48 rounded-lg border border-hair-strong bg-paper-bright px-2 py-1 text-sm text-bind outline-none focus:border-ink"
             />
             <input
               value={draft.composer}
@@ -424,13 +434,13 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
               }}
               placeholder="作曲者"
               aria-label="作曲者"
-              className="w-36 rounded-lg border border-zinc-300 px-2 py-1 text-sm outline-none focus:border-indigo-400"
+              className="w-36 rounded-lg border border-hair-strong bg-paper-bright px-2 py-1 text-sm text-bind outline-none focus:border-ink"
             />
             <select
               value={draft.instrument}
               onChange={(e) => setDraft((d) => ({ ...d, instrument: e.target.value }))}
               aria-label="乐器"
-              className="rounded-lg border border-zinc-300 px-1 py-1 text-sm"
+              className="rounded-lg border border-hair-strong bg-paper-bright px-1 py-1 text-sm text-bind"
             >
               <option value="piano">钢琴</option>
               <option value="guitar">吉他</option>
@@ -438,13 +448,13 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
             </select>
             <button
               onClick={() => saveMeta.mutate()}
-              className="rounded bg-indigo-600 px-3 py-1 text-sm text-white hover:bg-indigo-500"
+              className="rounded-lg bg-ink px-3 py-1 text-sm font-semibold text-paper hover:bg-ink-bright"
             >
               保存
             </button>
             <button
               onClick={() => setEditing(false)}
-              className="rounded border border-zinc-300 px-3 py-1 text-sm text-zinc-500"
+              className="rounded-lg border border-hair-strong px-3 py-1 text-sm text-bind/70"
             >
               取消
             </button>
@@ -452,7 +462,9 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
         ) : (
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <div className="truncate text-sm font-semibold">{s?.title ?? "…"}</div>
+              <div className="truncate font-disp text-lg font-black text-bind" title={s?.title}>
+                {s?.title ?? "…"}
+              </div>
               {s && (
                 <button
                   onClick={() => {
@@ -463,15 +475,15 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                     });
                     setEditing(true);
                   }}
-                  className="text-xs text-zinc-400 transition hover:text-indigo-600"
+                  className="text-xs text-bind/40 transition hover:text-ink"
                   title="编辑信息"
                   aria-label="编辑信息"
                 >
-                  ✎
+                  <IconEdit size={13} />
                 </button>
               )}
             </div>
-            <div className="truncate text-xs text-zinc-500 select-text">
+            <div className="truncate text-xs text-bind/60 select-text">
               {s ? `${INSTRUMENT_LABEL[s.instrument] ?? "其他"} · ` : ""}
               {s?.composer ? `${s.composer} · ` : ""}
               {statusText}
@@ -486,8 +498,8 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
               onClick={() => setShowOriginal((v) => !v)}
               className={`shrink-0 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-sm ${
                 showOriginal
-                  ? "border-indigo-200 bg-indigo-50 text-indigo-700"
-                  : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"
+                  ? "border-ink/50 bg-ink/10 font-semibold text-ink"
+                  : "border-hair-strong text-bind/80 hover:bg-paper-dim"
               }`}
               title={showOriginal ? "隐藏原图对照" : "对照原图"}
             >
@@ -505,7 +517,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
               else recognize.mutate();
             }}
             disabled={s?.status === "processing"}
-            className="shrink-0 whitespace-nowrap rounded-lg bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-500 disabled:opacity-50"
+            className="shrink-0 whitespace-nowrap rounded-lg bg-ink px-3 py-1.5 text-sm font-semibold text-paper hover:bg-ink-bright disabled:opacity-50"
           >
             {s?.status === "processing" ? "识别中…" : s?.status === "imported" ? "开始识别" : "重新识别"}
           </button>
@@ -515,11 +527,11 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
       <div className="relative flex min-h-0 flex-1 flex-col">
         {isPlayable ? (
           asset.isError ? (
-            <div className="grid flex-1 place-items-center text-sm text-red-600">
+            <div className="grid flex-1 place-items-center text-sm text-spot-fail">
               乐谱文件读取失败
             </div>
           ) : !asset.data ? (
-            <div className="grid flex-1 place-items-center text-sm text-zinc-500">加载乐谱…</div>
+            <div className="grid flex-1 place-items-center text-sm text-bind/55">加载乐谱…</div>
           ) : (
             <ScoreViewer
               key={`${assetPath}-${loadKey}`}
@@ -567,12 +579,24 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
             />
           )
         ) : (
-          <div className="grid flex-1 place-items-center bg-zinc-50 px-6 text-center">
+          <div className="grid flex-1 place-items-center bg-paper-dim/40 px-6 text-center">
             {s?.status === "processing" ? (
-              <div className="text-zinc-500">
-                <div className="text-4xl">🔍</div>
+              <div className="text-bind/60">
+                <svg width="150" height="90" viewBox="0 0 150 90" fill="none" aria-hidden="true" className="mx-auto">
+                  <g stroke="#ddd3b8" strokeWidth="1">
+                    {Array.from({ length: 7 }, (_, i) => (
+                      <line key={`v${i}`} x1={15 + i * 20} y1="8" x2={15 + i * 20} y2="82" />
+                    ))}
+                  </g>
+                  <g stroke="#b9ad8a" strokeWidth="1.5">
+                    {[25, 37, 49, 61, 73].map((y) => (
+                      <line key={y} x1="15" y1={y} x2="135" y2={y} />
+                    ))}
+                  </g>
+                  <rect x="46" y="25" width={`${Math.max(8, Math.min(58, ((runningJob?.progress ?? 0) / 100) * 58))}`} height="9" rx="2" fill="#2a5580" />
+                </svg>
                 <div className="mt-3 text-sm">正在识别，进度 {runningJob?.progress ?? 0}%</div>
-                <div className="mt-1 max-w-md truncate select-text text-xs text-zinc-500">
+                <div className="mt-1 max-w-md truncate select-text text-xs text-bind/55">
                   {runningJob?.message ?? "…"}
                 </div>
                 <button
@@ -581,14 +605,22 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                       await api.cancelRecognition(runningJob.id);
                     }
                   }}
-                  className="mt-4 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100"
+                  className="mt-4 rounded-lg border border-hair-strong px-3 py-1.5 text-sm text-bind/80 hover:bg-paper-dim"
                 >
                   取消识别
                 </button>
               </div>
             ) : (
-              <div className="text-zinc-500">
-                <div className="text-4xl">📄</div>
+              <div className="text-bind/60">
+                <svg width="120" height="100" viewBox="0 0 120 100" fill="none" aria-hidden="true" className="mx-auto">
+                  <rect x="30" y="10" width="60" height="80" rx="3" fill="#fffdf4" stroke="#b9ad8a" strokeWidth="1.5" />
+                  <g stroke="#ddd3b8" strokeWidth="1.5">
+                    {[35, 45, 55, 65, 75].map((y) => (
+                      <line key={y} x1="40" y1={y} x2="80" y2={y} />
+                    ))}
+                  </g>
+                  <path d="M42 30 h20 M42 42 h26 M42 54 h14" stroke="#c1b58e" strokeWidth="2" strokeLinecap="round" />
+                </svg>
                 <div className="mx-auto mt-3 max-w-md select-text text-sm">
                   {s?.status === "failed"
                     ? `识别失败：${s.errorMessage ?? "未知错误"}`
@@ -597,7 +629,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                 {canRecognize && (
                   <button
                     onClick={() => recognize.mutate()}
-                    className="mt-4 rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-500"
+                    className="mt-4 rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-paper hover:bg-ink-bright"
                   >
                     开始识别
                   </button>
@@ -613,7 +645,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
         {/* 视图控制簇（缩放 + 滚动方向），悬浮于查看器右上角 */}
         {isPlayable && asset.data && (
           <div
-            className="absolute right-5 top-3 z-10 flex items-center gap-0.5 rounded-lg border border-zinc-200 bg-white/95 px-1 py-0.5 shadow-sm"
+            className="absolute right-5 top-3 z-10 flex items-center gap-0.5 rounded-lg border border-hair bg-paper-bright/95 px-1 py-0.5 shadow-sm"
             role="group"
             aria-label="视图控制"
           >
@@ -628,11 +660,11 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
               }}
               disabled={scaleValue <= 0.51}
               aria-label="缩小"
-              className="px-2 py-1 text-sm text-zinc-600 hover:text-indigo-600 disabled:opacity-40"
+              className="px-2 py-1 text-sm text-bind/70 hover:text-ink disabled:opacity-40"
             >
               −
             </button>
-            <span className="w-10 text-center text-micro text-zinc-500">
+            <span className="w-10 text-center text-micro text-bind/55">
               {Math.round(scaleValue * 100)}%
             </span>
             <button
@@ -646,11 +678,11 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
               }}
               disabled={scaleValue >= 2.49}
               aria-label="放大"
-              className="px-2 py-1 text-sm text-zinc-600 hover:text-indigo-600 disabled:opacity-40"
+              className="px-2 py-1 text-sm text-bind/70 hover:text-ink disabled:opacity-40"
             >
               ＋
             </button>
-            <span className="mx-1 h-4 w-px bg-zinc-200" />
+            <span className="mx-1 h-4 w-px bg-hair" />
             <button
               onClick={() => {
                 if (!atApi) return;
@@ -663,17 +695,25 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
               }}
               aria-label="切换滚动方向"
               title="切换滚动方向"
-              className="px-2 py-1 text-xs text-zinc-600 hover:text-indigo-600"
+              className="flex items-center gap-1 px-2 py-1 text-xs text-bind/70 hover:text-ink"
             >
-              {layout === "page" ? "⇉ 横向" : "▦ 分页"}
+              {layout === "page" ? (
+                <>
+                  <IconLayoutHorizontal size={12} /> 横向
+                </>
+              ) : (
+                <>
+                  <IconLayoutPage size={12} /> 分页
+                </>
+              )}
             </button>
           </div>
         )}
 
         {/* 原图对照层 */}
         {showOriginal && originalUrl && (
-          <div className="max-h-[40%] shrink-0 overflow-auto border-t border-zinc-200 bg-zinc-100 p-3">
-            <div className="mb-1 flex items-center gap-2 text-xs text-zinc-500">
+          <div className="max-h-[40%] shrink-0 overflow-auto border-t border-hair bg-paper-dim/70 p-3">
+            <div className="mb-1 flex items-center gap-2 text-xs text-bind/60">
               <span>原图对照</span>
               {pages.length > 1 && (
                 <span className="flex items-center gap-1">
@@ -681,9 +721,9 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                     onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
                     disabled={pageIndex === 0}
                     aria-label="上一页"
-                    className="rounded border border-zinc-300 px-1.5 disabled:opacity-40"
+                    className="rounded border border-hair-strong px-1.5 py-0.5 disabled:opacity-40"
                   >
-                    ◀
+                    <IconCaretLeft size={11} />
                   </button>
                   <span>
                     第 {Math.min(pageIndex, pages.length - 1) + 1} / {pages.length} 页
@@ -692,9 +732,9 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                     onClick={() => setPageIndex((p) => Math.min(pages.length - 1, p + 1))}
                     disabled={pageIndex >= pages.length - 1}
                     aria-label="下一页"
-                    className="rounded border border-zinc-300 px-1.5 disabled:opacity-40"
+                    className="rounded border border-hair-strong px-1.5 py-0.5 disabled:opacity-40"
                   >
-                    ▶
+                    <IconCaretRight size={11} />
                   </button>
                 </span>
               )}
@@ -703,7 +743,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
               // 固定 208px：始终小于对照区最大高（min 窗约 212px），消除 iframe 嵌套双滚条
               <iframe
                 src={originalUrl}
-                className="h-52 w-full rounded border bg-white"
+                className="h-52 w-full rounded border border-hair bg-paper-bright"
                 title="原图"
               />
             ) : (
@@ -747,34 +787,34 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
             role="dialog"
             aria-modal="true"
             aria-label="校对编辑器"
-            className="anim-pop-in flex h-[88%] w-[1100px] max-w-[96%] flex-col rounded-2xl bg-white p-4 shadow-xl"
+            className="anim-pop-in flex h-[88%] w-[1100px] max-w-[96%] flex-col rounded-xl border border-hair bg-paper-bright p-4 shadow-xl"
           >
             <div className="flex items-center justify-between">
-              <div className="text-sm font-semibold">校对编辑器 — 原图对照 · alphaTex</div>
+              <div className="font-disp text-base font-bold text-bind">校对编辑器 — 原图对照 · alphaTex</div>
               <div className="flex items-center gap-3">
-                <label className="flex cursor-pointer items-center gap-1 text-xs text-zinc-500">
+                <label className="flex cursor-pointer items-center gap-1 text-xs text-bind/60">
                   <input
                     type="checkbox"
                     checked={atxSync}
                     onChange={(e) => setAtxSync(e.target.checked)}
-                    className="h-3.5 w-3.5 accent-indigo-600"
+                    className="h-3.5 w-3.5 accent-[#1e4636]"
                   />
                   滚动同步
                 </label>
                 <button
                   onClick={closeAtxEditor}
                   aria-label="关闭校对编辑器"
-                  className="text-zinc-400 transition hover:text-zinc-600"
+                  className="text-bind/40 transition hover:text-bind"
                 >
-                  ✕
+                  <IconClose size={13} />
                 </button>
               </div>
             </div>
 
             <div className="mt-2 flex min-h-0 flex-1 gap-3">
               {/* 左：原图对照 */}
-              <div className="flex w-1/2 min-w-0 flex-col rounded-lg border border-zinc-200 bg-zinc-50">
-                <div className="flex items-center justify-between border-b border-zinc-100 px-2 py-1.5 text-xs text-zinc-500">
+              <div className="flex w-1/2 min-w-0 flex-col rounded-lg border border-hair bg-paper-dim/50">
+                <div className="flex items-center justify-between border-b border-hair px-2 py-1.5 text-xs text-bind/60">
                   <span>原始扫描图</span>
                   {editorPages.length > 1 && (
                     <span className="flex items-center gap-1">
@@ -782,18 +822,18 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                         onClick={() => setAtxPageIndex((p) => Math.max(0, p - 1))}
                         disabled={atxPageIndex === 0}
                         aria-label="上一页"
-                        className="rounded border border-zinc-300 px-1.5 disabled:opacity-40"
+                        className="rounded border border-hair-strong px-1.5 py-0.5 disabled:opacity-40"
                       >
-                        ◀
+                        <IconCaretLeft size={11} />
                       </button>
                       第 {atxPageIndex + 1} / {editorPages.length} 页
                       <button
                         onClick={() => setAtxPageIndex((p) => Math.min(editorPages.length - 1, p + 1))}
                         disabled={atxPageIndex >= editorPages.length - 1}
                         aria-label="下一页"
-                        className="rounded border border-zinc-300 px-1.5 disabled:opacity-40"
+                        className="rounded border border-hair-strong px-1.5 py-0.5 disabled:opacity-40"
                       >
-                        ▶
+                        <IconCaretRight size={11} />
                       </button>
                     </span>
                   )}
@@ -802,18 +842,18 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                   {atxImageUrl ? (
                     <img src={atxImageUrl} alt="原图" className="mx-auto w-full" />
                   ) : (
-                    <div className="grid h-full place-items-center text-xs text-zinc-500">无原图</div>
+                    <div className="grid h-full place-items-center text-xs text-bind/55">无原图</div>
                   )}
                 </div>
               </div>
 
               {/* 右：alphaTex 编辑区 */}
-              <div className="flex w-1/2 min-w-0 flex-col rounded-lg border border-zinc-200">
-                <div className="flex items-center justify-between border-b border-zinc-100 px-2 py-1.5 text-xs text-zinc-500">
+              <div className="flex w-1/2 min-w-0 flex-col rounded-lg border border-hair">
+                <div className="flex items-center justify-between border-b border-hair px-2 py-1.5 text-xs text-bind/60">
                   <span>
                     alphaTex · 共 {atxBarCount} 小节
                     {atxCaretBar > 0 && (
-                      <span className="ml-2 text-indigo-500">光标在第 {atxCaretBar} 小节</span>
+                      <span className="ml-2 font-semibold text-ink">光标在第 {atxCaretBar} 小节</span>
                     )}
                   </span>
                   <span className="flex items-center gap-1">
@@ -825,17 +865,17 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                       }}
                       placeholder="小节"
                       aria-label="跳转到小节"
-                      className="w-14 rounded border border-zinc-200 px-1.5 py-0.5 text-right"
+                      className="w-14 rounded border border-hair-strong bg-paper-bright px-1.5 py-0.5 text-right text-bind"
                     />
                     <button
                       onClick={() => goToBar(Number(atxJumpTo))}
-                      className="rounded border border-zinc-200 px-1.5 py-0.5 hover:bg-zinc-50"
+                      className="rounded border border-hair-strong px-1.5 py-0.5 hover:bg-paper-dim"
                     >
                       跳转
                     </button>
                   </span>
                 </div>
-                <div className="rounded-lg bg-amber-50 px-3 py-1.5 text-micro text-amber-700">
+                <div className="rounded-lg bg-spot-wait/10 px-3 py-1.5 text-micro text-spot-wait">
                   品.弦（5.4 = 4弦5品）· :4/:8/:16 时值 · r 休止 · x.弦 闷音 · {"{h}"}{"{p}"}{"{s}"} 击勾滑 · | 分小节
                 </div>
                 <textarea
@@ -850,20 +890,20 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                   spellCheck={false}
                   autoFocus
                   aria-label="alphaTex 谱文"
-                  className="min-h-0 flex-1 resize-none p-3 font-mono text-xs leading-4 outline-none focus:border-indigo-400"
+                  className="min-h-0 flex-1 resize-none rounded-b-lg p-3 font-mono text-xs leading-4 text-bind outline-none"
                 />
               </div>
             </div>
 
-            {atxMsg && <div className="mt-1 text-xs text-emerald-600">{atxMsg}</div>}
+            {atxMsg && <div className="mt-1 text-xs text-spot-ok">{atxMsg}</div>}
             <div className="mt-2 flex items-center justify-between gap-2">
-              <span className="text-xs text-zinc-500">
+              <span className="text-xs text-spot-wait">
                 {atxDirty ? "有未保存的修改" : ""}
               </span>
               <div className="flex justify-end gap-2">
                 <button
                   onClick={closeAtxEditor}
-                  className="rounded-lg border border-zinc-200 px-4 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
+                  className="rounded-lg border border-hair-strong px-4 py-1.5 text-sm text-bind/80 hover:bg-paper-dim"
                 >
                   取消
                 </button>
@@ -879,7 +919,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                     setAtxMsg(`保存失败：${String(e)}`);
                   }
                 }}
-                className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm text-white hover:bg-indigo-500"
+                className="rounded-lg bg-ink px-4 py-1.5 text-sm font-semibold text-paper hover:bg-ink-bright"
               >
                 保存并刷新
               </button>
@@ -895,20 +935,21 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
             role="dialog"
             aria-modal="true"
             aria-label="识别引擎日志"
-            className="anim-pop-in flex h-[80%] w-[720px] max-w-[90%] flex-col rounded-2xl bg-white p-4 shadow-xl"
+            className="anim-pop-in flex h-[80%] w-[720px] max-w-[90%] flex-col rounded-xl border border-hair bg-paper-bright p-4 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <div className="text-sm font-semibold">识别引擎日志</div>
+              <div className="font-disp text-base font-bold text-bind">识别引擎日志</div>
               <button
                 onClick={() => setShowLog(false)}
                 aria-label="关闭日志"
-                className="text-zinc-400 transition hover:text-zinc-600"
+                className="text-bind/40 transition hover:text-bind"
               >
-                ✕
+                <IconClose size={13} />
               </button>
             </div>
-            <pre className="mt-3 flex-1 overflow-auto whitespace-pre-wrap rounded-lg bg-zinc-900 p-3 text-micro text-zinc-100">
+            {/* 引擎在说话:应用内唯一的大面积深色块,油墨绿的终端 */}
+            <pre className="mt-3 flex-1 overflow-auto whitespace-pre-wrap rounded-lg bg-ink-deep p-3 text-micro text-paper/90">
               {logText}
             </pre>
           </div>
@@ -974,13 +1015,13 @@ function OverflowMenu({
         aria-label="更多操作"
         aria-expanded={open}
         aria-haspopup="menu"
-        className={`grid h-8 w-8 place-items-center rounded-lg border text-sm ${
+        className={`grid h-8 w-8 place-items-center rounded-lg border ${
           open
-            ? "border-indigo-200 bg-indigo-50 text-indigo-700"
-            : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"
+            ? "border-ink/50 bg-ink/10 text-ink"
+            : "border-hair-strong text-bind/80 hover:bg-paper-dim"
         }`}
       >
-        ⋯
+        <IconOverflow size={15} />
       </button>
       {open && (
         <>
@@ -988,7 +1029,7 @@ function OverflowMenu({
           <div
             role="menu"
             aria-label="更多操作"
-            className="anim-pop-in absolute right-0 top-full z-20 mt-1 w-44 rounded-lg border border-zinc-200 bg-white py-1 shadow-lg"
+            className="anim-pop-in absolute right-0 top-full z-20 mt-1 w-44 rounded-lg border border-hair bg-paper-bright py-1 shadow-lg"
           >
             {items.map((it) => (
               <button
@@ -998,8 +1039,8 @@ function OverflowMenu({
                   setOpen(false);
                   it.onClick();
                 }}
-                className={`block w-full truncate px-3 py-1.5 text-left text-sm hover:bg-zinc-50 ${
-                  it.danger ? "text-red-600" : "text-zinc-700"
+                className={`block w-full truncate px-3 py-1.5 text-left text-sm hover:bg-paper-dim ${
+                  it.danger ? "text-spot-fail" : "text-bind/85"
                 }`}
               >
                 {it.label}
@@ -1022,13 +1063,13 @@ function ExportMenu({ onMidi, onSource }: { onMidi: () => void; onSource: () => 
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="menu"
-        className={`whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-sm ${
+        className={`flex items-center gap-1 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-sm ${
           open
-            ? "border-indigo-200 bg-indigo-50 text-indigo-700"
-            : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"
+            ? "border-ink/50 bg-ink/10 font-semibold text-ink"
+            : "border-hair-strong text-bind/80 hover:bg-paper-dim"
         }`}
       >
-        导出 ▾
+        导出 <IconCaretDown size={11} />
       </button>
       {open && (
         <>
@@ -1036,7 +1077,7 @@ function ExportMenu({ onMidi, onSource }: { onMidi: () => void; onSource: () => 
           <div
             role="menu"
             aria-label="导出"
-            className="anim-pop-in absolute right-0 top-full z-20 mt-1 w-44 rounded-lg border border-zinc-200 bg-white py-1 shadow-lg"
+            className="anim-pop-in absolute right-0 top-full z-20 mt-1 w-44 rounded-lg border border-hair bg-paper-bright py-1 shadow-lg"
           >
             <button
               role="menuitem"
@@ -1044,7 +1085,7 @@ function ExportMenu({ onMidi, onSource }: { onMidi: () => void; onSource: () => 
                 setOpen(false);
                 onMidi();
               }}
-              className="block w-full px-3 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-50"
+              className="block w-full px-3 py-1.5 text-left text-sm text-bind/85 hover:bg-paper-dim"
             >
               导出 MIDI
             </button>
@@ -1054,7 +1095,7 @@ function ExportMenu({ onMidi, onSource }: { onMidi: () => void; onSource: () => 
                 setOpen(false);
                 onSource();
               }}
-              className="block w-full px-3 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-50"
+              className="block w-full px-3 py-1.5 text-left text-sm text-bind/85 hover:bg-paper-dim"
             >
               导出乐谱文件
             </button>

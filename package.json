@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@coderline/alphatab": "^1.9.0",
+    "@fontsource/bitter": "^5.3.0",
     "@tanstack/react-query": "^5.107.1",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2.8.4",

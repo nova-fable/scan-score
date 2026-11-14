@@ -85,5 +85,5 @@ export default function ScoreViewer({ data, onReady, callbacks }: Props) {
     }
   }, [data]);
 
-  return <div ref={containerRef} className="at-viewer flex-1 bg-white" />;
+  return <div ref={containerRef} className="at-viewer flex-1 bg-paper-bright" />;
 }

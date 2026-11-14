@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ScanScore — 雕版谱页</title>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:1440px;height:900px;overflow:hidden;background:#f8f6ef;color:#1a1a18;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI","Microsoft YaHei",sans-serif;display:flex}
+.sr{font-family:"EB Garamond",Georgia,"Songti SC",serif}
+/* ── 五线谱线组:本方向的分隔语言 ── */
+.staff{height:21px;background:repeating-linear-gradient(to bottom,#b8b4a8 0 1px,transparent 1px 5px)}
+.staff.thin{height:11px;background:repeating-linear-gradient(to bottom,#cfcaba 0 1px,transparent 1px 5px)}
+/* ── 侧栏 ── */
+aside{width:216px;flex:none;display:flex;flex-direction:column;padding:30px 24px 24px;border-right:1px solid #d8d3c2}
+.brand{font-size:22px;font-weight:700;letter-spacing:.01em}
+.brand small{display:block;font-size:10px;letter-spacing:.34em;color:#8b8672;margin-top:5px;font-weight:400}
+nav{margin-top:40px;display:flex;flex-direction:column}
+nav a{display:flex;align-items:baseline;justify-content:space-between;padding:9px 10px;font-size:14px;color:#5c5745;text-decoration:none;border-left:3px solid transparent}
+nav a.on{color:#c73e2e;border-left-color:#c73e2e;font-weight:600}
+nav a.on::after{content:"";width:26px}
+nav a:hover{color:#1a1a18}
+aside .staff{margin-top:34px;opacity:.7}
+.foot{margin-top:auto;font-size:11px;line-height:1.8;color:#8b8672}
+.foot b{color:#5c5745;font-weight:600}
+/* ── 主区 ── */
+main{flex:1;min-width:0;display:flex;flex-direction:column;padding:26px 36px 0}
+.pagehead{display:flex;align-items:flex-end;justify-content:space-between;padding-bottom:14px}
+.pagehead h1{font-size:26px;font-weight:600;letter-spacing:.3em}
+.pagehead .count{font-size:12px;color:#8b8672;letter-spacing:.15em}
+/* 工具栏 */
+.toolbar{display:flex;gap:10px;align-items:center;padding:12px 0 16px}
+.search{flex:1;display:flex;align-items:center;gap:8px;background:#fdfcf8;border:1px solid #c9c4b4;padding:7px 14px}
+.search input{border:0;outline:0;background:none;width:100%;font-size:13px;color:#1a1a18}
+.search input::placeholder{font-family:"EB Garamond",serif;font-style:italic;color:#a09a84}
+select{appearance:none;background:#fdfcf8;border:1px solid #c9c4b4;padding:7px 26px 7px 12px;font-size:12px;color:#5c5745;
+  background-image:linear-gradient(45deg,transparent 46%,#8b8672 46%,#8b8672 54%,transparent 54%),linear-gradient(-45deg,transparent 46%,#8b8672 46%,#8b8672 54%,transparent 54%);
+  background-position:right 12px center,right 8px center;background-size:6px 6px;background-repeat:no-repeat}
+.btn{background:#c73e2e;color:#faf6ea;border:0;padding:8px 22px;font-size:13px;letter-spacing:.14em;cursor:pointer}
+.btn:hover{background:#a83324}
+/* ── 扉页卡 ── */
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:26px 22px;padding:20px 0 0}
+.card{position:relative;padding:16px 14px 12px;border-top:1px solid #1a1a18;border-bottom:1px solid #1a1a18;text-align:center;cursor:pointer;background:none}
+.card::before{content:"";position:absolute;top:3px;left:0;right:0;border-top:1px solid #1a1a18}
+.card::after{content:"";position:absolute;bottom:3px;left:0;right:0;border-bottom:1px solid #1a1a18}
+.comp{font-size:11px;letter-spacing:.22em;color:#8b8672}
+.title{font-size:19px;line-height:1.25;margin:8px 0 2px;font-weight:600}
+.title i{font-weight:500}
+.meta{font-size:11px;color:#5c5745;margin-top:6px;letter-spacing:.05em}
+.stamp{display:inline-block;margin-top:10px;padding:3px 12px;font-size:10px;letter-spacing:.28em;border:1px solid currentColor;font-weight:600}
+.ok{color:#2d5c46}.pro{color:#274e8f}.bad{color:#b3241b}.wait{color:#8a5a1c}
+.prog{margin:10px 14px 0;height:11px;background:repeating-linear-gradient(to bottom,#cfcaba 0 1px,transparent 1px 5px);position:relative}
+.prog i{position:absolute;inset:0 38% 0 0;background:#274e8f;opacity:.85}
+.retry{display:inline-block;margin-top:9px;font-size:12px;color:#b3241b;border-bottom:1px solid #b3241b;padding-bottom:1px}
+.pl{position:absolute;left:12px;bottom:9px;font-size:9.5px;letter-spacing:.14em;color:#a09a84}
+.num{position:absolute;right:12px;bottom:9px;font-size:9.5px;color:#a09a84}
+.hover{background:#f1ecdd}
+.hover .title{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px}
+</style>
+</head>
+<body>
+<aside>
+  <div class="brand sr">ScanScore<small>SCANE · SCORE</small></div>
+  <nav>
+    <a class="on sr" href="#">曲 库</a>
+    <a class="sr" href="#">设 置</a>
+  </nav>
+  <div class="staff"></div>
+  <div class="foot">
+    <b>OMR</b> — Audiveris 离线引擎<br>
+    <b>渲染播放</b> — alphaTab<br>
+    快捷键 <b>?</b>
+  </div>
+</aside>
+<main>
+  <div class="pagehead">
+    <h1 class="sr">曲 库</h1>
+    <div class="count sr">8 ITEMS · PL. 001–008</div>
+  </div>
+  <div class="staff"></div>
+  <div class="toolbar">
+    <div class="search"><input placeholder="搜索曲名、作曲家或标签…"></div>
+    <select><option>状态:全部</option></select>
+    <select><option>乐器:全部</option></select>
+    <button class="btn">导入乐谱</button>
+  </div>
+  <div class="grid">
+    <div class="card">
+      <div class="comp sr">J. S. BACH</div>
+      <div class="title sr">平均律键盘曲集 第一册<br><i class="sr">Praeludium I · BWV 846</i></div>
+      <div class="meta">钢琴 · 五线谱 · 24 小节</div>
+      <div class="stamp ok">可播放</div>
+      <div class="pl">PL. 001</div><div class="num sr">§24</div>
+    </div>
+    <div class="card">
+      <div class="comp sr">A. PIAZZOLLA</div>
+      <div class="title sr">Libertango</div>
+      <div class="meta">钢琴 · PDF 导入 · 52 小节</div>
+      <div class="stamp ok">可播放</div>
+      <div class="pl">PL. 002</div><div class="num sr">§52</div>
+    </div>
+    <div class="card">
+      <div class="comp">原创指弹</div>
+      <div class="title sr">Eastern Grove<br><i class="sr">for solo guitar</i></div>
+      <div class="meta">吉他 · 六线谱(AI 转录)</div>
+      <div class="stamp pro">识别中</div>
+      <div class="prog"><i></i></div>
+      <div class="pl">PL. 003</div><div class="num sr">62%</div>
+    </div>
+    <div class="card">
+      <div class="comp sr">E. CLAPTON</div>
+      <div class="title sr">Wonderful Tonight</div>
+      <div class="meta">吉他 · Guitar Pro .gp5 · 68 小节</div>
+      <div class="stamp ok">可播放</div>
+      <div class="pl">PL. 004</div><div class="num sr">§68</div>
+    </div>
+    <div class="card">
+      <div class="comp sr">F. CHOPIN</div>
+      <div class="title sr">夜曲 Op. 9 No. 2<br><i class="sr">Nocturne in E♭</i></div>
+      <div class="meta">钢琴 · 扫描件 · 34 小节</div>
+      <div class="stamp bad">识别失败</div><br>
+      <div class="retry">重试</div>
+      <div class="pl">PL. 005</div><div class="num sr">§34</div>
+    </div>
+    <div class="card">
+      <div class="comp sr">A. C. JOBIM</div>
+      <div class="title sr">The Girl from Ipanema</div>
+      <div class="meta">萨克斯 · Real Book 扫描 · 40 小节</div>
+      <div class="stamp ok">可播放</div>
+      <div class="pl">PL. 006</div><div class="num sr">§40</div>
+    </div>
+    <div class="card">
+      <div class="comp">久石让</div>
+      <div class="title sr">Summer<br><i class="sr">from 菊次郎の夏</i></div>
+      <div class="meta">钢琴 · 图片导入 · 58 小节</div>
+      <div class="stamp ok">可播放</div>
+      <div class="pl">PL. 007</div><div class="num sr">§58</div>
+    </div>
+    <div class="card hover">
+      <div class="comp sr">P. METHENY</div>
+      <div class="title sr">Letter from Home</div>
+      <div class="meta">吉他 · 已导入 · 44 小节</div>
+      <div class="stamp wait">待识别</div>
+      <div class="pl">PL. 008</div><div class="num sr">§44</div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ScanScore — 厂牌编目</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Archivo:wght@500;600&family=Archivo+Black&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:1440px;height:900px;overflow:hidden;background:#0d0d0d;color:#f2f2f2;
+  font-family:"Space Mono","PingFang SC","Microsoft YaHei",monospace;display:flex}
+.mono{text-transform:uppercase;letter-spacing:.08em}
+/* ── 侧栏 ── */
+aside{width:212px;flex:none;border-right:1px solid #2a2a2a;padding:26px 20px 20px;display:flex;flex-direction:column}
+.brand .no{font-family:"Archivo Black",sans-serif;font-size:26px;letter-spacing:.02em;line-height:1}
+.brand small{display:block;font-size:9px;color:#8a8a8a;margin-top:6px;letter-spacing:.3em;text-transform:uppercase}
+nav{margin-top:40px;display:flex;flex-direction:column}
+nav a{display:block;padding:10px 10px;font-size:12px;color:#8a8a8a;text-decoration:none;text-transform:uppercase;letter-spacing:.14em;border-left:2px solid transparent}
+nav a.on{color:#f2f2f2;border-left-color:#f2f2f2;font-weight:700}
+nav a:hover{color:#f2f2f2}
+.plot{margin:30px -8px 0}
+.foot{margin-top:auto;font-size:9px;line-height:1.9;color:#8a8a8a;text-transform:uppercase;letter-spacing:.12em}
+.foot b{color:#c9c9c9}
+/* ── 主区 ── */
+main{flex:1;min-width:0;display:flex;flex-direction:column;padding:22px 30px 0}
+.pagehead{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:1px solid #2a2a2a;padding-bottom:14px}
+.pagehead .cat{font-family:"Archivo Black",sans-serif;font-size:22px;letter-spacing:.04em}
+.pagehead .sub{font-size:10px;color:#8a8a8a;letter-spacing:.2em;text-transform:uppercase}
+.toolbar{display:flex;gap:10px;align-items:center;padding:14px 0}
+.search{flex:1;display:flex;align-items:center;border:1px solid #3a3a3a;padding:8px 14px}
+.search input{border:0;outline:0;background:none;width:100%;font-size:12px;color:#f2f2f2;font-family:inherit;text-transform:uppercase;letter-spacing:.1em}
+.search input::placeholder{color:#5a5a5a}
+select{appearance:none;background:#0d0d0d;border:1px solid #3a3a3a;padding:8px 22px 8px 12px;font-size:11px;color:#c9c9c9;font-family:inherit;text-transform:uppercase;letter-spacing:.1em}
+.btn{background:#f2f2f2;color:#0d0d0d;border:0;padding:9px 20px;font-size:12px;font-family:inherit;text-transform:uppercase;letter-spacing:.14em;font-weight:700;cursor:pointer}
+.btn:hover{background:#fff}
+/* ── 编目卡 ── */
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:8px 0 0}
+.card{border:1px solid #3a3a3a;padding:12px 14px;position:relative;cursor:pointer}
+.card:hover{border-color:#f2f2f2}
+.catno{font-family:"Archivo Black",sans-serif;font-size:15px;letter-spacing:.06em}
+.ss{font-size:9px;color:#5a5a5a;letter-spacing:.18em;position:absolute;top:14px;right:14px;text-transform:uppercase}
+.plotbox{margin:10px 0 12px;height:64px;display:flex;align-items:center}
+.name{font-size:12.5px;font-weight:700;letter-spacing:.06em;line-height:1.45}
+.meta{font-size:9.5px;color:#8a8a8a;margin-top:6px;letter-spacing:.08em;text-transform:uppercase;display:flex;justify-content:space-between;gap:8px}
+.strip{display:flex;gap:0;margin-top:12px;border:1px solid #2a2a2a}
+.strip i{height:7px;flex:1}
+.state{margin-top:8px;font-size:10px;letter-spacing:.16em;text-transform:uppercase}
+.st-ok{color:#c9c9c9}.st-pro{color:#7aa5d8}.st-bad{color:#e04b3f}.st-wait{color:#d8b04a}
+.b-ok{background:#3f3f3f}.b-pro{background:#3b6ea5}.b-bad{background:#c40d0e}.b-wait{background:#6b5a2e}
+.retry{color:#e04b3f;border-bottom:1px solid #e04b3f;text-decoration:none;font-weight:700}
+.hover{border-color:#f2f2f2;background:#131313}
+</style>
+</head>
+<body>
+<aside>
+  <div class="brand"><div class="no">SS</div><small>ScanScore · Catalog</small></div>
+  <nav>
+    <a class="on mono" href="#">曲库 Library</a>
+    <a class="mono" href="#">设置 Settings</a>
+  </nav>
+  <div class="plot">
+    <svg width="170" height="52" viewBox="0 0 170 52" fill="none" stroke="#f2f2f2" stroke-width="1">
+      <g opacity=".55"><line x1="0" y1="10" x2="170" y2="10"/><line x1="0" y1="20" x2="170" y2="20"/><line x1="0" y1="30" x2="170" y2="30"/><line x1="0" y1="40" x2="170" y2="40"/><line x1="0" y1="50" x2="170" y2="50"/></g>
+      <path d="M0 30 L14 30 L18 22 L24 34 L30 26 L38 26 L44 30 L58 30 L62 18 L70 38 L78 24 L88 24 L94 30 L110 30 L116 14 L122 36 L130 26 L142 26 L148 30 L170 30" fill="none" stroke="#f2f2f2"/>
+    </svg>
+  </div>
+  <div class="foot"><b>OMR</b> — Audiveris<br><b>渲染播放</b> — alphaTab<br>快捷键 ?</div>
+</aside>
+<main>
+  <div class="pagehead">
+    <div><div class="cat">LIBRARY</div><div class="sub mono">曲库 · 8 条编目</div></div>
+    <div class="sub mono">SS-001 — SS-008</div>
+  </div>
+  <div class="toolbar">
+    <div class="search"><input placeholder="搜索曲名、作曲家或标签…"></div>
+    <select><option>状态:全部</option></select>
+    <select><option>乐器:全部</option></select>
+    <button class="btn">导入乐谱</button>
+  </div>
+  <div class="grid">
+    <div class="card">
+      <div class="catno">SS-001</div>
+      <div class="plotbox"><svg width="100%" height="64" viewBox="0 0 220 64" fill="none" stroke="#f2f2f2" stroke-width="1"><g opacity=".4"><line x1="0" y1="14" x2="220" y2="14"/><line x1="0" y1="26" x2="220" y2="26"/><line x1="0" y1="38" x2="220" y2="38"/><line x1="0" y1="50" x2="220" y2="50"/></g><path d="M0 32 L20 32 L26 20 L34 42 L42 28 L60 28 L66 32 L92 32 L98 16 L106 46 L114 30 L132 30 L138 32 L164 32 L172 22 L180 40 L188 32 L220 32"/></svg></div>
+      <div class="name">平均律键盘曲集 第一册<br>前奏曲 BWV 846</div>
+      <div class="meta"><span>钢琴 · 五线谱</span><span>24 BARS</span></div>
+      <div class="strip"><i class="b-ok"></i><i class="b-ok"></i><i class="b-ok"></i><i class="b-ok"></i></div>
+      <div class="state st-ok">■ 可播放</div>
+    </div>
+    <div class="card">
+      <div class="catno">SS-002</div>
+      <div class="plotbox"><svg width="100%" height="64" viewBox="0 0 220 64" fill="none" stroke="#f2f2f2" stroke-width="1"><g opacity=".4"><line x1="0" y1="14" x2="220" y2="14"/><line x1="0" y1="26" x2="220" y2="26"/><line x1="0" y1="38" x2="220" y2="38"/><line x1="0" y1="50" x2="220" y2="50"/></g><path d="M0 30 L30 30 L36 40 L44 22 L52 38 L58 30 L88 30 L94 18 L102 44 L110 26 L136 26 L142 30 L172 30 L178 36 L186 24 L194 30 L220 30"/></svg></div>
+      <div class="name">Libertango</div>
+      <div class="meta"><span>钢琴 · PDF</span><span>52 BARS</span></div>
+      <div class="strip"><i class="b-ok"></i><i class="b-ok"></i><i class="b-ok"></i><i class="b-ok"></i></div>
+      <div class="state st-ok">■ 可播放</div>
+    </div>
+    <div class="card hover">
+      <div class="catno">SS-003</div>
+      <div class="plotbox"><svg width="100%" height="64" viewBox="0 0 220 64" fill="none" stroke="#f2f2f2" stroke-width="1"><g opacity=".4"><line x1="0" y1="14" x2="220" y2="14"/><line x1="0" y1="26" x2="220" y2="26"/><line x1="0" y1="38" x2="220" y2="38"/><line x1="0" y1="50" x2="220" y2="50"/></g><path d="M0 32 L14 32 L20 24 L28 40 L36 28 L56 28 L62 32 L84 32" /><path d="M84 32 L220 32" opacity=".25"/></svg></div>
+      <div class="name">Eastern Grove</div>
+      <div class="meta"><span>吉他 · 六线谱 AI</span><span>62%</span></div>
+      <div class="strip"><i class="b-pro" style="flex:1.6"></i><i class="b-ok"></i><i class="b-ok"></i><i class="b-ok"></i></div>
+      <div class="state st-pro">■ 识别中 62%</div>
+    </div>
+    <div class="card">
+      <div class="catno">SS-004</div>
+      <div class="plotbox"><svg width="100%" height="64" viewBox="0 0 220 64" fill="none" stroke="#f2f2f2" stroke-width="1"><g opacity=".4"><line x1="0" y1="14" x2="220" y2="14"/><line x1="0" y1="26" x2="220" y2="26"/><line x1="0" y1="38" x2="220" y2="38"/><line x1="0" y1="50" x2="220" y2="50"/></g><path d="M0 34 L24 34 L30 26 L38 40 L46 30 L70 30 L76 34 L100 34 L106 20 L114 42 L122 28 L150 28 L156 34 L184 34 L190 24 L198 38 L206 34 L220 34"/></svg></div>
+      <div class="name">Wonderful Tonight</div>
+      <div class="meta"><span>吉他 · .GP5</span><span>68 BARS</span></div>
+      <div class="strip"><i class="b-ok"></i><i class="b-ok"></i><i class="b-ok"></i><i class="b-ok"></i></div>
+      <div class="state st-ok">■ 可播放</div>
+    </div>
+    <div class="card">
+      <div class="catno">SS-005</div>
+      <div class="plotbox"><svg width="100%" height="64" viewBox="0 0 220 64" fill="none" stroke="#f2f2f2" stroke-width="1"><g opacity=".4"><line x1="0" y1="14" x2="220" y2="14"/><line x1="0" y1="26" x2="220" y2="26"/><line x1="0" y1="38" x2="220" y2="38"/><line x1="0" y1="50" x2="220" y2="50"/></g><path d="M0 32 L18 32 L24 40 L32 22 L40 34 L58 34 L64 32 L220 32" opacity=".5"/></svg></div>
+      <div class="name">夜曲 Op.9 No.2</div>
+      <div class="meta"><span>钢琴 · 扫描件</span><span>34 BARS</span></div>
+      <div class="strip"><i class="b-bad"></i><i class="b-ok"></i><i class="b-ok"></i><i class="b-ok"></i></div>
+      <div class="state st-bad">■ 识别失败 — <a class="retry" href="#">RETRY</a></div>
+    </div>
+    <div class="card">
+      <div class="catno">SS-006</div>
+      <div class="plotbox"><svg width="100%" height="64" viewBox="0 0 220 64" fill="none" stroke="#f2f2f2" stroke-width="1"><g opacity=".4"><line x1="0" y1="14" x2="220" y2="14"/><line x1="0" y1="26" x2="220" y2="26"/><line x1="0" y1="38" x2="220" y2="38"/><line x1="0" y1="50" x2="220" y2="50"/></g><path d="M0 30 L26 30 L32 22 L40 36 L48 26 L72 26 L78 30 L104 30 L110 16 L118 44 L126 28 L152 28 L158 30 L186 30 L192 26 L200 34 L208 30 L220 30"/></svg></div>
+      <div class="name">The Girl from Ipanema</div>
+      <div class="meta"><span>萨克斯 · 扫描</span><span>40 BARS</span></div>
+      <div class="strip"><i class="b-ok"></i><i class="b-ok"></i><i class="b-ok"></i><i class="b-ok"></i></div>
+      <div class="state st-ok">■ 可播放</div>
+    </div>
+    <div class="card">
+      <div class="catno">SS-007</div>
+      <div class="plotbox"><svg width="100%" height="64" viewBox="0 0 220 64" fill="none" stroke="#f2f2f2" stroke-width="1"><g opacity=".4"><line x1="0" y1="14" x2="220" y2="14"/><line x1="0" y1="26" x2="220" y2="26"/><line x1="0" y1="38" x2="220" y2="38"/><line x1="0" y1="50" x2="220" y2="50"/></g><path d="M0 32 L20 32 L26 24 L34 38 L42 28 L66 28 L72 32 L96 32 L102 18 L110 42 L118 30 L142 30 L148 32 L172 32 L178 24 L186 38 L194 32 L220 32"/></svg></div>
+      <div class="name">Summer</div>
+      <div class="meta"><span>钢琴 · 图片</span><span>58 BARS</span></div>
+      <div class="strip"><i class="b-ok"></i><i class="b-ok"></i><i class="b-ok"></i><i class="b-ok"></i></div>
+      <div class="state st-ok">■ 可播放</div>
+    </div>
+    <div class="card">
+      <div class="catno">SS-008</div>
+      <div class="plotbox"><svg width="100%" height="64" viewBox="0 0 220 64" fill="none" stroke="#f2f2f2" stroke-width="1"><g opacity=".4"><line x1="0" y1="14" x2="220" y2="14"/><line x1="0" y1="26" x2="220" y2="26"/><line x1="0" y1="38" x2="220" y2="38"/><line x1="0" y1="50" x2="220" y2="50"/></g><path d="M0 32 L220 32" opacity=".25"/></svg></div>
+      <div class="name">Letter from Home</div>
+      <div class="meta"><span>吉他 · .GP5</span><span>44 BARS</span></div>
+      <div class="strip"><i class="b-wait"></i><i class="b-ok"></i><i class="b-ok"></i><i class="b-ok"></i></div>
+      <div class="state st-wait">■ 已导入 · 排队</div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

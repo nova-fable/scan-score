@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ScanScore — 十九世纪词典页</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:1440px;height:900px;overflow:hidden;background:#efe8d4;color:#141210;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI","Microsoft YaHei",sans-serif;padding:10px}
+.sr{font-family:"Playfair Display",Georgia,"Songti SC",serif}
+/* 双细线页框 */
+.frame{width:100%;height:100%;border:1px solid #141210;padding:5px;background:#f5efdf}
+.inner{width:100%;height:100%;border:1px solid #141210;display:flex;overflow:hidden}
+/* 侧栏 */
+aside{width:212px;flex:none;border-right:1px solid #141210;padding:26px 20px 18px;display:flex;flex-direction:column}
+.brand{font-size:19px;font-weight:700;letter-spacing:.02em}
+.brand small{display:block;font-size:9.5px;letter-spacing:.3em;color:#8b8672;margin-top:4px;font-weight:400}
+nav{margin-top:36px;display:flex;flex-direction:column;gap:0}
+nav a{display:block;padding:9px 8px;font-size:14px;color:#5c5745;text-decoration:none;border-bottom:1px solid #ddd5bf}
+nav a.on{color:#141210;font-weight:600;background:#eae2c8;box-shadow:inset 3px 0 0 #c73e2e}
+.foot{margin-top:auto;font-size:10.5px;line-height:1.9;color:#8b8672}
+.foot b{color:#5c5745}
+/* 主列 */
+main{flex:1;min-width:0;display:flex;flex-direction:column}
+/* guide words */
+.guide{display:flex;align-items:baseline;gap:14px;padding:14px 26px 4px;font-size:11px;letter-spacing:.2em;color:#141210}
+.guide .dots{flex:1;border-bottom:1px dotted #a89f85;transform:translateY(-4px)}
+/* 工具栏 */
+.toolbar{display:flex;gap:10px;align-items:center;padding:10px 26px 12px;border-bottom:1px solid #ddd5bf}
+.search{flex:1;display:flex;background:#fbf7ea;border:1px solid #141210;padding:7px 14px}
+.search input{border:0;outline:0;background:none;width:100%;font-size:13px;color:#141210}
+.search input::placeholder{font-family:"Playfair Display",serif;font-style:italic;color:#a89f85}
+select{appearance:none;background:#fbf7ea;border:1px solid #141210;padding:7px 24px 7px 12px;font-size:12px;color:#141210}
+.btn{background:#c73e2e;color:#f5efdf;border:0;padding:8px 20px;font-size:13px;letter-spacing:.1em;cursor:pointer;font-weight:600}
+.btn:hover{background:#a83324}
+/* 词典条目列 */
+.cols{flex:1;column-count:2;column-gap:0;column-rule:1px solid #ddd5bf;overflow:hidden;padding:6px 0}
+.entry{display:flex;gap:12px;padding:13px 26px 12px;break-inside:avoid;border-bottom:1px dotted #c9c0a4;cursor:pointer}
+.entry:hover{background:#efe7cf}
+.hw{font-size:16.5px;font-weight:700;line-height:1.3}
+.hw .num{font-size:10px;color:#8b8672;letter-spacing:.12em;font-weight:400;vertical-align:2px;margin-right:6px}
+.pos{font-family:"Playfair Display",serif;font-style:italic;font-size:12px;color:#5c5745;margin-top:3px}
+.def{font-size:12px;color:#5c5745;margin-top:5px;line-height:1.55}
+.plate{flex:none;align-self:center;border:1px solid #141210;padding:3px;width:66px}
+.plate i{display:block;height:52px;position:relative}
+.plate span{display:block;text-align:center;font-size:9px;letter-spacing:.2em;padding-top:4px;font-weight:600}
+.ok{color:#2d5c46;background:#2d5c46}.ok i{background:linear-gradient(to top,#2d5c4f33,#2d5c4f14)}
+.pro{color:#274e8f;background:#274e8f}.pro i::after{content:"";position:absolute;left:6px;right:38%;bottom:0;top:0;background:#274e8f55}
+.bad{color:#b3241b;background:#b3241b}.bad i{background:#b3241b14}
+.wait{color:#8a5a1c;background:#8a5a1c}.wait i{background:#8a5a1c14}
+.retry{display:inline-block;margin-top:4px;font-size:11px;color:#b3241b;border-bottom:1px solid #b3241b}
+/* 肩部索引 */
+.shoulder{width:34px;flex:none;border-left:1px solid #141210;display:flex;flex-direction:column;align-items:center;padding:14px 0;background:#efe8d4}
+.shoulder div{writing-mode:vertical-rl;font-size:10px;letter-spacing:.28em;color:#8b8672;padding:16px 0;border-bottom:1px solid #ddd5bf;flex:1}
+.shoulder .on{color:#c73e2e;font-weight:700;position:relative}
+.shoulder .on::before{content:"";position:absolute;top:-6px;left:50%;transform:translateX(-50%);width:18px;border-top:2px solid #c73e2e}
+</style>
+</head>
+<body><div class="frame"><div class="inner">
+<aside>
+  <div class="brand sr">ScanScore<small>LEXICON · 展</small></div>
+  <nav>
+    <a class="on" href="#">曲库</a>
+    <a href="#">设置</a>
+  </nav>
+  <div class="foot"><b>OMR</b> — Audiveris 离线引擎<br><b>渲染播放</b> — alphaTab<br>快捷键 <b>?</b></div>
+</aside>
+<main>
+  <div class="guide sr"><span>BACH, J.S.</span><span class="dots"></span><span>页 001–008</span><span class="dots"></span><span>METHENY, P.</span></div>
+  <div class="toolbar">
+    <div class="search"><input placeholder="检索词条、作曲家或标签…"></div>
+    <select><option>状态:全部</option></select>
+    <select><option>乐器:全部</option></select>
+    <button class="btn">导入乐谱</button>
+  </div>
+  <div class="cols">
+    <div class="entry"><div style="flex:1">
+      <div class="hw"><span class="num">No. 001</span>平均律键盘曲集 第一册·前奏曲 BWV 846</div>
+      <div class="pos sr">巴赫 · 钢琴,五线谱,24 小节</div>
+      <div class="def">开篇前奏曲,分解和弦如练习曲般流动,全册序言。</div>
+    </div><div class="plate ok"><i></i><span>可播放</span></div></div>
+    <div class="entry"><div style="flex:1">
+      <div class="hw"><span class="num">No. 002</span>Libertango</div>
+      <div class="pos sr">Piazzolla · 钢琴,PDF 导入,52 小节</div>
+      <div class="def">探戈新风格名作,横贯全曲的切分低音。</div>
+    </div><div class="plate ok"><i></i><span>可播放</span></div></div>
+    <div class="entry"><div style="flex:1">
+      <div class="hw"><span class="num">No. 003</span>Eastern Grove</div>
+      <div class="pos">原创指弹 · 吉他,六线谱(AI 转录)</div>
+      <div class="def">指弹原创,人工泛音与打板交织。</div>
+    </div><div class="plate pro"><i></i><span>识别中 62%</span></div></div>
+    <div class="entry"><div style="flex:1">
+      <div class="hw"><span class="num">No. 004</span>Wonderful Tonight</div>
+      <div class="pos sr">Clapton · 吉他,Guitar Pro .gp5,68 小节</div>
+      <div class="def">慢板情歌,推弦旋律线清晰易跟。</div>
+    </div><div class="plate ok"><i></i><span>可播放</span></div></div>
+    <div class="entry"><div style="flex:1">
+      <div class="hw"><span class="num">No. 005</span>夜曲 Op. 9 No. 2</div>
+      <div class="pos sr">肖邦 · 钢琴,扫描件,34 小节</div>
+      <div class="def">降 E 大调,琶音伴奏上的歌唱性旋律。</div>
+    </div><div class="plate bad"><i></i><span>识别失败</span><br><a class="retry" href="#">重试</a></div></div>
+    <div class="entry"><div style="flex:1">
+      <div class="hw"><span class="num">No. 006</span>The Girl from Ipanema</div>
+      <div class="pos sr">Jobim · 萨克斯,Real Book 扫描,40 小节</div>
+      <div class="def">波萨诺瓦标准曲,中音萨克斯独奏谱。</div>
+    </div><div class="plate ok"><i></i><span>可播放</span></div></div>
+    <div class="entry"><div style="flex:1">
+      <div class="hw"><span class="num">No. 007</span>Summer</div>
+      <div class="pos">久石让 · 钢琴,图片导入,58 小节</div>
+      <div class="def">《菊次郎的夏天》主题曲,轻快回旋。</div>
+    </div><div class="plate ok"><i></i><span>可播放</span></div></div>
+    <div class="entry"><div style="flex:1">
+      <div class="hw"><span class="num">No. 008</span>Letter from Home</div>
+      <div class="pos sr">Metheny · 吉他,已导入,44 小节</div>
+      <div class="def">乡村风指弹抒情曲。</div>
+    </div><div class="plate wait"><i></i><span>待识别</span></div></div>
+  </div>
+</main>
+<div class="shoulder">
+  <div class="on">钢琴</div><div>吉他</div><div>萨克斯</div><div>其他</div>
+</div>
+</div></div></body>
+</html>

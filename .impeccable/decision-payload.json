@@ -1,0 +1,147 @@
+{
+  "title": "选择 ScanScore 的视觉世界",
+  "question": "抽签已定方向(墨绿书封)。保留它、选备选,或重抽。",
+  "options": [
+    {
+      "id": "assigned",
+      "kind": "assigned",
+      "label": "墨绿书封",
+      "kicker": "THE ROLL",
+      "lineage": "Real Book 与爵士 fake book 出版物的封面文化",
+      "thesis": "应用是一本摊开的 Real Book:封面文化承载曲库与导航,内页文化承载工作区,深绿油墨与奶油纸双色到底。",
+      "palette": ["#1e4636", "#f7f1de", "#1c2420", "#c7a94e", "#b91c1c"],
+      "materials": ["双色油墨印刷", "书封厚纸", "书脊装订"],
+      "viewport": "深绿油墨的侧栏与页头像封面,奶油纸工作区铺开曲库;每张卡片是一本迷你书封,识别中/失败的册子贴着专色标签。",
+      "risk": "若内页退化成普通文档,身份只剩一层壳;双色纪律与四色状态信号的张力要靠「专色」体系化解。",
+      "raised": [
+        {
+          "from": "challenger-rail",
+          "raise": "校准轨——详情页时间轴成为全应用唯一校准轨:播放进度、A-B 区间、节拍器重音、小节刻度全部注册其上,以刻度对齐取代各自为政。"
+        },
+        {
+          "from": "challenger-grid",
+          "raise": "网格展示字形——空状态与首启引导用网格构建的谱号 monument 字形,是体系内唯一的展示时刻。"
+        }
+      ],
+      "html": ".impeccable/mocks/decision/assigned.html"
+    },
+    {
+      "id": "model-pick",
+      "kind": "pick",
+      "label": "雕版谱页",
+      "kicker": "IMPECCABLE'S PICK",
+      "lineage": "布莱特科夫与亨乐净版(Urtext)的乐谱雕版排印传统",
+      "thesis": "乐谱雕版排印就是应用的母语:谱线作结构线,小节号作微注,版号作编目,每张卡片是一页微型扉页。",
+      "palette": ["#f8f6ef", "#1a1a18", "#b8b4a8", "#c73e2e"],
+      "materials": ["雕版谱纸", "钢版雕刻线", "活字排印"],
+      "viewport": "暖白谱纸上,曲库是微型扉页的阵列;分隔线是五线谱线组,识别状态是雕版徽记。",
+      "risk": "米色+衬线是 AI 生成界面的高频答案——此方向必须靠谱线体系而非怀旧配色立身。",
+      "html": ".impeccable/mocks/decision/model-pick.html"
+    },
+    {
+      "id": "challenger-lexicon",
+      "kind": "challenger",
+      "catalogId": "rw-lexicon-shoulder-and-plate",
+      "label": "十九世纪词典页",
+      "verdict": "competitive",
+      "lineage": "十九世纪彩色图版词典",
+      "thesis": "曲库成为词典条目列:页头 guide words 标出当前视口首末曲,肩部拇指索引按乐器分区跳转,色彩全部隔离在带框图版里。",
+      "palette": ["#f5efdf", "#141210", "#c73e2e", "#2d5c4f"],
+      "materials": ["双细线页框", "雕版图版", "肩部索引"],
+      "viewport": "双细线框住整页,曲库是词典条目列:挂行粗衬线曲名、斜体元数据、带框状态图版。",
+      "case": "融合干净:曲名→词条、筛选→guide words、封面/日志→图版;但状态四色被框进图版,信号自由度低于主方向,轴上守住「受众认同」。",
+      "risk": "书卷气压过工具感时,识别流水线的信号灯会显得局促。",
+      "html": ".impeccable/mocks/decision/challenger-lexicon.html",
+      "hero": "https://impeccable.style/worlds/cards/rw-lexicon-shoulder-and-plate-hero.webp"
+    },
+    {
+      "id": "challenger-catalog",
+      "kind": "challenger",
+      "catalogId": "brand-identity-canon-saville-catalog-sleeve",
+      "label": "厂牌编目",
+      "verdict": "competitive",
+      "lineage": "Factory Records 编目美学",
+      "thesis": "曲库是编目厂牌:哑光黑上白细线谱形图,每曲一个稳定编目号,标签以色块条编码、悬停解码。",
+      "palette": ["#0d0d0d", "#f2f2f2", "#c40d0e", "#e6c229"],
+      "materials": ["哑光黑套", "白色细线绘图", "色块编码条"],
+      "viewport": "曲库是编目卡阵列:SS 号、白细线谱形占位、mono 元数据、色块条标签。",
+      "case": "唱片编目文化对乐手真实存在,黑底白线极具身份;但标签解码伤害一眼可用,守住「受众认同」一轴。",
+      "risk": "黑底长时间整理曲库的阅读舒适度,与「透明可校对」的明亮气质相悖。",
+      "html": ".impeccable/mocks/decision/challenger-catalog.html",
+      "hero": "https://impeccable.style/worlds/cards/brand-identity-canon-saville-catalog-sleeve-hero.webp"
+    },
+    {
+      "id": "challenger-pass",
+      "kind": "challenger",
+      "catalogId": "vernacular-ephemera-boarding-pass-and-gate-board",
+      "label": "识别闸口屏",
+      "verdict": "competitive",
+      "lineage": "分段登机牌 + 实时闸口显示屏",
+      "thesis": "识别任务是登机牌,任务列表是闸口屏:行原地重排、变更态点亮并保持到被注意为止。",
+      "palette": ["#0b0d10", "#f4f4f2", "#e8ebef", "#ffd400"],
+      "materials": ["分段票券", "等宽扫描块", "常亮变更态"],
+      "viewport": "上方是识别任务板(变更行黄标常亮),下方是曲库票券卡网格。",
+      "case": "「变更保持点亮」完美命中流水线透明原则,守住「产品清晰」一轴;但旅行 ephemera 与乐谱文化几乎无关。",
+      "risk": "曲库与练习的世界只剩高对比面板,乐谱身份靠内容硬撑。",
+      "html": ".impeccable/mocks/decision/challenger-pass.html",
+      "hero": "https://impeccable.style/worlds/cards/vernacular-ephemera-boarding-pass-and-gate-board-hero.webp"
+    },
+    {
+      "id": "challenger-rail",
+      "kind": "challenger",
+      "catalogId": "operate-c-emission-line-rail",
+      "label": "光谱校准轨",
+      "verdict": "declined",
+      "lineage": "凌晨三点的光谱仪玻璃",
+      "thesis": "炭黑底上谱面是唯一亮板,状态用线形(实/虚/双)不用色相,一切挂在一条校准轨上。",
+      "palette": ["#16181a", "#e8e4da", "#d4a017"],
+      "materials": ["炭黑连续谱", "发丝级发射线"],
+      "viewport": "深炭工作台上,谱面亮板与一条贯穿的校准轨。",
+      "case": "融合失败:光谱仪世界乐手难以认同;线形状态替代四色信号灯后,流水线状态辨识度下降,两轴皆负。",
+      "kept": "校准轨纪律已注入主方向:所有时间标记注册到同一条轨。",
+      "hero": "https://impeccable.style/worlds/cards/operate-c-emission-line-rail-hero.webp"
+    },
+    {
+      "id": "challenger-grid",
+      "kind": "challenger",
+      "catalogId": "crouwel-grid-specimen",
+      "label": "构建网格",
+      "verdict": "declined",
+      "lineage": "Wim Crouwel 网格字体样本",
+      "thesis": "可见的构建网格上,字形逐格搭建,版面按整格回流。",
+      "palette": ["#f2f0eb", "#111111", "#2b46d9"],
+      "materials": ["发丝网格", "网格构建字形"],
+      "viewport": " faint 蓝色网格覆盖页面,标题字形由格搭建。",
+      "case": "融合失败:谱面自带五线,可见网格与之打架;密集工作屏上网格是干扰源,两轴皆负。",
+      "kept": "展示字形的勇气已注入主方向:空态与首启的网格构建 monument 字形。"
+    },
+    {
+      "id": "challenger-mono",
+      "kind": "challenger",
+      "catalogId": "digital-design-canon-monochrome-product-marketing",
+      "label": "单色产品页",
+      "verdict": "declined",
+      "lineage": "单色系产品营销页",
+      "thesis": "近黑对近白加一个克制强调色,每句主张都配一张截图作证。",
+      "palette": ["#fafafa", "#111827", "#2563eb"],
+      "materials": ["中性灰阶", "hairline 按钮"],
+      "viewport": "成对的主张与证据沿严格网格下行。",
+      "case": "融合失败:它就是品类常规本身,无身份可言,与主方向同轴双双落败。",
+      "kept": "它的地盘由「品类标准」卡诚实呈现。"
+    }
+  ],
+  "reroll": { "registers": ["safer", "bolder"] },
+  "buildPath": { "value": "code" },
+  "canon": true,
+  "canonCard": {
+    "kind": "canon",
+    "label": "品类标准",
+    "thesis": "一流的原生桌面谱库工具:中性纸面、单强调色、系统字体、紧凑密度——「安静的琴房」执行到类目最佳。",
+    "palette": ["#f6f7f9", "#ffffff", "#4f46e5", "#1f2937"],
+    "materials": ["白卡与灰底", "1px 细边框", "系统字体栈"],
+    "viewport": "现行 ScanScore 布局与组件,执行到类目最佳水准。",
+    "risk": "放在任何桌面工具旁边,都认不出来这是 ScanScore。",
+    "html": ".impeccable/mocks/decision/canon.html"
+  },
+  "steer": true
+}

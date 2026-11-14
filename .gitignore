@@ -40,3 +40,6 @@ src-tauri/resources/engine/
 
 # Temporary SQLite DBs
 /src-tauri/:memtest_*
+
+# impeccable 方向轮下载的目录参考图(可从 impeccable.style 重下),不入库
+.impeccable/boards/

@@ -1,259 +1,151 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-08",
+  "generatedAt": "2026-11-14T09:53:05Z",
   "title": "Design System: ScanScore",
   "extensions": {
     "colorMeta": {
-      "metronome-indigo": {
-        "role": "primary",
-        "displayName": "节拍器靛蓝 Metronome Indigo",
-        "canonical": "#4f46e5",
-        "tonalRamp": [
-          "#1e1b4b",
-          "#312e81",
-          "#3730a3",
-          "#4338ca",
-          "#4f46e5",
-          "#6366f1",
-          "#818cf8",
-          "#a5b4fc"
-        ]
-      },
-      "metronome-indigo-soft": {
-        "role": "primary",
-        "displayName": "节拍器靛蓝·浅底",
-        "canonical": "#eef2ff",
-        "tonalRamp": [
-          "#1e1b4b",
-          "#312e81",
-          "#3730a3",
-          "#4338ca",
-          "#4f46e5",
-          "#6366f1",
-          "#818cf8",
-          "#a5b4fc"
-        ]
-      },
-      "danger-hover": {
-        "role": "neutral",
-        "displayName": "危险红·悬停/实底",
-        "canonical": "#dc2626",
-        "tonalRamp": [
-          "#7f1d1d",
-          "#991b1b",
-          "#b91c1c",
-          "#dc2626",
-          "#ef4444",
-          "#f87171",
-          "#fca5a5",
-          "#fecaca"
-        ]
-      },
-      "page-bg": {
-        "role": "neutral",
-        "displayName": "琴房纸面 Practice-Room Paper",
-        "canonical": "#f6f7f9",
-        "tonalRamp": [
-          "#27272a",
-          "#3f3f46",
-          "#52525b",
-          "#71717a",
-          "#a1a1aa",
-          "#d4d4d8",
-          "#e4e4e7",
-          "#f6f7f9"
-        ]
-      },
-      "surface": {
-        "role": "neutral",
-        "displayName": "纯白琴谱 Score White",
-        "canonical": "#ffffff",
-        "tonalRamp": [
-          "#3f3f46",
-          "#52525b",
-          "#71717a",
-          "#a1a1aa",
-          "#d4d4d8",
-          "#e4e4e7",
-          "#f4f4f5",
-          "#ffffff"
-        ]
-      },
-      "border": {
-        "role": "neutral",
-        "displayName": "描边灰 Hairline Zinc",
-        "canonical": "#e4e4e7",
-        "tonalRamp": [
-          "#18181b",
-          "#3f3f46",
-          "#52525b",
-          "#71717a",
-          "#a1a1aa",
-          "#d4d4d8",
-          "#e4e4e7",
-          "#f4f4f5"
-        ]
-      },
       "ink": {
-        "role": "neutral",
-        "displayName": "墨色 Ink",
-        "canonical": "#1f2937",
-        "tonalRamp": [
-          "#18181b",
-          "#27272a",
-          "#3f3f46",
-          "#52525b",
-          "#71717a",
-          "#a1a1aa",
-          "#d4d4d8",
-          "#e4e4e7"
-        ]
+        "role": "primary",
+        "displayName": "深墨绿油墨 / Ink",
+        "canonical": "#1e4636",
+        "oklch": "oklch(36.0% 0.0537 165.1)",
+        "tonalRamp": ["oklch(15.0% 0.0188 165.1)", "oklch(25.0% 0.0347 165.1)", "oklch(36.0% 0.0507 165.1)", "oklch(47.0% 0.0537 165.1)", "oklch(58.0% 0.0537 165.1)", "oklch(70.0% 0.0507 165.1)", "oklch(82.0% 0.0347 165.1)", "oklch(94.0% 0.0188 165.1)"]
       },
-      "danger": {
-        "role": "neutral",
-        "displayName": "危险红 Danger Red",
-        "canonical": "#ef4444",
-        "tonalRamp": [
-          "#7f1d1d",
-          "#991b1b",
-          "#b91c1c",
-          "#dc2626",
-          "#ef4444",
-          "#f87171",
-          "#fca5a5",
-          "#fecaca"
-        ]
+      "ink-deep": {
+        "role": "primary",
+        "displayName": "墨绿壳 / Ink-Deep",
+        "canonical": "#16312a",
+        "oklch": "oklch(28.9% 0.0358 174.8)",
+        "tonalRamp": ["oklch(15.0% 0.0125 174.8)", "oklch(25.0% 0.0232 174.8)", "oklch(36.0% 0.0338 174.8)", "oklch(47.0% 0.0358 174.8)", "oklch(58.0% 0.0358 174.8)", "oklch(70.0% 0.0338 174.8)", "oklch(82.0% 0.0232 174.8)", "oklch(94.0% 0.0125 174.8)"]
       },
-      "status-waiting": {
-        "role": "neutral",
-        "displayName": "待识别·琥珀",
-        "canonical": "#fef3c7",
-        "tonalRamp": [
-          "#78350f",
-          "#92400e",
-          "#b45309",
-          "#d97706",
-          "#f59e0b",
-          "#fbbf24",
-          "#fcd34d",
-          "#fef3c7"
-        ]
+      "ink-bright": {
+        "role": "primary",
+        "displayName": "墨绿·亮 / Ink-Bright",
+        "canonical": "#2a5847",
+        "oklch": "oklch(42.2% 0.0587 167.2)",
+        "tonalRamp": ["oklch(15.0% 0.0206 167.2)", "oklch(25.0% 0.0380 167.2)", "oklch(36.0% 0.0554 167.2)", "oklch(47.0% 0.0587 167.2)", "oklch(58.0% 0.0587 167.2)", "oklch(70.0% 0.0554 167.2)", "oklch(82.0% 0.0380 167.2)", "oklch(94.0% 0.0206 167.2)"]
       },
-      "status-working": {
-        "role": "neutral",
-        "displayName": "识别中·蓝",
-        "canonical": "#dbeafe",
-        "tonalRamp": [
-          "#1e3a8a",
-          "#1e40af",
-          "#1d4ed8",
-          "#2563eb",
-          "#3b82f6",
-          "#60a5fa",
-          "#93c5fd",
-          "#dbeafe"
-        ]
+      "gold": {
+        "role": "secondary",
+        "displayName": "烫金 / Gold",
+        "canonical": "#c7a94e",
+        "oklch": "oklch(74.3% 0.1155 91.1)",
+        "tonalRamp": ["oklch(15.0% 0.0404 91.1)", "oklch(25.0% 0.0747 91.1)", "oklch(36.0% 0.1090 91.1)", "oklch(47.0% 0.1155 91.1)", "oklch(58.0% 0.1155 91.1)", "oklch(70.0% 0.1090 91.1)", "oklch(82.0% 0.0747 91.1)", "oklch(94.0% 0.0404 91.1)"]
       },
-      "status-ready": {
-        "role": "neutral",
-        "displayName": "可播放·翡翠",
-        "canonical": "#d1fae5",
-        "tonalRamp": [
-          "#064e3b",
-          "#065f46",
-          "#047857",
-          "#059669",
-          "#10b981",
-          "#34d399",
-          "#6ee7b7",
-          "#d1fae5"
-        ]
+      "selection-gold-tint": {
+        "role": "secondary",
+        "displayName": "烫金浅印 / Selection Tint",
+        "canonical": "#e3d7a8",
+        "oklch": "oklch(87.7% 0.0630 95.4)",
+        "tonalRamp": ["oklch(15.0% 0.0201 95.4)", "oklch(25.0% 0.0371 95.4)", "oklch(36.0% 0.0540 95.4)", "oklch(47.0% 0.0572 95.4)", "oklch(58.0% 0.0572 95.4)", "oklch(70.0% 0.0540 95.4)", "oklch(82.0% 0.0371 95.4)", "oklch(94.0% 0.0201 95.4)"]
       },
-      "status-failed": {
+      "spot-ok": {
+        "role": "spot",
+        "displayName": "专色·可播放 / Spot Emerald",
+        "canonical": "#17684a",
+        "oklch": "oklch(46.2% 0.0904 163.3)",
+        "tonalRamp": ["oklch(15.0% 0.0316 163.3)", "oklch(25.0% 0.0585 163.3)", "oklch(36.0% 0.0853 163.3)", "oklch(47.0% 0.0904 163.3)", "oklch(58.0% 0.0904 163.3)", "oklch(70.0% 0.0853 163.3)", "oklch(82.0% 0.0585 163.3)", "oklch(94.0% 0.0316 163.3)"]
+      },
+      "spot-run": {
+        "role": "spot",
+        "displayName": "专色·识别中 / Spot Blue",
+        "canonical": "#2a5580",
+        "oklch": "oklch(44.0% 0.0860 250.4)",
+        "tonalRamp": ["oklch(15.0% 0.0301 250.4)", "oklch(25.0% 0.0556 250.4)", "oklch(36.0% 0.0812 250.4)", "oklch(47.0% 0.0860 250.4)", "oklch(58.0% 0.0860 250.4)", "oklch(70.0% 0.0812 250.4)", "oklch(82.0% 0.0556 250.4)", "oklch(94.0% 0.0301 250.4)"]
+      },
+      "spot-fail": {
+        "role": "spot",
+        "displayName": "专色·识别失败 / Spot Red",
+        "canonical": "#a83324",
+        "oklch": "oklch(49.5% 0.1556 30.6)",
+        "tonalRamp": ["oklch(15.0% 0.0545 30.6)", "oklch(25.0% 0.1007 30.6)", "oklch(36.0% 0.1469 30.6)", "oklch(47.0% 0.1556 30.6)", "oklch(58.0% 0.1556 30.6)", "oklch(70.0% 0.1469 30.6)", "oklch(82.0% 0.1007 30.6)", "oklch(94.0% 0.0545 30.6)"]
+      },
+      "spot-wait": {
+        "role": "spot",
+        "displayName": "专色·待识别 / Spot Amber",
+        "canonical": "#8a5a1c",
+        "oklch": "oklch(50.9% 0.0979 68.5)",
+        "tonalRamp": ["oklch(15.0% 0.0343 68.5)", "oklch(25.0% 0.0634 68.5)", "oklch(36.0% 0.0925 68.5)", "oklch(47.0% 0.0979 68.5)", "oklch(58.0% 0.0979 68.5)", "oklch(70.0% 0.0925 68.5)", "oklch(82.0% 0.0634 68.5)", "oklch(94.0% 0.0343 68.5)"]
+      },
+      "paper": {
         "role": "neutral",
-        "displayName": "识别失败·红",
-        "canonical": "#fee2e2",
-        "tonalRamp": [
-          "#7f1d1d",
-          "#991b1b",
-          "#b91c1c",
-          "#dc2626",
-          "#ef4444",
-          "#f87171",
-          "#fca5a5",
-          "#fee2e2"
-        ]
+        "displayName": "奶油纸 / Paper",
+        "canonical": "#f7f1de",
+        "oklch": "oklch(95.8% 0.0259 92.4)",
+        "tonalRamp": ["oklch(15.0% 0.0091 92.4)", "oklch(25.0% 0.0167 92.4)", "oklch(36.0% 0.0244 92.4)", "oklch(47.0% 0.0259 92.4)", "oklch(58.0% 0.0259 92.4)", "oklch(70.0% 0.0244 92.4)", "oklch(82.0% 0.0167 92.4)", "oklch(94.0% 0.0091 92.4)"]
+      },
+      "paper-bright": {
+        "role": "neutral",
+        "displayName": "亮纸 / Paper-Bright",
+        "canonical": "#fffdf4",
+        "oklch": "oklch(99.3% 0.0120 96.4)",
+        "tonalRamp": ["oklch(15.0% 0.0042 96.4)", "oklch(25.0% 0.0078 96.4)", "oklch(36.0% 0.0113 96.4)", "oklch(47.0% 0.0120 96.4)", "oklch(58.0% 0.0120 96.4)", "oklch(70.0% 0.0113 96.4)", "oklch(82.0% 0.0078 96.4)", "oklch(94.0% 0.0042 96.4)"]
+      },
+      "paper-dim": {
+        "role": "neutral",
+        "displayName": "纸凹槽 / Paper-Dim",
+        "canonical": "#e9dfc4",
+        "oklch": "oklch(90.5% 0.0375 90.1)",
+        "tonalRamp": ["oklch(15.0% 0.0131 90.1)", "oklch(25.0% 0.0242 90.1)", "oklch(36.0% 0.0354 90.1)", "oklch(47.0% 0.0375 90.1)", "oklch(58.0% 0.0375 90.1)", "oklch(70.0% 0.0354 90.1)", "oklch(82.0% 0.0242 90.1)", "oklch(94.0% 0.0131 90.1)"]
+      },
+      "bind": {
+        "role": "neutral",
+        "displayName": "雕版黑 / Bind",
+        "canonical": "#1c2420",
+        "oklch": "oklch(25.1% 0.0137 163.6)",
+        "tonalRamp": ["oklch(15.0% 0.0048 163.6)", "oklch(25.0% 0.0089 163.6)", "oklch(36.0% 0.0129 163.6)", "oklch(47.0% 0.0137 163.6)", "oklch(58.0% 0.0137 163.6)", "oklch(70.0% 0.0129 163.6)", "oklch(82.0% 0.0089 163.6)", "oklch(94.0% 0.0048 163.6)"]
+      },
+      "hair": {
+        "role": "neutral",
+        "displayName": "纸上细线 / Hair",
+        "canonical": "#ddd3b8",
+        "oklch": "oklch(86.8% 0.0378 90.1)",
+        "tonalRamp": ["oklch(15.0% 0.0132 90.1)", "oklch(25.0% 0.0245 90.1)", "oklch(36.0% 0.0357 90.1)", "oklch(47.0% 0.0378 90.1)", "oklch(58.0% 0.0378 90.1)", "oklch(70.0% 0.0357 90.1)", "oklch(82.0% 0.0245 90.1)", "oklch(94.0% 0.0132 90.1)"]
+      },
+      "hair-strong": {
+        "role": "neutral",
+        "displayName": "重细线 / Hair-Strong",
+        "canonical": "#b9ad8a",
+        "oklch": "oklch(74.9% 0.0498 91.4)",
+        "tonalRamp": ["oklch(15.0% 0.0174 91.4)", "oklch(25.0% 0.0322 91.4)", "oklch(36.0% 0.0470 91.4)", "oklch(47.0% 0.0498 91.4)", "oklch(58.0% 0.0498 91.4)", "oklch(70.0% 0.0470 91.4)", "oklch(82.0% 0.0322 91.4)", "oklch(94.0% 0.0174 91.4)"]
+      },
+      "ink-faint": {
+        "role": "neutral",
+        "displayName": "壳上奶油 / Ink-Faint",
+        "canonical": "rgba(247, 241, 222, 0.72)",
+        "oklch": "oklch(95.8% 0.0259 92.4) @ 72% alpha",
+        "tonalRamp": ["oklch(15.0% 0.0091 92.4)", "oklch(25.0% 0.0167 92.4)", "oklch(36.0% 0.0244 92.4)", "oklch(47.0% 0.0259 92.4)", "oklch(58.0% 0.0259 92.4)", "oklch(70.0% 0.0244 92.4)", "oklch(82.0% 0.0167 92.4)", "oklch(94.0% 0.0091 92.4)"]
       }
     },
     "typographyMeta": {
-      "page-title": {
-        "displayName": "Page Title",
-        "purpose": "页面级标题，每屏至多一个（设置页 h1）。"
-      },
-      "title": {
-        "displayName": "Title",
-        "purpose": "卡片/弹窗/应用名——小而实的标题层，600 字重。"
-      },
-      "body": {
-        "displayName": "Body",
-        "purpose": "UI 正文、按钮与输入框基准字号（14px）。"
-      },
-      "label": {
-        "displayName": "Label",
-        "purpose": "标签、状态 pill、辅助说明（12px）。"
-      },
-      "micro": {
-        "displayName": "Micro",
-        "purpose": "时间戳、微注、日志（11px）。"
-      },
-      "editor-mono": {
-        "displayName": "Editor Mono",
-        "purpose": "alphaTex 校对编辑区与引擎日志终端。"
-      }
+      "display": { "displayName": "Display", "purpose": "品牌字与无封面排印封面标题 — Bitter 900 只服务拉丁层。" },
+      "headline": { "displayName": "Headline", "purpose": "页面题名（曲库/设置）；详情页曲名同族 18px。" },
+      "subheadline": { "displayName": "Subheadline", "purpose": "模态标题（校对编辑器/日志/快捷键）— Bitter 700。" },
+      "title": { "displayName": "Title", "purpose": "组件标题：Row 标签、确认模态标题、按钮强调字、导航项（600）。" },
+      "body": { "displayName": "Body", "purpose": "UI 正文、按钮、输入框、菜单项基准。" },
+      "label": { "displayName": "Label", "purpose": "提示、说明、轨道 chip、队列角标。" },
+      "micro": { "displayName": "Micro", "purpose": "等宽/数字语境：播放时间、百分比、引擎日志、alphaTex 速查条；配 tabular-nums。" }
     },
     "shadows": [
-      {
-        "name": "card-rest",
-        "value": "0 1px 2px 0 rgb(0 0 0 / 0.05)",
-        "purpose": "卡片静止态，几乎不可察觉。"
-      },
-      {
-        "name": "card-hover",
-        "value": "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
-        "purpose": "卡片悬停——卡片抬起的唯一时刻。"
-      },
-      {
-        "name": "floating-action",
-        "value": "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)",
-        "purpose": "悬浮在封面上的卡片操作按钮与多选框。"
-      },
-      {
-        "name": "dropdown",
-        "value": "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
-        "purpose": "下拉菜单与弹层。"
-      },
-      {
-        "name": "modal",
-        "value": "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)",
-        "purpose": "模态弹窗，配合 rgba(0,0,0,0.3–0.4) 遮罩。"
-      }
+      { "name": "book-rest-green", "value": "0 2px 6px rgba(28,36,32,0.2)", "purpose": "书封卡绿面静置落影。" },
+      { "name": "book-rest-paper", "value": "0 2px 8px rgba(28,36,32,0.14)", "purpose": "书封卡奶油面静置落影。" },
+      { "name": "book-lift", "value": "0 18px 32px rgba(28,36,32,0.35)", "purpose": "hover 拿起一本书（配 -8px 上浮 + -0.5° 微旋）。" },
+      { "name": "spine-binding", "value": "inset 12px 0 16px -12px rgba(28,36,32,0.4)", "purpose": "主区左缘书脊装订 — 结构深度，非投影。" },
+      { "name": "floating", "value": "0 1px 2px rgba(0,0,0,0.05)", "purpose": "卡上悬浮小按钮、主按钮微影。" },
+      { "name": "dropdown", "value": "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)", "purpose": "下拉菜单、toast。" },
+      { "name": "modal", "value": "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)", "purpose": "模态面板，配 rgba(0,0,0,0.3–0.4) 遮罩。" }
     ],
     "motion": [
-      {
-        "name": "ease-standard",
-        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
-        "purpose": "Tailwind 默认过渡曲线，150ms，用于 hover/opacity 等全部状态切换。"
-      },
-      {
-        "name": "ease-out-entrance",
-        "value": "cubic-bezier(0, 0, 0.2, 1)",
-        "purpose": "入场动画（模态上浮 180ms / 遮罩淡入 150ms / toast 滑入 200ms）专用指数缓出；prefers-reduced-motion 下取消。"
-      },
-      {
-        "name": "beat-pulse",
-        "value": "impeccable-beat 0.8s ease-in-out infinite",
-        "purpose": "节拍器激活光环脉动（北极星「节拍器灯」）；prefers-reduced-motion 下取消。"
-      }
+      { "name": "duration-state", "value": "150ms cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "按钮/控件颜色、边框、阴影、transform 的统一过渡。" },
+      { "name": "ease-enter", "value": "cubic-bezier(0, 0, 0.2, 1)", "purpose": "入场动效缓动。" },
+      { "name": "fade-in", "value": "150ms", "purpose": "遮罩与浮层淡入（anim-fade-in）。" },
+      { "name": "pop-in", "value": "180ms", "purpose": "模态面板/菜单上浮入场：translateY(8px)+scale(0.98)→无（anim-pop-in）。" },
+      { "name": "toast-in", "value": "200ms", "purpose": "toast 自下方 12px 滑入（anim-toast-in）。" },
+      { "name": "beat-pulse", "value": "800ms ease-in-out infinite", "purpose": "节拍器激活光环脉动 scale(1→1.18)（anim-beat）。" },
+      { "name": "reduced-motion", "value": "prefers-reduced-motion: reduce → animation: none", "purpose": "全部入场动效与节拍脉动取消；书封 hover 的 transform/页缘条过渡一并静止。" }
+    ],
+    "breakpoints": [
+      { "name": "desktop-min-window", "value": "1000px" }
     ]
   },
   "components": [
@@ -261,138 +153,103 @@
       "name": "Primary Button",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "主动作按钮——每屏至多一个，靛蓝亮起即行动处。",
+      "description": "墨绿实心主动作键 — 每屏至多一个；导入/识别/保存类动作。",
       "html": "<button class=\"ds-btn-primary\">导入乐谱</button>",
-      "css": ".ds-btn-primary { background: #4f46e5; color: #ffffff; border: none; border-radius: 8px; padding: 6px 16px; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', 'Microsoft YaHei', sans-serif; font-size: 14px; cursor: pointer; transition: background 0.15s cubic-bezier(0.4, 0, 0.2, 1); } .ds-btn-primary:hover { background: #6366f1; } .ds-btn-primary:focus-visible { outline: none; box-shadow: inset 0 0 0 1px #818cf8; } .ds-btn-primary:disabled { opacity: 0.5; cursor: default; }"
+      "css": ".ds-btn-primary { background: #1e4636; color: #f7f1de; font-weight: 600; font-size: 0.875rem; padding: 6px 16px; border: none; border-radius: 8px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: background-color 0.15s cubic-bezier(0.4,0,0.2,1); } .ds-btn-primary:hover { background: #2a5847; } .ds-btn-primary:focus-visible { outline: 2px solid #1c2420; outline-offset: 1px; } .ds-btn-primary:disabled { opacity: 0.5; }"
     },
     {
       "name": "Secondary Button",
       "kind": "button",
       "refersTo": "button-secondary",
-      "description": "工具栏默认形态：白底细边框，hover 微灰。",
-      "html": "<button class=\"ds-btn-secondary\">取消</button>",
-      "css": ".ds-btn-secondary { background: #ffffff; color: #52525b; border: 1px solid #e4e4e7; border-radius: 8px; padding: 6px 16px; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', 'Microsoft YaHei', sans-serif; font-size: 14px; cursor: pointer; transition: background 0.15s cubic-bezier(0.4, 0, 0.2, 1); } .ds-btn-secondary:hover { background: #fafafa; } .ds-btn-secondary:focus-visible { outline: none; box-shadow: inset 0 0 0 1px #818cf8; }"
+      "description": "重细线描边次级键 — 工具栏默认形态，hover 落纸凹槽底。",
+      "html": "<button class=\"ds-btn-secondary\">导入文件夹</button>",
+      "css": ".ds-btn-secondary { background: transparent; color: rgba(28,36,32,0.8); font-size: 0.875rem; padding: 6px 12px; border: 1px solid #b9ad8a; border-radius: 8px; cursor: pointer; transition: background-color 0.15s cubic-bezier(0.4,0,0.2,1), border-color 0.15s cubic-bezier(0.4,0,0.2,1); } .ds-btn-secondary:hover { background: #e9dfc4; } .ds-btn-secondary:focus-visible { outline: 2px solid #1c2420; outline-offset: 1px; }"
     },
     {
-      "name": "Text Input",
-      "kind": "input",
-      "refersTo": "input",
-      "description": "标准输入框——focus 仅边框变色，无 ring 无光晕。",
-      "html": "<input class=\"ds-input\" placeholder=\"搜索标题 / 作曲者…\" />",
-      "css": ".ds-input { background: #ffffff; color: #1f2937; border: 1px solid #e4e4e7; border-radius: 8px; padding: 6px 12px; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', 'Microsoft YaHei', sans-serif; font-size: 14px; outline: none; transition: border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1); } .ds-input::placeholder { color: #a1a1aa; } .ds-input:focus { border-color: #818cf8; }"
-    },
-    {
-      "name": "Sidebar Navigation",
-      "kind": "nav",
-      "refersTo": "nav-item-active",
-      "description": "侧栏导航项：激活=靛蓝浅底深字，未激活=次级墨色。",
-      "html": "<nav class=\"ds-nav\"><button class=\"ds-nav-item ds-nav-item--active\">曲库</button><button class=\"ds-nav-item\">设置</button></nav>",
-      "css": ".ds-nav { display: flex; flex-direction: column; gap: 4px; padding: 0 8px; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', 'Microsoft YaHei', sans-serif; } .ds-nav-item { text-align: left; padding: 8px 12px; border-radius: 8px; border: none; background: transparent; font-size: 14px; color: #52525b; cursor: pointer; transition: background 0.15s cubic-bezier(0.4, 0, 0.2, 1); } .ds-nav-item:hover { background: #f4f4f5; } .ds-nav-item--active { background: #eef2ff; color: #4338ca; font-weight: 600; } .ds-nav-item--active:hover { background: #eef2ff; }"
-    },
-    {
-      "name": "Score Card",
+      "name": "Book-Cover Card",
       "kind": "card",
-      "refersTo": "card",
-      "description": "曲库卡片：白卡 xl 圆角，静止 shadow-sm、hover 抬起，封面占位灰。",
-      "html": "<div class=\"ds-card\"><div class=\"ds-card-cover\">♫</div><div class=\"ds-card-body\"><div class=\"ds-card-title\">小星星变奏曲</div><div class=\"ds-card-meta\"><span>钢琴</span><span class=\"ds-pill ds-pill--ready\">可播放</span></div></div></div>",
-      "css": ".ds-card { max-width: 220px; background: #ffffff; border: 1px solid #e4e4e7; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); transition: box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1); font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', 'Microsoft YaHei', sans-serif; } .ds-card:hover { box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); } .ds-card-cover { height: 96px; background: #f4f4f5; display: grid; place-items: center; color: #d4d4d8; font-size: 24px; } .ds-card-body { padding: 12px; } .ds-card-title { font-size: 14px; font-weight: 500; color: #1f2937; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .ds-card-meta { margin-top: 2px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: #71717a; }"
+      "refersTo": "book-card",
+      "description": "书封卡（绿面）— 仪式框排印封面 + 书脊信息行；hover 拿起并淡入右缘页缘条（开书暗示）。",
+      "html": "<div class=\"ds-book-card\">\n  <span class=\"ds-sticker\" style=\"background:#17684a\">可播放</span>\n  <div class=\"ds-cover-rule\">\n    <div class=\"ds-cover-title\">Autumn Leaves</div>\n  </div>\n  <div class=\"ds-cover-composer\">JOSEPH KOSMA</div>\n  <div class=\"ds-spine\">Joseph Kosma · 钢琴 · PDF · 2 页</div>\n</div>",
+      "css": ".ds-book-card { position: relative; width: 240px; background: #1e4636; color: #f7f1de; border-radius: 8px; padding: 16px; box-shadow: 0 2px 6px rgba(28,36,32,0.2); font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', 'Microsoft YaHei', sans-serif; cursor: pointer; transition: transform 0.15s cubic-bezier(0.4,0,0.2,1), box-shadow 0.15s cubic-bezier(0.4,0,0.2,1); } .ds-book-card:hover { transform: translateY(-8px) rotate(-0.5deg); box-shadow: 0 18px 32px rgba(28,36,32,0.35); } .ds-book-card::after { content: \"\"; position: absolute; top: 12px; bottom: 12px; right: -8px; width: 8px; border-radius: 0 4px 4px 0; border: 1px solid rgba(30,70,54,0.5); background: repeating-linear-gradient(to bottom, #f7f1de 0 3px, #d9cfa9 3px 4.5px); opacity: 0; transition: opacity 0.15s ease-out; pointer-events: none; } .ds-book-card:hover::after { opacity: 1; } .ds-cover-rule { border-top: 3px double rgba(247,241,222,0.5); border-bottom: 1px solid rgba(247,241,222,0.5); padding: 12px 4px 10px; text-align: center; } .ds-cover-title { font-family: 'Bitter', Georgia, serif; font-weight: 900; font-size: 21px; line-height: 1.25; } .ds-cover-composer { margin-top: 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.18em; opacity: 0.85; text-align: center; } .ds-spine { margin-top: 12px; border-top: 1px solid rgba(247,241,222,0.5); padding-top: 10px; text-align: center; font-size: 11.5px; letter-spacing: 0.025em; opacity: 0.8; } .ds-sticker { position: absolute; right: 12px; top: 12px; z-index: 1; transform: rotate(-2deg); border-radius: 9999px; padding: 2px 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.025em; color: #f7f1de; }"
     },
     {
-      "name": "Status Pill",
+      "name": "Status Sticker",
       "kind": "chip",
-      "refersTo": "pill-ready",
-      "description": "识别流水线信号灯：浅底 100 + 深字 700，四态齐全。",
-      "html": "<span class=\"ds-pill ds-pill--waiting\">待识别</span> <span class=\"ds-pill ds-pill--working\">识别中</span> <span class=\"ds-pill ds-pill--ready\">可播放</span> <span class=\"ds-pill ds-pill--failed\">识别失败</span>",
-      "css": ".ds-pill { display: inline-block; padding: 2px 10px; font-size: 12px; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', 'Microsoft YaHei', sans-serif; } .ds-pill--waiting { background: #fef3c7; color: #b45309; } .ds-pill--working { background: #dbeafe; color: #1d4ed8; } .ds-pill--ready { background: #d1fae5; color: #047857; } .ds-pill--failed { background: #fee2e2; color: #b91c1c; }"
+      "refersTo": "status-sticker",
+      "description": "状态贴纸 — 封面右上 -2° 微旋的专色圆片，专色底奶油字；四态对应识别流水线。",
+      "html": "<div style=\"display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap\">\n  <span class=\"ds-sticker\" style=\"background:#8a5a1c\">待识别</span>\n  <span class=\"ds-sticker\" style=\"background:#2a5580\">识别中 62%</span>\n  <span class=\"ds-sticker\" style=\"background:#17684a\">可播放</span>\n  <span class=\"ds-sticker\" style=\"background:#a83324\">识别失败</span>\n</div>",
+      "css": ".ds-sticker { display: inline-block; transform: rotate(-2deg); border-radius: 9999px; padding: 2px 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.025em; color: #f7f1de; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', 'Microsoft YaHei', sans-serif; }"
     },
     {
-      "name": "Track Chip",
-      "kind": "chip",
-      "refersTo": "card",
-      "description": "播放条轨道开关：激活=靛蓝浅底，静音=灰+删除线。",
-      "html": "<button class=\"ds-chip\">Piano</button> <button class=\"ds-chip ds-chip--muted\">Guitar</button>",
-      "css": ".ds-chip { max-width: 112px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: #eef2ff; border: 1px solid #c7d2fe; color: #4338ca; border-radius: 6px; padding: 4px 8px; font-size: 12px; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', 'Microsoft YaHei', sans-serif; cursor: pointer; transition: background 0.15s cubic-bezier(0.4, 0, 0.2, 1); } .ds-chip:hover { background: #e0e7ff; } .ds-chip--muted { background: #ffffff; border-color: #e4e4e7; color: #a1a1aa; text-decoration: line-through; }"
+      "name": "Sidebar Nav Item",
+      "kind": "nav",
+      "refersTo": "sidebar-nav-active",
+      "description": "墨绿壳上的导航项 — 激活 = 奶油浅底 + 左缘奶油条；未激活 = 壳上奶油字；壳上焦点环是烫金。",
+      "html": "<div class=\"ds-nav-demo\">\n  <button class=\"ds-nav-item is-active\">曲库</button>\n  <button class=\"ds-nav-item\">设置</button>\n</div>",
+      "css": ".ds-nav-demo { width: 208px; background: #16312a; padding: 12px; border-radius: 8px; display: flex; flex-direction: column; gap: 6px; } .ds-nav-item { display: block; width: 100%; text-align: left; background: transparent; color: rgba(247,241,222,0.72); font-size: 0.875rem; font-weight: 600; padding: 10px 14px; border: none; border-radius: 8px; cursor: pointer; transition: background-color 0.15s cubic-bezier(0.4,0,0.2,1); font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', 'Microsoft YaHei', sans-serif; } .ds-nav-item:hover { background: #2a5847; } .ds-nav-item.is-active { background: rgba(247,241,222,0.15); color: #f7f1de; box-shadow: inset 3px 0 0 0 #f7f1de; } .ds-nav-item:focus-visible { outline: 2px solid #c7a94e; outline-offset: 1px; }"
     },
     {
-      "name": "Transport Buttons",
+      "name": "Input Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "纸上输入框 — 亮纸底 + 重细线边；focus 仅边框变墨绿，无 ring 无光晕。",
+      "html": "<input class=\"ds-input\" placeholder=\"搜索标题 / 作曲者…\" aria-label=\"搜索标题或作曲者\" />",
+      "css": ".ds-input { background: #fffdf4; color: #1c2420; font-size: 0.875rem; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', 'Microsoft YaHei', sans-serif; padding: 6px 12px; border: 1px solid #b9ad8a; border-radius: 8px; outline: none; width: 220px; caret-color: #1c2420; transition: border-color 0.15s cubic-bezier(0.4,0,0.2,1); } .ds-input::placeholder { color: rgba(28,36,32,0.45); } .ds-input:focus { border-color: #1e4636; } .ds-input:focus-visible { outline: none; }"
+    },
+    {
+      "name": "Calibrated Rail",
       "kind": "custom",
-      "refersTo": "button-primary",
-      "description": "走带控件：实心靛蓝播放键 + 描边圆形切换键。",
-      "html": "<div class=\"ds-transport\"><button class=\"ds-btn-play\">▶</button><button class=\"ds-btn-toggle\">■</button><button class=\"ds-btn-toggle ds-btn-toggle--active\">⟳</button></div>",
-      "css": ".ds-transport { display: flex; gap: 8px; align-items: center; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', 'Microsoft YaHei', sans-serif; } .ds-btn-play { width: 36px; height: 36px; border-radius: 9999px; background: #4f46e5; color: #ffffff; border: none; display: grid; place-items: center; font-size: 11px; cursor: pointer; transition: background 0.15s cubic-bezier(0.4, 0, 0.2, 1); } .ds-btn-play:hover { background: #6366f1; } .ds-btn-toggle { width: 32px; height: 32px; border-radius: 9999px; background: #ffffff; border: 1px solid #e4e4e7; color: #71717a; display: grid; place-items: center; font-size: 10px; cursor: pointer; transition: background 0.15s, border-color 0.15s; } .ds-btn-toggle:hover { background: #fafafa; } .ds-btn-toggle--active { background: #eef2ff; border-color: #c7d2fe; color: #4f46e5; }"
-    },
-    {
-      "name": "Modal Sheet",
-      "kind": "custom",
-      "refersTo": "card",
-      "description": "模态弹窗：遮罩上居中白色 2xl 圆角面板 + shadow-xl。",
-      "html": "<div class=\"ds-modal\"><div class=\"ds-modal-sheet\"><div class=\"ds-modal-title\">导入文件夹</div><div class=\"ds-modal-hint\">检测到 12 个乐谱文件</div><div class=\"ds-modal-actions\"><button class=\"ds-btn-secondary\">取消</button><button class=\"ds-btn-primary\">导入</button></div></div></div>",
-      "css": ".ds-modal { padding: 24px; background: rgb(0 0 0 / 0.35); display: grid; place-items: center; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', 'Microsoft YaHei', sans-serif; } .ds-modal-sheet { background: #ffffff; border-radius: 16px; padding: 20px; box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1); width: 100%; max-width: 420px; } .ds-modal-title { font-size: 16px; font-weight: 600; color: #1f2937; } .ds-modal-hint { margin-top: 4px; font-size: 12px; color: #a1a1aa; } .ds-modal-actions { margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px; } .ds-modal-actions .ds-btn-secondary { background: #ffffff; color: #52525b; border: 1px solid #e4e4e7; border-radius: 8px; padding: 6px 16px; font-size: 14px; cursor: pointer; } .ds-modal-actions .ds-btn-primary { background: #4f46e5; color: #ffffff; border: none; border-radius: 8px; padding: 6px 16px; font-size: 14px; font-weight: 500; cursor: pointer; }"
-    },
-    {
-      "name": "Toast",
-      "kind": "custom",
-      "refersTo": "toast",
-      "description": "底部居中深色提示条，4–6 秒自动消失。",
-      "html": "<div class=\"ds-toast\">已导入 3 个文件</div>",
-      "css": ".ds-toast { display: inline-block; background: #27272a; color: #ffffff; border-radius: 8px; padding: 8px 16px; font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', 'Microsoft YaHei', sans-serif; box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1); }"
+      "refersTo": null,
+      "description": "签名组件：播放条校准轨 — 进度填充、A-B 烫金排练括弧、小节刻度同轨注册；全应用唯一时间轴。",
+      "html": "<div class=\"ds-rail-demo\">\n  <div class=\"ds-rail-zone\">\n    <div class=\"ds-ab-bracket\" style=\"left:24%; width:38%\">\n      <span class=\"ds-ab-tick\" style=\"left:-1px\"></span>\n      <span class=\"ds-ab-tick\" style=\"right:-1px\"></span>\n    </div>\n    <div class=\"ds-rail\" role=\"slider\" aria-label=\"播放进度\" aria-valuemin=\"0\" aria-valuemax=\"100\" aria-valuenow=\"46\" tabindex=\"0\">\n      <div class=\"ds-rail-fill\" style=\"width:46%\"></div>\n    </div>\n    <div class=\"ds-ruler\" aria-hidden=\"true\">\n      <span class=\"ds-tick\" style=\"left:0%\"></span><span class=\"ds-tick\" style=\"left:10%\"></span><span class=\"ds-tick\" style=\"left:20%\"></span><span class=\"ds-tick\" style=\"left:30%\"></span><span class=\"ds-tick\" style=\"left:40%\"></span><span class=\"ds-tick ds-tick-major\" style=\"left:50%\"></span><span class=\"ds-tick\" style=\"left:60%\"></span><span class=\"ds-tick\" style=\"left:70%\"></span><span class=\"ds-tick\" style=\"left:80%\"></span><span class=\"ds-tick\" style=\"left:90%\"></span><span class=\"ds-tick ds-tick-major\" style=\"left:100%\"></span>\n    </div>\n  </div>\n  <div class=\"ds-rail-time\">1:12 / 3:40</div>\n</div>",
+      "css": ".ds-rail-demo { width: 320px; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', 'Microsoft YaHei', sans-serif; } .ds-rail-zone { position: relative; padding-top: 8px; } .ds-ab-bracket { position: absolute; top: 0; height: 5px; border-radius: 2px; background: #c7a94e; } .ds-ab-tick { position: absolute; top: -2px; width: 1px; height: 9px; background: #c7a94e; } .ds-rail { position: relative; height: 8px; border-radius: 9999px; background: rgba(28,36,32,0.14); cursor: pointer; } .ds-rail:focus-visible { outline: 2px solid #1c2420; outline-offset: 1px; } .ds-rail-fill { position: absolute; left: 0; top: 0; height: 8px; border-radius: 9999px; background: #1e4636; } .ds-ruler { position: relative; margin-top: 2px; height: 5px; } .ds-tick { position: absolute; top: 2px; width: 1px; height: 3px; background: rgba(28,36,32,0.3); } .ds-tick-major { top: 0; height: 5px; } .ds-rail-time { margin-top: 2px; text-align: center; font-size: 11px; line-height: 1.34; color: rgba(28,36,32,0.6); font-variant-numeric: tabular-nums; }"
     }
   ],
   "narrative": {
-    "northStar": "安静的琴房",
-    "overview": "ScanScore 是一间安静的琴房：白墙式的中性界面、克制的密度，让谱面与声音当主角。界面是房间里的家具——触手可及、毫不喧哗；唯一的亮点是那盏节拍器指示灯（节拍器靛蓝，#4f46e5），它亮起的地方就是该行动的地方。气质调性是安静专注与干净利落：面向长时间练琴与曲库整理的桌面重度使用，信息密度优先，装饰近乎为零。系统是紧凑的桌面工具语汇：小尺寸控件、细边框、悬停才浮现的次要操作。深度靠 1px 边框与白卡对灰底的色调分层表达，阴影只在交互与浮层出现。五个状态色（琥珀/蓝/翡翠/红）是识别流水线的信号灯，不是调色盘上的第五、第六种口味。明确排斥：SaaS 仪表盘感与渐变/玻璃拟态。",
+    "northStar": "一本摊开的 Real Book (The Open Real Book)",
+    "overview": "ScanScore 是一本摊开的 Real Book：封面文化（深墨绿油墨 + 奶油纸、粗壮书封排印、烫金压线）承载壳——侧栏、主动作、状态贴纸；内页文化（干净纸面排印）承载工作区——校对、练习、设置。界面物质是印刷品：曲库是一排绿/奶油交替的迷你书封，状态是封面上 -2° 微旋的专色标签，引擎日志是墨绿终端里\"引擎在说话\"。识别流水线全程透明（引擎日志、原图对照、进度百分比都可读可复制），这是产品原则在视觉上的直接投影。\n\n气质调性是实物感与排印感：紧凑桌面密度（无响应式断点，窗口最小 1000×640），深度是\"印刷品放在桌上\"的深度——书封静置有落影、悬停被拿起，而不是软件景深。两种底色构成整个世界：屏幕要么是墨绿壳，要么是奶油纸面，永不混入第三种灰。\n\n明确反例（confirmed anti-reference）：「中性灰 + 单一强调色」的通用桌面工具品类默认（旧视觉世界已整体退役，zinc/indigo 时代的白卡、灰边、靛蓝一律不再出现）；以及渐变文字、玻璃拟态（backdrop-blur）、硬偏移阴影、unicode 字形/emoji 充当图标。",
     "keyCharacteristics": [
-      "单一强调色：靛蓝只属于可点击的主动作与激活态",
-      "边框优先：1px 锌灰边框承担分隔，阴影是交互的回应而非常态",
-      "紧凑桌面密度：text-sm 为基准、py-1.5/px-3 级别的控件内边距",
-      "原生系统字体（含 CJK 栈），零 webfont——离线应用的一致选择",
-      "白卡浮在冷灰纸面（#f6f7f9）上，滚动区即工作区"
+      "一屏一种底：墨绿壳或奶油纸，永不混灰",
+      "状态是纸上的专色贴纸，不是调色盘口味",
+      "全应用只有一条时间轴（播放条校准轨：进度、A-B 金标、小节刻度同轨）",
+      "烫金稀缺：品牌双细线 / 壳上焦点环 / A-B 金标 / toast 动作词",
+      "图标是自绘 SVG 体系（24 viewBox、1.8 描边、currentColor），字形与 emoji 不是图标",
+      "字重纪律 400/600/700/900，禁 500；Bitter 只服务拉丁展示层",
+      "全局 tabular-nums；错误/日志/输入内容可选中复制"
     ],
     "rules": [
-      {
-        "name": "The One Light Rule",
-        "body": "节拍器靛蓝是整个应用唯一的强调色，用于主动作与激活态，占任意屏幕 ≤10%。若一个界面需要第二个强调色，先怀疑布局，不要加颜色。",
-        "section": "colors"
-      },
-      {
-        "name": "The Signal-Not-Decor Rule",
-        "body": "琥珀/蓝/翡翠/红只用于识别流水线状态、危险操作与明确警示；绝不作装饰、图表或氛围色。",
-        "section": "colors"
-      },
-      {
-        "name": "The Native Voice Rule",
-        "body": "只用系统字体栈，不引入任何 webfont。字重只用 400（正文/按钮）与 600（标题/激活态）两档；禁止 500——Microsoft YaHei 没有 500，font-medium 在 Windows 上静默回落 400。micro（11px/1.34）只用于等宽/数字语境。",
-        "section": "typography"
-      },
-      {
-        "name": "The Border-First Rule",
-        "body": "分隔与结构靠 1px 描边灰边框和白卡对灰底的色调分层表达；阴影不是常态，是回应——只有悬停和浮层才允许它出现。",
-        "section": "elevation"
-      }
+      { "name": "The Two-Tone Rule", "body": "一屏只有一种底：墨绿壳或奶油纸。ink 家族承担壳与行动，paper 家族承担工作区；深色条（toast、引擎终端）是壳向纸面的探出，不是第三种底色。屏幕上不允许出现中性灰——灰是旧世界的化石。", "section": "colors" },
+      { "name": "The Spot-Color Rule", "body": "状态四色只表达识别流水线状态、危险与警示，以贴纸/文字/进度出现，永不作装饰、图表或氛围色。专色底上直接放奶油字（选值按 AA 校准）；淡印形态只允许\"15–20% 专色底 + 全色字\"这一种。", "section": "colors" },
+      { "name": "The Gold Scarcity Rule", "body": "烫金只给四处：品牌双细线、墨绿壳上的键盘焦点环、校准轨 A-B 金标、toast 动作词。金出现 = 仪式或壳上导航；一个界面需要第五处金时，先怀疑设计。", "section": "colors" },
+      { "name": "The Two-Script Rule", "body": "Bitter 是拉丁展示体，只进 700/900 两档的标题层；中文一律系统黑体。禁 500 字重（font-medium）——微软雅黑没有 500，会静默回落吃掉强调。micro(11px/1.34) 只进等宽与数字语境，散文说明用 label(12px)。", "section": "typography" },
+      { "name": "The Object-on-a-Desk Rule", "body": "书封卡是桌上的静物：静置有落影、悬停被拿起。其余表面静止时完全无影；阴影只回应\"物\"与\"浮层\"。禁止硬偏移阴影（neobrutalist 平移影）。", "section": "elevation" },
+      { "name": "The Double-Rule Signature", "body": "双细线只属于品牌时刻：壳扉、设置扉、封面排印框。单细线是工作语汇，双细线是仪式语汇——不要把 double rule 拿去做普通分隔。", "section": "shapes" },
+      { "name": "The One Calibrated Rail Rule", "body": "播放条的时间轨是全应用唯一的时间轴：播放进度、A-B 烫金排练括弧、小节刻度全部注册在同一条轨上。任何页面不得另建时间/进度轴——需要表达时间时，把它带到这条轨上来。", "section": "components" }
     ],
     "dos": [
-      "Do 让靛蓝只出现在可点击的主动作、激活态与进度上；一个界面一个主按钮。",
-      "Do 用 1px 描边灰 (#e4e4e7) 边框做一切静态分隔；卡片白底浮在纸面灰 (#f6f7f9) 上。",
-      "Do 用状态 pill 模式（浅底 100 + 深字 700）表达识别流水线的四种状态。",
-      "Do 把次要操作藏进悬停浮现（卡片操作组）与下拉菜单（导出），保持工具栏安静。",
-      "Do 保持紧凑密度：text-sm 基准、py-1.5 控件内边距、16px 网格间距。",
-      "Do 引擎/系统级的“技术黑盒”内容（日志、路径）用终端黑或代码灰块呈现。",
-      "Do 键盘焦点用全局 :focus-visible 描边（#818cf8，2px）表达——只对键盘导航出现。",
-      "Do 每个 icon-only 控件带 aria-label；悬停浮现的操作组必须同时响应 group-focus-within。",
-      "Do 破坏性操作走确认模态 + 6 秒撤销 toast（软删除）；错误与日志文字必须可选中复制。",
-      "Do 浏览器表面随系统主题化：细滚条、光标主色、tabular-nums 等宽数字。",
-      "Do 动效只做状态回应：按钮颜色 150ms、卡片悬停微抬、模态/toast/菜单入场淡入上浮；prefers-reduced-motion 下一律取消。"
+      "Do 一屏一种底：墨绿壳或奶油纸；主动作 = 墨绿实心，每屏至多一个（The Two-Tone Rule）。",
+      "Do 状态用专色贴纸/文字/进度表达，专色底上放奶油字；淡印只允许\"15–20% 专色底 + 全色字\"（The Spot-Color Rule）。",
+      "Do 时间、进度、刻度全部注册到播放条校准轨（The One Calibrated Rail Rule）。",
+      "Do 烫金只给品牌双细线、壳上焦点环、A-B 金标、toast 动作词（The Gold Scarcity Rule）。",
+      "Do 图标走 SVG 体系（24 viewBox、1.8 描边、round cap/join、currentColor；走带键用 filled 族），每个 icon-only 控件带 aria-label。",
+      "Do 焦点分两支：全局 :focus-visible 环（纸上雕版黑 2px / 壳上烫金 2px，offset 1px），输入类以边框变墨绿表达。",
+      "Do 时间/计数用 tabular-nums（body 级全局设置）；错误消息、引擎日志、输入内容可选中复制。",
+      "Do 动效只做状态回应：0.15s 颜色过渡、150ms 遮罩淡入、180ms 面板上浮、0.8s 节拍脉动；prefers-reduced-motion 下一律取消（含书封 hover）。",
+      "Do 破坏性操作走 ConfirmDialog + 30 秒撤销 toast；错误必须带具体原因。",
+      "Do 浏览器表面随世界主题化：选区烫金浅印 #e3d7a8、光标雕版黑、滚条 thumb 重细线（内缩 3px 留轨缝、9999px 圆角、hover #8a7f5e）。"
     ],
     "donts": [
-      "Don't 使用渐变文字、玻璃拟态（backdrop-blur 面板）、发光阴影——已确认为反例。",
-      "Don't 做 SaaS 仪表盘式的彩色统计卡/图表卡——这是琴房，不是后台。",
-      "Don't 引入第二个强调色，或把状态色（琥珀/蓝/翡翠/红）当装饰用。",
-      "Don't 给静止元素加阴影；阴影只回应悬停与浮层。",
-      "Don't 给输入框 focus 加 ring 或光晕——边框变色到 #818cf8 就是全部。",
-      "Don't 引入 webfont 或 400/600 之外的 regular 字重。",
-      "Don't 把 emoji 当插画体系用——它只属于空状态字形与走带键。",
-      "Don't 用 #a1a1aa 承载信息文字（白底 2.1:1，WCAG AA 失败）；信息文字下限 #71717a。",
-      "Don't 使用 window.confirm/alert——wry/WKWebView 不实现，一律走确认模态。"
+      "Don't 把旧世界带回来：中性灰底、白卡、靛蓝强调、灰 hairline（#e4e4e7 系）——「中性灰 + 单一强调色」的桌面品类默认是本世界的反例。",
+      "Don't 引入第五种专色，或把状态色当装饰、图表、氛围用。",
+      "Don't 用 unicode 字形/emoji 当图标或插画——SVG 图标体系是唯一图标来源（空态插画也是手绘 SVG）。",
+      "Don't 使用 500 字重（font-medium）或 webfont 服务——Bitter 本地打包，中文回落系统栈。",
+      "Don't 给输入框 focus 加 ring、光晕或阴影——边框变墨绿就是全部。",
+      "Don't 使用硬偏移阴影、渐变文字、玻璃拟态（backdrop-blur 面板）。",
+      "Don't 在墨绿壳上放雕版黑/纸面灰阶文字——壳上次级文字只用 ink-faint（奶油 72%）。",
+      "Don't 使用 window.confirm/alert——wry/WKWebView 不实现，一切确认走 ConfirmDialog。",
+      "Don't 建第二条时间轴——进度/循环/刻度只在播放条校准轨上出现。",
+      "Don't 把 double rule 拿去做普通分隔——单细线是工作语汇，双细线是仪式语汇。"
     ]
   }
 }

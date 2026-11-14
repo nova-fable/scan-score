@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ScanScore — 品类标准</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:1440px;height:900px;overflow:hidden;background:#f6f7f9;color:#1f2937;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI","Microsoft YaHei",sans-serif;display:flex;font-weight:400}
+button,input,select{font-family:inherit}
+/* ── 侧栏 ── */
+aside{width:208px;flex:none;background:#fff;border-right:1px solid #e4e4e7;display:flex;flex-direction:column;padding:16px 0}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 16px 16px}
+.logo{width:36px;height:36px;border-radius:8px;background:#eef2ff;display:flex;align-items:center;justify-content:center;font-size:18px}
+.brand b{font-size:14px;font-weight:600;display:block}
+.brand span{font-size:12px;color:#71717a}
+nav{display:flex;flex-direction:column;gap:2px;padding:8px}
+nav a{padding:8px 12px;font-size:14px;border-radius:8px;text-decoration:none;color:#52525b}
+nav a.on{background:#eef2ff;color:#4338ca;font-weight:600}
+nav a:hover{background:#f4f4f5}
+.foot{margin-top:auto;padding:12px 16px 4px;font-size:12px;color:#71717a;line-height:1.9}
+.foot a{color:#71717a;text-decoration:none}
+/* ── 工具栏 ── */
+main{flex:1;min-width:0;display:flex;flex-direction:column}
+.toolbar{display:flex;align-items:center;gap:12px;background:#fff;border-bottom:1px solid #e4e4e7;padding:12px 24px}
+.search{flex:1;max-width:360px;display:flex;align-items:center;background:#fff;border:1px solid #d4d4d8;border-radius:8px;padding:7px 12px;font-size:14px;color:#a1a1aa}
+.filters{display:flex;gap:8px}
+select{background:#fff;border:1px solid #e4e4e7;border-radius:8px;padding:7px 12px;font-size:13px;color:#52525b}
+.batch{border:1px solid #e4e4e7;border-radius:8px;padding:6px 10px;font-size:13px;color:#52525b;background:#fff}
+.btn{margin-left:auto;background:#4f46e5;color:#fff;border:0;border-radius:8px;padding:8px 16px;font-size:14px;cursor:pointer}
+.btn:hover{background:#6366f1}
+/* ── 曲库网格 ── */
+.grid{flex:1;overflow:hidden;padding:20px 24px;display:grid;grid-template-columns:repeat(5,1fr);gap:16px;align-content:start}
+.card{background:#fff;border:1px solid #e4e4e7;border-radius:12px;overflow:hidden;box-shadow:0 1px 2px 0 rgb(0 0 0/.05);cursor:pointer;position:relative}
+.cover{height:132px;background:#f4f4f5;display:flex;align-items:center;justify-content:center}
+.card:hover{box-shadow:0 4px 6px -1px rgb(0 0 0/.1),0 2px 4px -2px rgb(0 0 0/.1)}
+.body{padding:12px}
+.name{font-size:14px;font-weight:600;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.artist{font-size:12px;color:#71717a;margin-top:2px}
+.pill{display:inline-block;margin-top:8px;padding:2px 8px;border-radius:9999px;font-size:12px}
+.ok{background:#d1fae5;color:#047857}.pro{background:#dbeafe;color:#1d4ed8}
+.bad{background:#fee2e2;color:#b91c1c}.wait{background:#fef3c7;color:#b45309}
+.retry{font-size:12px;color:#dc2626;margin-left:8px;cursor:pointer}
+.multi{position:absolute;top:8px;left:8px;width:16px;height:16px;border-radius:4px;background:rgb(255 255 255/.9);border:1px solid #d4d4d8}
+.empty-note{grid-column:1/-1;font-size:13px;color:#71717a;padding:8px 2px}
+</style>
+</head>
+<body>
+<aside>
+  <div class="brand"><div class="logo">♫</div><div><b>ScanScore</b><span>曲谱扫描与播放</span></div></div>
+  <nav><a class="on" href="#">曲库</a><a href="#">设置</a></nav>
+  <div class="foot"><a href="#">快捷键（?）</a><br>OMR: Audiveris · 渲染播放: alphaTab</div>
+</aside>
+<main>
+  <div class="toolbar">
+    <div class="search">搜索曲名、作曲家或标签…</div>
+    <div class="filters">
+      <select><option>状态:全部</option></select>
+      <select><option>乐器:全部</option></select>
+    </div>
+    <div class="batch">批量管理</div>
+    <button class="btn">导入乐谱</button>
+  </div>
+  <div class="grid">
+    <div class="card">
+      <div class="cover"><svg width="72" height="44" viewBox="0 0 72 44" fill="none"><g stroke="#d4d4d8" stroke-width="1"><line x1="0" y1="8" x2="72" y2="8"/><line x1="0" y1="16" x2="72" y2="16"/><line x1="0" y1="24" x2="72" y2="24"/><line x1="0" y1="32" x2="72" y2="32"/><line x1="0" y1="40" x2="72" y2="40"/></g><ellipse cx="30" cy="26" rx="6" ry="4.6" fill="#a1a1aa"/><path d="M36 26V6" stroke="#a1a1aa" stroke-width="1.6"/></svg></div>
+      <div class="body"><div class="name">平均律 第一册·前奏曲</div><div class="artist">巴赫 · 钢琴 · 24 小节</div><div class="pill ok">可播放</div></div>
+    </div>
+    <div class="card">
+      <div class="cover"><svg width="72" height="44" viewBox="0 0 72 44" fill="none"><g stroke="#d4d4d8" stroke-width="1"><line x1="0" y1="8" x2="72" y2="8"/><line x1="0" y1="16" x2="72" y2="16"/><line x1="0" y1="24" x2="72" y2="24"/><line x1="0" y1="32" x2="72" y2="32"/><line x1="0" y1="40" x2="72" y2="40"/></g><ellipse cx="42" cy="20" rx="6" ry="4.6" fill="#a1a1aa"/><path d="M48 20V4" stroke="#a1a1aa" stroke-width="1.6"/></svg></div>
+      <div class="body"><div class="name">Libertango</div><div class="artist">Astor Piazzolla · 钢琴 · PDF</div><div class="pill ok">可播放</div></div>
+    </div>
+    <div class="card">
+      <div class="cover"><svg width="72" height="44" viewBox="0 0 72 44" fill="none"><g stroke="#d4d4d8" stroke-width="1"><line x1="0" y1="8" x2="72" y2="8"/><line x1="0" y1="16" x2="72" y2="16"/><line x1="0" y1="24" x2="72" y2="24"/><line x1="0" y1="32" x2="72" y2="32"/><line x1="0" y1="40" x2="72" y2="40"/></g><ellipse cx="30" cy="28" rx="6" ry="4.6" fill="#a1a1aa"/><path d="M36 28V8" stroke="#a1a1aa" stroke-width="1.6"/></svg></div>
+      <div class="body"><div class="name">Eastern Grove</div><div class="artist">原创指弹 · 吉他 · 六线谱</div><div class="pill pro">识别中 62%</div></div>
+    </div>
+    <div class="card">
+      <div class="cover"><svg width="72" height="44" viewBox="0 0 72 44" fill="none"><g stroke="#d4d4d8" stroke-width="1"><line x1="0" y1="8" x2="72" y2="8"/><line x1="0" y1="16" x2="72" y2="16"/><line x1="0" y1="24" x2="72" y2="24"/><line x1="0" y1="32" x2="72" y2="32"/><line x1="0" y1="40" x2="72" y2="40"/></g><ellipse cx="46" cy="22" rx="6" ry="4.6" fill="#a1a1aa"/><path d="M52 22V6" stroke="#a1a1aa" stroke-width="1.6"/></svg></div>
+      <div class="body"><div class="name">Wonderful Tonight</div><div class="artist">Eric Clapton · 吉他 · .gp5</div><div class="pill ok">可播放</div></div>
+    </div>
+    <div class="card">
+      <div class="cover"><svg width="72" height="44" viewBox="0 0 72 44" fill="none"><g stroke="#d4d4d8" stroke-width="1"><line x1="0" y1="8" x2="72" y2="8"/><line x1="0" y1="16" x2="72" y2="16"/><line x1="0" y1="24" x2="72" y2="24"/><line x1="0" y1="32" x2="72" y2="32"/><line x1="0" y1="40" x2="72" y2="40"/></g><ellipse cx="34" cy="24" rx="6" ry="4.6" fill="#a1a1aa"/><path d="M40 24V4" stroke="#a1a1aa" stroke-width="1.6"/></svg></div>
+      <div class="body"><div class="name">夜曲 Op.9 No.2</div><div class="artist">肖邦 · 钢琴 · 扫描件</div><span class="pill bad">识别失败</span><span class="retry">重试</span></div>
+    </div>
+    <div class="card">
+      <div class="cover"><svg width="72" height="44" viewBox="0 0 72 44" fill="none"><g stroke="#d4d4d8" stroke-width="1"><line x1="0" y1="8" x2="72" y2="8"/><line x1="0" y1="16" x2="72" y2="16"/><line x1="0" y1="24" x2="72" y2="24"/><line x1="0" y1="32" x2="72" y2="32"/><line x1="0" y1="40" x2="72" y2="40"/></g><ellipse cx="38" cy="26" rx="6" ry="4.6" fill="#a1a1aa"/><path d="M44 26V6" stroke="#a1a1aa" stroke-width="1.6"/></svg></div>
+      <div class="body"><div class="name">The Girl from Ipanema</div><div class="artist">Jobim · 萨克斯 · 扫描</div><div class="pill ok">可播放</div></div>
+    </div>
+    <div class="card">
+      <div class="cover"><svg width="72" height="44" viewBox="0 0 72 44" fill="none"><g stroke="#d4d4d8" stroke-width="1"><line x1="0" y1="8" x2="72" y2="8"/><line x1="0" y1="16" x2="72" y2="16"/><line x1="0" y1="24" x2="72" y2="24"/><line x1="0" y1="32" x2="72" y2="32"/><line x1="0" y1="40" x2="72" y2="40"/></g><ellipse cx="30" cy="22" rx="6" ry="4.6" fill="#a1a1aa"/><path d="M36 22V6" stroke="#a1a1aa" stroke-width="1.6"/></svg></div>
+      <div class="body"><div class="name">Summer</div><div class="artist">久石让 · 钢琴 · 图片</div><div class="pill ok">可播放</div></div>
+    </div>
+    <div class="card">
+      <div class="cover"><svg width="72" height="44" viewBox="0 0 72 44" fill="none"><g stroke="#d4d4d8" stroke-width="1"><line x1="0" y1="8" x2="72" y2="8"/><line x1="0" y1="16" x2="72" y2="16"/><line x1="0" y1="24" x2="72" y2="24"/><line x1="0" y1="32" x2="72" y2="32"/><line x1="0" y1="40" x2="72" y2="40"/></g><ellipse cx="44" cy="18" rx="6" ry="4.6" fill="#a1a1aa"/><path d="M50 18V2" stroke="#a1a1aa" stroke-width="1.6"/></svg></div>
+      <div class="body"><div class="name">Letter from Home</div><div class="artist">Pat Metheny · 吉他 · .gp5</div><div class="pill wait">待识别</div></div>
+    </div>
+    <div class="card"><div class="multi"></div>
+      <div class="cover"><svg width="72" height="44" viewBox="0 0 72 44" fill="none"><g stroke="#d4d4d8" stroke-width="1"><line x1="0" y1="8" x2="72" y2="8"/><line x1="0" y1="16" x2="72" y2="16"/><line x1="0" y1="24" x2="72" y2="24"/><line x1="0" y1="32" x2="72" y2="32"/><line x1="0" y1="40" x2="72" y2="40"/></g></svg></div>
+      <div class="body"><div class="name">Gospel</div><div class="artist">待补全元数据</div><div class="pill wait">待识别</div></div>
+    </div>
+    <div class="empty-note">拖入 PNG / JPG / PDF / MusicXML / Guitar Pro 文件即可导入</div>
+  </div>
+</main>
+</body>
+</html>

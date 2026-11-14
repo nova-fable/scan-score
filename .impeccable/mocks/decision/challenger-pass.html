@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ScanScore — 识别闸口屏</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&family=Archivo:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:1440px;height:900px;overflow:hidden;background:#f4f4f2;color:#0b0d10;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI","Microsoft YaHei",sans-serif;display:flex}
+.mono{font-family:"IBM Plex Mono",monospace;text-transform:uppercase;letter-spacing:.1em}
+.gr{font-family:"Archivo",sans-serif}
+/* ── 侧栏 ── */
+aside{width:208px;flex:none;background:#fff;border-right:1px solid #d8dad4;padding:24px 18px 20px;display:flex;flex-direction:column}
+.brand{display:flex;align-items:center;gap:9px}
+.mark{width:32px;height:32px;background:#0b0d10;display:flex;align-items:center;justify-content:center}
+.mark svg{width:18px;height:18px}
+.brand b{font-size:14px;font-weight:700}
+.brand small{display:block;font-size:9.5px;color:#6b7178;font-family:"IBM Plex Mono",monospace;letter-spacing:.14em}
+nav{margin-top:36px;display:flex;flex-direction:column;gap:2px}
+nav a{padding:10px 12px;font-size:13px;color:#3c424a;text-decoration:none;display:flex;justify-content:space-between;align-items:center}
+nav a .mono{font-size:9px;color:#9aa1a8}
+nav a.on{background:#0b0d10;color:#fff}
+nav a.on .mono{color:#ffd400}
+.foot{margin-top:auto;font-size:9.5px;line-height:1.9;color:#6b7178;font-family:"IBM Plex Mono",monospace;letter-spacing:.06em;text-transform:uppercase}
+/* ── 主区 ── */
+main{flex:1;min-width:0;display:flex;flex-direction:column;padding:20px 28px 0}
+.toolbar{display:flex;gap:10px;align-items:center;padding-bottom:14px}
+.search{flex:1;display:flex;align-items:center;background:#fff;border:1px solid #c9cdc9;padding:8px 14px}
+.search input{border:0;outline:0;background:none;width:100%;font-size:13px;color:#0b0d10}
+.search input::placeholder{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;color:#9aa1a8;text-transform:uppercase}
+select{appearance:none;background:#fff;border:1px solid #c9cdc9;padding:8px 12px;font-size:12px;color:#0b0d10;font-family:"IBM Plex Mono",monospace}
+.btn{background:#0b0d10;color:#fff;border:0;padding:9px 20px;font-size:12px;font-family:"IBM Plex Mono",monospace;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;font-weight:700}
+.btn:hover{background:#23272e}
+/* ── 识别任务板 ── */
+.board{background:#0b0d10;color:#f4f4f2;border:1px solid #0b0d10}
+.board h2{font-size:11px;font-family:"IBM Plex Mono",monospace;letter-spacing:.2em;padding:10px 16px;border-bottom:1px solid #23272e;display:flex;justify-content:space-between;color:#c9cdc9}
+.brow{display:grid;grid-template-columns:2.2fr 1.6fr 1fr 1.4fr;align-items:center;gap:14px;padding:11px 16px;border-bottom:1px solid #23272e;font-size:12px}
+.brow:last-child{border-bottom:0}
+.brow .t{font-weight:700}
+.brow .s{color:#9aa1a8;font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.08em}
+.brow .st{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.12em}
+.brow .bar{height:5px;background:#23272e;position:relative}
+.brow .bar i{position:absolute;inset:0 38% 0 0;background:#f4f4f2}
+.changed{box-shadow:inset 4px 0 0 #ffd400;background:#131317;color:#ffd400}
+.changed .s{color:#8b8f96}
+.changed .st,.changed a{color:#ffd400}
+a.rbtn{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.14em;border:1px solid #ffd400;padding:4px 12px;text-decoration:none}
+/* ── 票券卡 ── */
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:16px 0 0}
+.tick{background:#fff;border:1px solid #c9cdc9;cursor:pointer}
+.tick:hover{border-color:#0b0d10}
+thead-strip{display:block}
+.top{background:#0b0d10;color:#fff;padding:9px 12px;font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:700;letter-spacing:.08em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mid{display:flex;align-items:flex-end;justify-content:space-between;padding:14px 12px 10px;border-bottom:1px dashed #c9cdc9}
+.mid .big{font-family:"Archivo",sans-serif;font-weight:800;font-size:30px;line-height:1;letter-spacing:-.01em}
+.mid .big small{font-size:10px;font-family:"IBM Plex Mono",monospace;font-weight:500;letter-spacing:.14em;color:#6b7178;display:block;margin-top:5px}
+.mid .frm{text-align:right;font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:#6b7178;letter-spacing:.1em;line-height:1.7;text-transform:uppercase}
+.seg{display:flex;font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.08em;color:#3c424a}
+.seg div{flex:1;padding:8px 12px;border-right:1px dashed #c9cdc9}
+.seg div:last-child{border-right:0}
+.seg b{display:block;font-size:8.5px;color:#9aa1a8;font-weight:500;margin-bottom:3px}
+.st-ok{color:#0b0d10}.st-pro{background:#0b0d10;color:#fff!important}
+.st-bad{background:#ffd400;color:#0b0d10!important;font-weight:700}.st-wait{color:#6b7178}
+</style>
+</head>
+<body>
+<aside>
+  <div class="brand">
+    <div class="mark"><svg viewBox="0 0 18 18" fill="none" stroke="#fff" stroke-width="1.4"><line x1="1" y1="4" x2="17" y2="4"/><line x1="1" y1="8" x2="17" y2="8"/><line x1="1" y1="12" x2="17" y2="12"/><line x1="1" y1="16" x2="17" y2="16"/><circle cx="11" cy="12" r="2.4" fill="#fff" stroke="none"/></svg></div>
+    <div><b>ScanScore</b><small>SCAN → PRACTICE</small></div>
+  </div>
+  <nav>
+    <a href="#" class="on">曲库 <span class="mono">01</span></a>
+    <a href="#">设置 <span class="mono">02</span></a>
+  </nav>
+  <div class="foot">OMR: Audiveris<br>渲染播放: alphaTab<br>快捷键 ?</div>
+</aside>
+<main>
+  <div class="toolbar">
+    <div class="search"><input placeholder="SEARCH 曲名 / 作曲家 / 标签…"></div>
+    <select><option>状态:全部</option></select>
+    <select><option>乐器:全部</option></select>
+    <button class="btn">导入乐谱</button>
+  </div>
+  <div class="board">
+    <h2><span>识别任务 · JOB BOARD</span><span>3 ACTIVE</span></h2>
+    <div class="brow changed">
+      <div class="t">夜曲 Op.9 No.2 — 肖邦</div><div class="s">扫描件 · 钢琴</div>
+      <div class="st">✕ 识别失败</div><div><a class="rbtn" href="#">RETRY 重试</a></div>
+    </div>
+    <div class="brow">
+      <div class="t" style="color:#fff">Eastern Grove — 原创指弹</div><div class="s">六线谱图片 · AI 转录</div>
+      <div class="st" style="color:#c9cdc9">● 识别中</div><div><div class="bar"><i></i></div><div class="mono" style="font-size:9px;color:#9aa1a8;margin-top:4px">62%</div></div>
+    </div>
+    <div class="brow">
+      <div class="t" style="color:#fff">Letter from Home — Pat Metheny</div><div class="s">Guitar Pro .gp5</div>
+      <div class="st" style="color:#8b8f96">○ 排队中</div><div class="s">1 IN QUEUE</div>
+    </div>
+  </div>
+  <div class="grid">
+    <div class="tick">
+      <div class="top">前奏曲 BWV 846 平均律第一册</div>
+      <div class="mid"><div class="big">24<small>BARS</small></div><div class="frm">钢琴<br>五线谱</div></div>
+      <div class="seg"><div><b>作曲家</b>巴赫</div><div><b>状态</b><span class="st-ok">可播放</span></div></div>
+    </div>
+    <div class="tick">
+      <div class="top">LIBERTANGO</div>
+      <div class="mid"><div class="big">52<small>BARS</small></div><div class="frm">钢琴<br>PDF 导入</div></div>
+      <div class="seg"><div><b>作曲家</b>Piazzolla</div><div><b>状态</b><span class="st-ok">可播放</span></div></div>
+    </div>
+    <div class="tick">
+      <div class="top">EASTERN GROVE</div>
+      <div class="mid"><div class="big">62<small>% REC</small></div><div class="frm">吉他<br>六线谱 AI</div></div>
+      <div class="seg"><div><b>来源</b>图片</div><div><b>状态</b><span class="st-pro">识别中</span></div></div>
+    </div>
+    <div class="tick">
+      <div class="top">WONDERFUL TONIGHT</div>
+      <div class="mid"><div class="big">68<small>BARS</small></div><div class="frm">吉他<br>.GP5</div></div>
+      <div class="seg"><div><b>作曲家</b>Clapton</div><div><b>状态</b><span class="st-ok">可播放</span></div></div>
+    </div>
+    <div class="tick">
+      <div class="top">夜曲 OP.9 NO.2</div>
+      <div class="mid"><div class="big">34<small>BARS</small></div><div class="frm">钢琴<br>扫描件</div></div>
+      <div class="seg"><div><b>作曲家</b>肖邦</div><div><b>状态</b><span class="st-bad">失败 · 重试</span></div></div>
+    </div>
+    <div class="tick">
+      <div class="top">GIRL FROM IPANEMA</div>
+      <div class="mid"><div class="big">40<small>BARS</small></div><div class="frm">萨克斯<br>扫描</div></div>
+      <div class="seg"><div><b>作曲家</b>Jobim</div><div><b>状态</b><span class="st-ok">可播放</span></div></div>
+    </div>
+    <div class="tick">
+      <div class="top">SUMMER</div>
+      <div class="mid"><div class="big">58<small>BARS</small></div><div class="frm">钢琴<br>图片</div></div>
+      <div class="seg"><div><b>作曲家</b>久石让</div><div><b>状态</b><span class="st-ok">可播放</span></div></div>
+    </div>
+    <div class="tick">
+      <div class="top">LETTER FROM HOME</div>
+      <div class="mid"><div class="big">44<small>BARS</small></div><div class="frm">吉他<br>.GP5</div></div>
+      <div class="seg"><div><b>作曲家</b>Metheny</div><div><b>状态</b><span class="st-wait">排队待识别</span></div></div>
+    </div>
+  </div>
+</main>
+</body>
+</html>
