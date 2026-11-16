@@ -28,7 +28,9 @@ git rev-parse -q --verify "refs/tags/$TAG" >/dev/null && { echo "✗ tag $TAG �
 npm version "$VERSION" --no-git-tag-version >/dev/null
 perl -pi -e "s/^version = \"[0-9.]+\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
 perl -pi -e "s/\"version\": \"[0-9.]+\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
-cargo update -w --quiet 2>/dev/null || true   # 同步 Cargo.lock 中本包版本
+# 同步 Cargo.lock 中本包版本（必须在 src-tauri 下执行：仓库根没有 Cargo.toml，
+# 之前在根目录跑会被 2>/dev/null || true 吞掉错误，导致发布 tag 里的 Cargo.lock 版本号是旧的）
+(cd src-tauri && cargo update -w --quiet) || echo "⚠ Cargo.lock 版本同步失败（不致命：构建时 Cargo 会自动改写，但请检查）"
 
 # 校验三处一致
 for f in package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json; do
