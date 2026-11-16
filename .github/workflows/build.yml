@@ -184,6 +184,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      # gh release create --generate-notes 要靠本地 git 找上一个 tag，
+      # 没有 checkout 会报 "failed to run git: fatal: not a git repository"
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/download-artifact@v4
         with:
           path: dist
