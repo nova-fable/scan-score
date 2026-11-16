@@ -11,6 +11,8 @@ export interface ViewerCallbacks {
 
 interface Props {
   data: Uint8Array | null;
+  /// 暗场看谱：谱面用奶油墨、谱线降一档（层级：音符 > 小节线 > 谱线）
+  night?: boolean;
   onReady?: (api: AlphaTabApi) => void;
   callbacks?: ViewerCallbacks;
 }
@@ -18,11 +20,32 @@ interface Props {
 /// 声音字体（GeneralUser GS，打包进 public/soundfont/）
 export const SOUNDFONT_URL = "/soundfont/GeneralUser.sf2";
 
+// alphaTab 的 Color 类没有从 ESM 包导出，换色只能走 Settings.fillFromJson
+// （部分 JSON 只覆盖给出的字段，其余设置保持不变）
+const NIGHT_RESOURCES = {
+  mainGlyphColor: "#e8e0cb",
+  secondaryGlyphColor: "rgba(232, 224, 203, 0.45)",
+  staffLineColor: "rgba(232, 224, 203, 0.38)",
+  barSeparatorColor: "#b9b09a",
+  scoreInfoColor: "#e8e0cb",
+  barNumberColor: "#d5b85c",
+};
+
+// alphaTab 1.9 出厂默认值（日间恢复用）
+const DAY_RESOURCES = {
+  mainGlyphColor: "#000000",
+  secondaryGlyphColor: "rgba(0, 0, 0, 0.4)",
+  staffLineColor: "rgb(165, 165, 165)",
+  barSeparatorColor: "rgb(34, 34, 17)",
+  scoreInfoColor: "#000000",
+  barNumberColor: "rgb(200, 0, 0)",
+};
+
 // alphaTab 通过该全局变量定位 Bravura 字体目录
 // （Vite 打包后 import.meta.url 不可靠；public/font/ 双保险）
 (window as unknown as { ALPHATAB_FONT: string }).ALPHATAB_FONT = "/font/";
 
-export default function ScoreViewer({ data, onReady, callbacks }: Props) {
+export default function ScoreViewer({ data, night = false, onReady, callbacks }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<AlphaTabApi | null>(null);
   const cbRef = useRef(callbacks);
@@ -71,6 +94,17 @@ export default function ScoreViewer({ data, onReady, callbacks }: Props) {
       apiRef.current = null;
     };
   }, []);
+
+  // 暗场换色：alphaTab 的谱面颜色只能改渲染资源后重绘，没有 CSS 入口
+  useEffect(() => {
+    const api = apiRef.current;
+    if (!api) return;
+    api.settings.fillFromJson({
+      display: { resources: night ? NIGHT_RESOURCES : DAY_RESOURCES },
+    });
+    api.updateSettings();
+    if (api.score) api.render();
+  }, [night]);
 
   // 加载数据变化（自动分流：alphaTex 文本 vs 二进制谱格式）
   useEffect(() => {

@@ -16,7 +16,9 @@ import {
   IconEdit,
   IconLayoutHorizontal,
   IconLayoutPage,
+  IconMoon,
   IconOverflow,
+  IconSun,
 } from "../components/icons";
 
 interface TrackInfo {
@@ -30,6 +32,10 @@ const INSTRUMENT_LABEL: Record<string, string> = {
   guitar: "吉他",
   other: "其他",
 };
+
+/// 夜间看谱是环境偏好（同一间屋子的所有谱共用），不是单曲练习状态。
+/// 用 localStorage 同步读取：进页第一帧就是暗的，不会先闪一下整屏白光。
+const NIGHT_KEY = "scanscore.viewerNight";
 
 /// 导出文件名消毒：Windows 禁用字符（/ \ : * ? " < > |）与首尾空白
 const safeName = (s: string) =>
@@ -47,6 +53,16 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
   const scoreModelRef = useRef<model.Score | null>(null);
   const [scale, setScale] = useState<number | null>(null);
   const [layout, setLayout] = useState<"page" | "horizontal">("page");
+  // 暗场看谱：整页（谱面 + 头部 + 播放条）压低照度，扫描件默认反色
+  const [night, setNight] = useState(() => localStorage.getItem(NIGHT_KEY) === "1");
+  // 扫描件反色：跟随夜间，可单独关（带批注/暖纸底的扫描件反转后不一定更好读）
+  const [invertScanOverride, setInvertScanOverride] = useState<boolean | null>(null);
+  const invertScan = invertScanOverride ?? night;
+  const toggleNight = () => {
+    const next = !night;
+    setNight(next);
+    localStorage.setItem(NIGHT_KEY, next ? "1" : "0");
+  };
 
   // 元数据编辑
   const [editing, setEditing] = useState(false);
@@ -406,7 +422,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
   ];
 
   return (
-    <div className="flex h-full flex-col">
+    <div className={`flex h-full flex-col bg-paper ${night ? "night" : ""}`}>
       <header className="flex items-center gap-3 border-b border-hair px-5 py-3">
         <button
           onClick={openLibrary}
@@ -493,6 +509,21 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
         <div className="flex-1" />
         {/* 次级簇（内距 8px），识别主按钮独立在簇外 12px */}
         <div className="flex items-center gap-2">
+          {/* 夜间看谱：环境需求是「此刻」的，必须一眼可切；放在头部而不是查看器悬浮簇，
+              未识别/识别失败的暗场页面里也要能切回日间 */}
+          <button
+            onClick={toggleNight}
+            aria-label={night ? "切换到日间看谱" : "切换到夜间看谱"}
+            title="夜间看谱"
+            className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-sm ${
+              night
+                ? "border-ink/50 bg-ink/10 font-semibold text-ink"
+                : "border-hair-strong text-bind/80 hover:bg-paper-dim"
+            }`}
+          >
+            {night ? <IconSun size={13} /> : <IconMoon size={13} />}
+            {night ? "日间" : "夜间"}
+          </button>
           {originalUrl && (
             <button
               onClick={() => setShowOriginal((v) => !v)}
@@ -536,6 +567,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
             <ScoreViewer
               key={`${assetPath}-${loadKey}`}
               data={asset.data}
+              night={night}
               onReady={(a) => {
                 atApiRef.current = a;
                 setAtApi(a);
@@ -738,16 +770,33 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                   </button>
                 </span>
               )}
+              <span className="flex-1" />
+              <button
+                onClick={() => setInvertScanOverride(!invertScan)}
+                aria-pressed={invertScan}
+                title="反色显示扫描件（夜读时黑纸白墨）"
+                className={`rounded border px-1.5 py-0.5 ${
+                  invertScan
+                    ? "border-ink/60 bg-ink/10 font-semibold text-ink"
+                    : "border-hair-strong text-bind/60 hover:bg-paper-dim"
+                }`}
+              >
+                反色
+              </button>
             </div>
             {originalAssetPath?.toLowerCase().endsWith(".pdf") ? (
               // 固定 208px：始终小于对照区最大高（min 窗约 212px），消除 iframe 嵌套双滚条
               <iframe
                 src={originalUrl}
-                className="h-52 w-full rounded border border-hair bg-paper-bright"
+                className={`h-52 w-full rounded border border-hair bg-paper-bright ${invertScan ? "scan-invert" : ""}`}
                 title="原图"
               />
             ) : (
-              <img src={originalUrl} alt="原图" className="mx-auto max-w-full" />
+              <img
+                src={originalUrl}
+                alt="原图"
+                className={`mx-auto max-w-full ${invertScan ? "scan-invert" : ""}`}
+              />
             )}
           </div>
         )}
@@ -797,7 +846,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                     type="checkbox"
                     checked={atxSync}
                     onChange={(e) => setAtxSync(e.target.checked)}
-                    className="h-3.5 w-3.5 accent-[#1e4636]"
+                    className="h-3.5 w-3.5 accent-ink"
                   />
                   滚动同步
                 </label>
@@ -816,31 +865,49 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
               <div className="flex w-1/2 min-w-0 flex-col rounded-lg border border-hair bg-paper-dim/50">
                 <div className="flex items-center justify-between border-b border-hair px-2 py-1.5 text-xs text-bind/60">
                   <span>原始扫描图</span>
-                  {editorPages.length > 1 && (
-                    <span className="flex items-center gap-1">
-                      <button
-                        onClick={() => setAtxPageIndex((p) => Math.max(0, p - 1))}
-                        disabled={atxPageIndex === 0}
-                        aria-label="上一页"
-                        className="rounded border border-hair-strong px-1.5 py-0.5 disabled:opacity-40"
-                      >
-                        <IconCaretLeft size={11} />
-                      </button>
-                      第 {atxPageIndex + 1} / {editorPages.length} 页
-                      <button
-                        onClick={() => setAtxPageIndex((p) => Math.min(editorPages.length - 1, p + 1))}
-                        disabled={atxPageIndex >= editorPages.length - 1}
-                        aria-label="下一页"
-                        className="rounded border border-hair-strong px-1.5 py-0.5 disabled:opacity-40"
-                      >
-                        <IconCaretRight size={11} />
-                      </button>
-                    </span>
-                  )}
+                  <span className="flex items-center gap-2">
+                    {editorPages.length > 1 && (
+                      <span className="flex items-center gap-1">
+                        <button
+                          onClick={() => setAtxPageIndex((p) => Math.max(0, p - 1))}
+                          disabled={atxPageIndex === 0}
+                          aria-label="上一页"
+                          className="rounded border border-hair-strong px-1.5 py-0.5 disabled:opacity-40"
+                        >
+                          <IconCaretLeft size={11} />
+                        </button>
+                        第 {atxPageIndex + 1} / {editorPages.length} 页
+                        <button
+                          onClick={() => setAtxPageIndex((p) => Math.min(editorPages.length - 1, p + 1))}
+                          disabled={atxPageIndex >= editorPages.length - 1}
+                          aria-label="下一页"
+                          className="rounded border border-hair-strong px-1.5 py-0.5 disabled:opacity-40"
+                        >
+                          <IconCaretRight size={11} />
+                        </button>
+                      </span>
+                    )}
+                    <button
+                      onClick={() => setInvertScanOverride(!invertScan)}
+                      aria-pressed={invertScan}
+                      title="反色显示扫描件（夜读时黑纸白墨）"
+                      className={`rounded border px-1.5 py-0.5 ${
+                        invertScan
+                          ? "border-ink/60 bg-ink/10 font-semibold text-ink"
+                          : "border-hair-strong text-bind/60 hover:bg-paper-dim"
+                      }`}
+                    >
+                      反色
+                    </button>
+                  </span>
                 </div>
                 <div ref={atxImgRef} className="min-h-0 flex-1 overflow-auto p-2">
                   {atxImageUrl ? (
-                    <img src={atxImageUrl} alt="原图" className="mx-auto w-full" />
+                    <img
+                      src={atxImageUrl}
+                      alt="原图"
+                      className={`mx-auto w-full ${invertScan ? "scan-invert" : ""}`}
+                    />
                   ) : (
                     <div className="grid h-full place-items-center text-xs text-bind/55">无原图</div>
                   )}
@@ -949,7 +1016,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
               </button>
             </div>
             {/* 引擎在说话:应用内唯一的大面积深色块,油墨绿的终端 */}
-            <pre className="mt-3 flex-1 overflow-auto whitespace-pre-wrap rounded-lg bg-ink-deep p-3 text-micro text-paper/90">
+            <pre className="mt-3 flex-1 overflow-auto whitespace-pre-wrap rounded-lg bg-ink-deep p-3 text-micro text-cream/90">
               {logText}
             </pre>
           </div>

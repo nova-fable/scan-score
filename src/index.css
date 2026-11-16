@@ -22,6 +22,9 @@
   --color-hair: #ddd3b8; /* 纸上细线 */
   --color-hair-strong: #b9ad8a; /* 纸上重细线 */
   --color-ink-faint: rgba(247, 241, 222, 0.72); /* 壳上次级文字 */
+  /* 固定奶油:暗场里仍要「墨绿底 + 奶油字」的深色块(引擎日志终端)用它,
+     不能跟着 --color-paper 翻成暗色 */
+  --color-cream: #f7f1de;
   --font-disp: "Bitter", -apple-system, BlinkMacSystemFont, "PingFang SC",
     "Segoe UI", "Microsoft YaHei", sans-serif;
   /* 排印 token:micro 角色(11px/1.34) */
@@ -43,6 +46,38 @@ body,
   font-variant-numeric: tabular-nums;
   -webkit-user-select: none;
   user-select: none;
+}
+
+/* ── 暗场看谱(看谱页局部覆写)──
+   不是第二套主题,是同一套纸墨关系在低照度下的读法:近墨底承纸、奶油当墨,
+   谱线与细线整体降一档。只覆写令牌,不新增底色类,页面结构完全不动。 */
+.night {
+  --color-paper: #14181a; /* 暗场工作区底 */
+  --color-paper-bright: #1a1f1d; /* 谱面纸:比工作区略亮一档,谱与壳分层 */
+  --color-paper-dim: #232a27; /* 暗场 hover / 凹槽 */
+  --color-bind: #e6dfcb; /* 暗场墨:奶油压一档,避免纯白黑底的光晕 */
+  --color-ink: #e6dfcb; /* 行动色在暗场 = 奶油(与壳上同一逻辑) */
+  --color-ink-bright: #f2ecd9;
+  --color-hair: #2f3833;
+  --color-hair-strong: #46524b;
+  --color-gold: #d5b85c;
+  --color-spot-ok: #6ec9a0;
+  --color-spot-run: #86b0dc;
+  --color-spot-fail: #e88a72;
+  --color-spot-wait: #d9a95f;
+}
+.night *::-webkit-scrollbar-thumb:hover {
+  background-color: #6b756d;
+}
+/* 暗场选区:纸白浅底会把奶油字吞掉,改用壳色底 */
+.night ::selection {
+  background: #46524b;
+  color: #f2ecd9;
+}
+
+/* 扫描件反色:夜读时把白纸黑墨翻成黑纸白墨(原图对照与校对编辑器共用) */
+.scan-invert {
+  filter: invert(1) hue-rotate(180deg) brightness(0.92);
 }
 
 /* 键盘导航的焦点指示(仅 :focus-visible 触发,鼠标点击不显示;输入类控件以边框变色表达)

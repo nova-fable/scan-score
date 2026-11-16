@@ -26,6 +26,8 @@
 - `playerPositionChanged` 事件同时给 ms（`currentTime`/`endTime`）和 tick，进度条用 ms、seek 用 tick
 - `changeTrackMute(tracks: Track[], mute)` 接收**数组**；`display.scale` 是缩放（没有 zoom 字段）；改显示设置后要 `api.updateSettings(); api.render();`
 - 音源：`public/soundfont/GeneralUser.sf2`（31MB，比默认 sonivox 好很多）；sonivox 保留作对比
+- **谱面颜色只能走 `settings.fillFromJson({ display: { resources: {...} } })`**：`Color` 类没有从 ESM 包导出（`import { Color }` 是 undefined），但 `fillFromJson` 接受 `#RRGGBB`/`rgba()` 字符串且是**部分合并**——只覆盖给出的键，scale/layout 等设置保持不动。改完要 `updateSettings()` + `render()`。夜间看谱的暗场换色就是这么做的（ScoreViewer 的 NIGHT/DAY_RESOURCES）
+- **拍点光标/选区是外部 CSS 类**（`.at-cursor-bar` / `.at-cursor-beat` / `.at-selection`），alphaTab 只 `classList.add` 不注入样式——本项目至今没定义这些类，所以播放时光标实际不可见（日/夜都一样）。要显示得自己写 CSS，别以为换了配色光标就会出来
 
 ## Audiveris（OMR）
 

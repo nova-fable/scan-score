@@ -208,7 +208,7 @@ export default function PlayerBar({
             </div>
           )}
           <div
-            className="relative h-2 cursor-pointer rounded-full [background-color:rgba(28,36,32,0.14)]"
+            className="relative h-2 cursor-pointer rounded-full bg-bind/15"
             onClick={seek}
             onKeyDown={(e) => {
               if (e.key === "ArrowLeft") {
@@ -317,7 +317,7 @@ export default function PlayerBar({
             api.player!.masterVolume = v / 100;
             onPractice?.({ volume: v / 100 });
           }}
-          className="w-20 accent-[#1e4636]"
+          className="w-20 accent-ink"
           aria-label="音量"
         />
       </label>
