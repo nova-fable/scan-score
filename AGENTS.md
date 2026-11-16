@@ -68,6 +68,8 @@
 
 ## Tauri 平台坑
 
+- **用系统程序打开文件走 Rust 侧 `tauri_plugin_opener::open_path`**，别用前端 `openPath()`：JS 侧要配 `opener:allow-open-path` 的路径 scope，Rust 侧不受这个限制，还能把失败原因（文件不存在 / 不在数据目录 / 系统打开失败）原样带回前端。`open_score_asset` 复用 `ensure_inside_data_dir` 防目录穿越
+
 - **同步 command 跑在主线程**：`blocking_pick_files()` 之类会与 macOS 面板事件循环死锁（光标转菊花）→ 弹对话框/耗时操作的 command 必须 `async fn` + `spawn_blocking`
 - `libc::kill` 只有 unix；Windows 终止进程用 `taskkill /PID <pid> /F` + `std::os::windows::process::CommandExt::creation_flags(0x08000000)`（要显式 use trait），存活探测用 `tasklist /FI`
 - **Cargo.toml 里 `[target.'cfg(windows)'.dependencies]` 不能插在 [dependencies] 中间**——TOML 表会把后面的键吞进平台段（我们断送过 reqwest/base64 的 mac 编译）

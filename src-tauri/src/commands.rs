@@ -417,6 +417,20 @@ pub fn read_score_asset(path: String, state: Ctx) -> Result<Vec<u8>, String> {
     std::fs::read(&p).map_err(err)
 }
 
+/// 用系统默认程序打开原扫描件（PDF / 图片）——缩放、翻页、打印交给系统查看器，
+/// 比内嵌的 40% 高对照层好用。走 Rust 侧而不是前端 openPath：免配路径 scope，
+/// 并且能带回具体失败原因。
+#[tauri::command]
+pub fn open_score_asset(path: String, state: Ctx) -> Result<(), String> {
+    let p = PathBuf::from(&path);
+    if !p.exists() {
+        return Err(format!("文件不存在：{path}"));
+    }
+    ensure_inside_data_dir(state.inner(), &p)?;
+    tauri_plugin_opener::open_path(&p, None::<&str>)
+        .map_err(|e| format!("无法用系统程序打开「{}」：{e}", p.display()))
+}
+
 // ---------------------------------------------------------------------------
 // 识别任务
 // ---------------------------------------------------------------------------

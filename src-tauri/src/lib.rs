@@ -112,6 +112,7 @@ pub fn run() {
             commands::pick_save_path,
             commands::write_export_bytes,
             commands::export_score_source,
+            commands::open_score_asset,
             commands::emit_test_progress,
         ])
         .run(tauri::generate_context!())

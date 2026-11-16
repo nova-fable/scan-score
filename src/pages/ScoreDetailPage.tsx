@@ -47,6 +47,7 @@ const safeName = (s: string) =>
 export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
   const openLibrary = useUi((s) => s.openLibrary);
   const softDeleteScores = useUi((s) => s.softDeleteScores);
+  const showToast = useUi((s) => s.showToast);
   const queryClient = useQueryClient();
   const [atApi, setAtApi] = useState<AlphaTabApi | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -544,17 +545,16 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
             {night ? "日间" : "夜间"}
           </button>
           {originalUrl && (
-            <button
-              onClick={() => setShowOriginal((v) => !v)}
-              className={`shrink-0 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-sm ${
-                showOriginal
-                  ? "border-ink/50 bg-ink/10 font-semibold text-ink"
-                  : "border-hair-strong text-bind/80 hover:bg-paper-dim"
-              }`}
-              title={showOriginal ? "隐藏原图对照" : "对照原图"}
-            >
-              原图
-            </button>
+            <OriginalMenu
+              active={showOriginal}
+              onToggle={() => setShowOriginal((v) => !v)}
+              onOpenExternal={() => {
+                if (!originalAssetPath) return;
+                api.openScoreAsset(originalAssetPath).catch((e) => {
+                  showToast({ message: String(e) }, 6000);
+                });
+              }}
+            />
           )}
           {isPlayable && <ExportMenu onMidi={() => exportMidi()} onSource={() => exportSource()} />}
           <OverflowMenu items={overflowItems} />
@@ -1146,6 +1146,75 @@ function OverflowMenu({
                 {it.label}
               </button>
             ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/// 「原图」分体按钮：主键一键开/关对照层，右侧小三角展开菜单（新窗口打开等）
+function OriginalMenu({
+  active,
+  onToggle,
+  onOpenExternal,
+}: {
+  active: boolean;
+  onToggle: () => void;
+  onOpenExternal: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  useDismissOnEsc(open, () => setOpen(false));
+  const tone = active
+    ? "border-ink/50 bg-ink/10 font-semibold text-ink"
+    : "border-hair-strong text-bind/80 hover:bg-paper-dim";
+  return (
+    <div className="relative flex shrink-0">
+      <button
+        onClick={onToggle}
+        title={active ? "隐藏原图对照" : "对照原图"}
+        className={`whitespace-nowrap rounded-l-lg border border-r-0 px-2.5 py-1.5 text-sm ${tone}`}
+      >
+        原图
+      </button>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-label="原图选项"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        className={`grid w-6 place-items-center rounded-r-lg border ${tone}`}
+      >
+        <IconCaretDown size={11} />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div
+            role="menu"
+            aria-label="原图选项"
+            className="anim-pop-in absolute right-0 top-full z-20 mt-1 w-48 rounded-lg border border-hair bg-paper-bright py-1 shadow-lg"
+          >
+            <button
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onToggle();
+              }}
+              className="block w-full px-3 py-1.5 text-left text-sm text-bind/85 hover:bg-paper-dim"
+            >
+              {active ? "收起对照" : "对照原图"}
+            </button>
+            <button
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onOpenExternal();
+              }}
+              title="用系统默认程序打开扫描件，可自由缩放、翻页、打印"
+              className="block w-full px-3 py-1.5 text-left text-sm text-bind/85 hover:bg-paper-dim"
+            >
+              新窗口打开原图
+            </button>
           </div>
         </>
       )}

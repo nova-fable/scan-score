@@ -91,6 +91,7 @@ export const api = {
   updateScore: (id: string, title: string, composer?: string, instrument?: string) =>
     invoke<Score>("update_score", { id, title, composer: composer ?? null, instrument: instrument ?? null }),
   deleteScore: (id: string) => invoke<void>("delete_score", { id }),
+  openScoreAsset: (path: string) => invoke<void>("open_score_asset", { path }),
   readScoreAsset: (path: string) => invoke<number[]>("read_score_asset", { path }),
   startRecognition: (scoreIds: string[]) =>
     invoke<Job[]>("start_recognition", { scoreIds }),
