@@ -27,7 +27,14 @@
 - `changeTrackMute(tracks: Track[], mute)` 接收**数组**；`display.scale` 是缩放（没有 zoom 字段）；改显示设置后要 `api.updateSettings(); api.render();`
 - 音源：`public/soundfont/GeneralUser.sf2`（31MB，比默认 sonivox 好很多）；sonivox 保留作对比
 - **谱面颜色只能走 `settings.fillFromJson({ display: { resources: {...} } })`**：`Color` 类没有从 ESM 包导出（`import { Color }` 是 undefined），但 `fillFromJson` 接受 `#RRGGBB`/`rgba()` 字符串且是**部分合并**——只覆盖给出的键，scale/layout 等设置保持不动。改完要 `updateSettings()` + `render()`。夜间看谱的暗场换色就是这么做的（ScoreViewer 的 NIGHT/DAY_RESOURCES）
-- **拍点光标/选区是外部 CSS 类**（`.at-cursor-bar` / `.at-cursor-beat` / `.at-selection`），alphaTab 只 `classList.add` 不注入样式——本项目至今没定义这些类，所以播放时光标实际不可见（日/夜都一样）。要显示得自己写 CSS，别以为换了配色光标就会出来
+- **拍点光标/选区/音符高亮都是外部 CSS 类**（`.at-cursor-bar` / `.at-cursor-beat` / `.at-selection` / `.at-highlight`），alphaTab 只 `classList.add`，一条样式都不注入——`enableCursor`/`enableAnimatedBeatCursor`/`enableElementHighlighting` 默认全开，所以"没写 CSS"= 播放时什么指示都没有。现已在 `index.css` 里给了光标样式（小节洗色 + 拍点竖线），`.at-highlight` 故意留空（音符染色会盖掉次要声部灰、且体系内没有合适的高对比色）
+- **光标用 `transform: scale(w,h)` 定位**（`setBounds` → `translate() scale()`），所以 `.at-cursor-*` **不能加 border / border-radius / box-shadow**——会被横向缩放成巨框；只能用 `background`。`.at-cursor-bar` 的 bounds 是整个 master bar，`.at-cursor-beat` 是 3px 宽竖线
+- 平滑追帧在 `prefers-reduced-motion` 下要手动关（`enableAnimatedBeatCursor = false`），alphaTab 自己没有这个开关
+- **播放跟随滚动必须显式指 `settings.player.scrollElement`**：默认是 `"html,body"`，而本页 body 根本不滚（滚动的是 `.at-viewer`），所以播放到屏幕末尾永远不会翻页——症状就是"谱面不动、光标跑出视野"。要指到 api 容器的**父级**：ScoreViewer 现在是「外层 `.at-viewer` 滚动 + 内层容器交给 alphaTab 渲染」。指容器自身会让 `getOffset` 把当前 `scrollTop` 累加进滚动目标，逐次漂移
+- 滚动只在**真正播放**时发生（`isPlayingUpdate` 才把 `shouldScroll` 置真）；暂停时 seek 不会滚动，所以拿"暂停 + 设 tickPosition"去验证翻页会得到假阴性
+- 默认 `ScrollMode.Continuous` 的语义是"每换一条系统，把该系统顶对齐到滚动容器顶"（`VerticalContinuousScrollHandler`），横向布局走 `HorizontalContinuousScrollHandler`；`scrollOffsetY` 为正会把系统顶推到视口上方（裁掉），要留白得用负值
+- 跟随方式可热切：改 `settings.player.scrollMode` 后调 `updateSettings()` 即可——它会经 `_setupOrDestroyPlayer → _updateCursors → _updateScrollHandler` 重建处理器，不用 `render()`，播放中切换也不中断。`ScrollMode.OffScreen` 是"当前小节跑出视野才滚"，视口比一条系统高时（正常缩放）两种模式差别明显；放大到系统比视口还高时两者几乎一样
+- **headless Chrome + `--virtual-time-budget` 验证不了滚动**：虚拟时间会冻结音频时钟与原生平滑滚动，`scrollTo({behavior:"smooth"})` 永远停在 0。要验证就用 CDP（`--remote-debugging-port` + `Page.captureScreenshot`）在真实时间里跑
 
 ## Audiveris（OMR）
 

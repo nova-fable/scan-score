@@ -102,7 +102,7 @@ export default function PlayerBar({
     api.player!.playbackRange = null;
     api.player!.isLooping = false;
     setLoop(false);
-    onPractice?.({ ab: null });
+    onPractice?.({ ab: null, loopEnabled: false });
   };
 
   const seekMs = (ms: number) => {

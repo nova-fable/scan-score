@@ -65,6 +65,8 @@ body,
   --color-spot-run: #86b0dc;
   --color-spot-fail: #e88a72;
   --color-spot-wait: #d9a95f;
+  /* 原生控件(select 弹层/复选框/滑杆)在暗场里也走暗色,否则一拉下拉就是一块白 */
+  color-scheme: dark;
 }
 .night *::-webkit-scrollbar-thumb:hover {
   background-color: #6b756d;
@@ -261,6 +263,31 @@ button {
 .at-viewer {
   height: 100%;
   overflow: auto;
+  /* 播放位置指示:alphaTab 只给光标加 class,样式必须外部给(它不注入任何 CSS)。
+     光标用 transform: scale(w,h) 定位 —— 不能加 border/border-radius,
+     那些会被横向缩放成巨框;只能用 background。 */
+  --cursor-bar: rgba(30, 70, 54, 0.07); /* 当前小节洗色 */
+  --cursor-beat: rgba(30, 70, 54, 0.45); /* 当前拍竖线 */
+  --cursor-bar-loop: rgba(30, 70, 54, 0.13); /* 循环练习时加重 */
+  --cursor-beat-loop: rgba(30, 70, 54, 0.62);
+}
+.night .at-viewer {
+  --cursor-bar: rgba(230, 223, 203, 0.08);
+  --cursor-beat: rgba(230, 223, 203, 0.5);
+  --cursor-bar-loop: rgba(230, 223, 203, 0.14);
+  --cursor-beat-loop: rgba(230, 223, 203, 0.66);
+}
+.at-viewer .at-cursor-bar {
+  background: var(--cursor-bar);
+}
+.at-viewer.at-loop .at-cursor-bar {
+  background: var(--cursor-bar-loop);
+}
+.at-viewer .at-cursor-beat {
+  background: var(--cursor-beat);
+}
+.at-viewer.at-loop .at-cursor-beat {
+  background: var(--cursor-beat-loop);
 }
 .at-viewer svg {
   display: block;

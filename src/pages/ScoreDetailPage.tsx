@@ -5,7 +5,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, readAssetBytes, type PracticeState, type Score } from "../lib/tauri";
 import { useUi } from "../stores/ui";
 import { useDialog, useDismissOnEsc } from "../lib/useDialog";
-import ScoreViewer from "../components/ScoreViewer";
+import ScoreViewer, { type FollowMode } from "../components/ScoreViewer";
 import PlayerBar from "../components/PlayerBar";
 import ConfirmDialog from "../components/ConfirmDialog";
 import {
@@ -37,6 +37,9 @@ const INSTRUMENT_LABEL: Record<string, string> = {
 /// 用 localStorage 同步读取：进页第一帧就是暗的，不会先闪一下整屏白光。
 const NIGHT_KEY = "scanscore.viewerNight";
 
+/// 播放跟随方式同样是阅读习惯（不是单曲属性），与夜间模式一起走 localStorage
+const FOLLOW_KEY = "scanscore.scrollFollow";
+
 /// 导出文件名消毒：Windows 禁用字符（/ \ : * ? " < > |）与首尾空白
 const safeName = (s: string) =>
   s.replace(/[\\/:*?"<>|]/g, "_").trim().replace(/^\.+/, "_") || "score";
@@ -63,6 +66,16 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
     setNight(next);
     localStorage.setItem(NIGHT_KEY, next ? "1" : "0");
   };
+  // 循环练习中：查看器的位置指示加重（父级不持有 PlayerBar 的循环状态，靠上报同步）
+  const [loopActive, setLoopActive] = useState(false);
+  // 播放跟随方式：逐行跟随（默认）/ 按需翻页
+  const [follow, setFollow] = useState<FollowMode>(
+    () => (localStorage.getItem(FOLLOW_KEY) === "onDemand" ? "onDemand" : "line"),
+  );
+  const changeFollow = (next: FollowMode) => {
+    setFollow(next);
+    localStorage.setItem(FOLLOW_KEY, next);
+  };
 
   // 元数据编辑
   const [editing, setEditing] = useState(false);
@@ -82,6 +95,11 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
   const practiceRef = useRef<PracticeState | null>(null);
   practiceRef.current = practice.data ?? null;
 
+  // 跨会话恢复的循环状态也要点亮查看器的位置指示
+  useEffect(() => {
+    if (practice.data) setLoopActive(practice.data.loopEnabled);
+  }, [practice.data]);
+
   type PracticePatch = Partial<Omit<PracticeState, "abStart" | "abEnd">> & {
     ab?: { startTick: number; endTick: number } | null;
   };
@@ -89,6 +107,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
   const practiceTimerRef = useRef<number | undefined>(undefined);
 
   const schedulePractice = (patch: PracticePatch) => {
+    if (patch.loopEnabled !== undefined) setLoopActive(patch.loopEnabled);
     Object.assign(practiceDraftRef.current, patch);
     if (practiceTimerRef.current !== undefined) clearTimeout(practiceTimerRef.current);
     practiceTimerRef.current = window.setTimeout(() => {
@@ -568,6 +587,8 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
               key={`${assetPath}-${loadKey}`}
               data={asset.data}
               night={night}
+              loopActive={loopActive}
+              follow={follow}
               onReady={(a) => {
                 atApiRef.current = a;
                 setAtApi(a);
@@ -739,6 +760,18 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                 </>
               )}
             </button>
+            <span className="mx-1 h-4 w-px bg-hair" />
+            {/* 播放跟随方式：只影响播放时的自动滚动，不改谱面本身 */}
+            <select
+              value={follow}
+              onChange={(e) => changeFollow(e.target.value as FollowMode)}
+              aria-label="播放跟随方式"
+              title="播放时谱面的跟随方式"
+              className="cursor-pointer rounded bg-transparent py-1 pl-1 pr-0.5 text-xs text-bind/70 outline-none hover:text-ink"
+            >
+              <option value="line">逐行跟随</option>
+              <option value="onDemand">按需翻页</option>
+            </select>
           </div>
         )}
 

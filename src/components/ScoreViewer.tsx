@@ -1,6 +1,11 @@
 // alphaTab 封装：加载乐谱字节，渲染谱面 + 内置合成器播放
 import { useEffect, useRef } from "react";
-import { AlphaTabApi, Settings, model, synth } from "@coderline/alphatab";
+import { AlphaTabApi, ScrollMode, Settings, model, synth } from "@coderline/alphatab";
+
+/// 播放跟随方式：
+/// - line：每换一条系统就把该系统顶对齐到容器顶（ScrollMode.Continuous，MuseScore 那种）
+/// - onDemand：当前小节跑出视野才滚动（ScrollMode.OffScreen，画面更安静，适合反复练同一段）
+export type FollowMode = "line" | "onDemand";
 
 export interface ViewerCallbacks {
   onScoreLoaded?: (score: model.Score, trackInfos: { track: model.Track; name: string }[]) => void;
@@ -13,6 +18,10 @@ interface Props {
   data: Uint8Array | null;
   /// 暗场看谱：谱面用奶油墨、谱线降一档（层级：音符 > 小节线 > 谱线）
   night?: boolean;
+  /// 循环练习中：当前小节洗色与拍点竖线加重（与校准轨金标呼应）
+  loopActive?: boolean;
+  /// 播放跟随方式（见 FollowMode）
+  follow?: FollowMode;
   onReady?: (api: AlphaTabApi) => void;
   callbacks?: ViewerCallbacks;
 }
@@ -45,7 +54,11 @@ const DAY_RESOURCES = {
 // （Vite 打包后 import.meta.url 不可靠；public/font/ 双保险）
 (window as unknown as { ALPHATAB_FONT: string }).ALPHATAB_FONT = "/font/";
 
-export default function ScoreViewer({ data, night = false, onReady, callbacks }: Props) {
+const scrollModeOf = (follow: FollowMode) =>
+  follow === "onDemand" ? ScrollMode.OffScreen : ScrollMode.Continuous;
+
+export default function ScoreViewer({ data, night = false, loopActive = false, follow = "line", onReady, callbacks }: Props) {
+  const scrollRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<AlphaTabApi | null>(null);
   const cbRef = useRef(callbacks);
@@ -56,13 +69,23 @@ export default function ScoreViewer({ data, night = false, onReady, callbacks }:
   // 初始化 api（一次）
   useEffect(() => {
     const el = containerRef.current;
-    if (!el) return;
+    const scroller = scrollRef.current;
+    if (!el || !scroller) return;
 
     const settings = new Settings();
     settings.core.engine = "svg";
     // worker 由 @coderline/alphatab-vite 插件配置，保持默认开启
     settings.player.enablePlayer = true;
     settings.player.soundFont = SOUNDFONT_URL;
+    // 拍点光标默认是平滑追帧；减动效偏好下改成逐拍跳（alphaTab 没有这个开关，得自己接）
+    settings.player.enableAnimatedBeatCursor = !window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    // 播放跟随滚动：alphaTab 默认滚 "html,body"，而本页 body 不滚动（滚动的是 .at-viewer），
+    // 不指到真正的滚动容器上，播放到屏幕末尾就永远不会翻页。
+    // 必须指到 api 容器的**父级**——指容器自身会让 getOffset 把当前 scrollTop 累加进去，逐次漂移。
+    settings.player.scrollElement = scroller;
+    settings.player.scrollMode = scrollModeOf(follow);
 
     const api = new AlphaTabApi(el, settings);
     apiRef.current = api;
@@ -106,6 +129,15 @@ export default function ScoreViewer({ data, night = false, onReady, callbacks }:
     if (api.score) api.render();
   }, [night]);
 
+  // 切换跟随方式：updateSettings() 会经 _setupOrDestroyPlayer → _updateCursors 重建滚动处理器，
+  // 不需要重绘，播放中切换也不中断
+  useEffect(() => {
+    const api = apiRef.current;
+    if (!api) return;
+    api.settings.player.scrollMode = scrollModeOf(follow);
+    api.updateSettings();
+  }, [follow]);
+
   // 加载数据变化（自动分流：alphaTex 文本 vs 二进制谱格式）
   useEffect(() => {
     const api = apiRef.current;
@@ -119,5 +151,13 @@ export default function ScoreViewer({ data, night = false, onReady, callbacks }:
     }
   }, [data]);
 
-  return <div ref={containerRef} className="at-viewer flex-1 bg-paper-bright" />;
+  return (
+    <div
+      ref={scrollRef}
+      className={`at-viewer flex-1 overflow-auto bg-paper-bright ${loopActive ? "at-loop" : ""}`}
+    >
+      {/* alphaTab 的容器（光标也挂在这里）；滚动交给外层，播放跟随才找得到正确的滚动容器 */}
+      <div ref={containerRef} />
+    </div>
+  );
 }
