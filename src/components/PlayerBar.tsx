@@ -322,7 +322,8 @@ export default function PlayerBar({
         />
       </label>
 
-        {tracks.length > 0 && (
+        {/* 轨道 chip 的唯一用途是分轨静音；单轨时"静音唯一音轨"等于静音全曲，没有意义 */}
+        {tracks.length > 1 && (
           <div className="flex max-w-[260px] flex-wrap items-center justify-end gap-1 overflow-y-auto" style={{ maxHeight: 58 }}>
             {tracks.map(({ track, name, muted }) => (
               <button

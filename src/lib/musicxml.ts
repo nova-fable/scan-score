@@ -243,6 +243,14 @@ function mergeParts(doc: Document, root: Element): boolean {
     }
 
     scoreParts.slice(1).forEach((sp) => sp.remove());
+
+    // 轨道名：合并后只剩一条音轨，OMR 给的名字（Voice / LH）已经不能描述它，
+    // 清空后播放条落到"轨道 1"的兜底文案（`<part-name>` 保留但置空，schema 要求它存在）
+    if (firstScorePart) {
+      for (const tag of ["part-name", "part-abbreviation"]) {
+        for (const el of CHILD(firstScorePart, tag)) el.textContent = "";
+      }
+    }
   }
 
   return true;
