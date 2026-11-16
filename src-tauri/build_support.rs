@@ -4,15 +4,19 @@ use std::{ffi::OsStr, fs, io, path::Path};
 use std::os::unix::fs::PermissionsExt;
 
 pub fn prepare_resource_overwrite(out_dir: &Path) -> io::Result<()> {
-    if out_dir.file_name() != Some(OsStr::new("out"))
-        || out_dir.ancestors().nth(2).and_then(Path::file_name) != Some(OsStr::new("build"))
-    {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            format!("无效的 Cargo OUT_DIR: {}", out_dir.display()),
-        ));
+    if out_dir.file_name() != Some(OsStr::new("out")) {
+        return Err(invalid_out_dir(out_dir));
     }
-    let target_dir = out_dir.ancestors().nth(3).ok_or_else(|| {
+    // Cargo 有两套构建目录布局，两种都要认（CI runner 上已经换成新的那套）：
+    //   target/<profile>/build/<crate>-<hash>/out   （传统）
+    //   target/<profile>/build/<crate>/<hash>/out   （新布局）
+    let build_dir = out_dir
+        .ancestors()
+        .skip(1)
+        .take(3)
+        .find(|path| path.file_name() == Some(OsStr::new("build")))
+        .ok_or_else(|| invalid_out_dir(out_dir))?;
+    let target_dir = build_dir.parent().ok_or_else(|| {
         io::Error::new(
             io::ErrorKind::InvalidInput,
             "无法从 OUT_DIR 确定 Cargo 输出目录",
@@ -35,6 +39,13 @@ pub fn prepare_resource_overwrite(out_dir: &Path) -> io::Result<()> {
         ));
     }
     prepare_directory(&canonical)
+}
+
+fn invalid_out_dir(out_dir: &Path) -> io::Error {
+    io::Error::new(
+        io::ErrorKind::InvalidInput,
+        format!("无效的 Cargo OUT_DIR: {}", out_dir.display()),
+    )
 }
 
 fn prepare_directory(directory: &Path) -> io::Result<()> {

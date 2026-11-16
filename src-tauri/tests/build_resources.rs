@@ -21,6 +21,15 @@ struct Fixture {
 
 impl Fixture {
     fn new() -> Self {
+        Self::with_out_dir("debug/build/scan-score-test/out")
+    }
+
+    /// 新布局：build/<crate>/<hash>/out（CI runner 上的 Cargo 已改用这套）
+    fn nested() -> Self {
+        Self::with_out_dir("debug/build/scan-score/bd9fee8ce7eacbd7/out")
+    }
+
+    fn with_out_dir(relative: &str) -> Self {
         let id = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -30,7 +39,7 @@ impl Fixture {
             std::process::id(),
             NEXT_FIXTURE.fetch_add(1, Ordering::Relaxed)
         ));
-        let out_dir = root.join("debug/build/scan-score-test/out");
+        let out_dir = root.join(relative);
         let resources = root.join("debug/resources/engine");
         fs::create_dir_all(&out_dir).unwrap();
         Self {
@@ -137,6 +146,25 @@ fn allows_first_build_without_generated_resources() {
     let fixture = Fixture::new();
     build_support::prepare_resource_overwrite(&fixture.out_dir).unwrap();
     assert!(!fixture.resources.exists());
+}
+
+#[test]
+fn accepts_both_cargo_build_directory_layouts() {
+    for fixture in [Fixture::new(), Fixture::nested()] {
+        fs::create_dir_all(&fixture.resources).unwrap();
+        let file = fixture.resources.join("LICENSE");
+        fs::write(&file, "license text").unwrap();
+        fs::set_permissions(&file, fs::Permissions::from_mode(0o444)).unwrap();
+
+        build_support::prepare_resource_overwrite(&fixture.out_dir).unwrap();
+
+        assert_eq!(
+            fs::metadata(&file).unwrap().permissions().mode() & 0o777,
+            0o644,
+            "布局 {} 未生效",
+            fixture.out_dir.display()
+        );
+    }
 }
 
 #[test]
