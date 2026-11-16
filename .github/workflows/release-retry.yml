@@ -38,13 +38,15 @@ jobs:
             exit 0
           fi
 
-          # 必须拿到**这个 tag 的**成功 Build run。RUN_ID 为空时 `gh run download ""`
+          # 必须拿到**这个 tag 的** Build run。RUN_ID 为空时 `gh run download ""`
           # 会拉到别的 run 的产物——曾把 0.3.0 的安装包发成了 v0.4.0。
+          # 注意不能只挑 conclusion==success：本工作流存在的场景就是 Build 整体失败
+          # （通常只是 release job 失败，构建产物是好的），那种 run 的结论是 failure。
           RUN_ID=$(gh run list -R "$REPO" -w Build -b "$TAG" -L 20 \
             --json databaseId,conclusion \
-            --jq '[.[] | select(.conclusion=="success")][0].databaseId // empty')
+            --jq '[.[] | select(.conclusion != "cancelled")][0].databaseId // empty')
           if [ -z "$RUN_ID" ]; then
-            echo "::warning::tag $TAG 还没有成功的 Build run，先不建 Release（避免拉到别的版本产物）"
+            echo "::warning::tag $TAG 还没有可用的 Build run，先不建 Release（避免拉到别的版本产物）"
             exit 0
           fi
           echo "build run: $RUN_ID"
