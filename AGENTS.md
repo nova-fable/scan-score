@@ -51,6 +51,8 @@
 - **重跑会覆盖同名 .mxl**——判断"本次是否有产出"必须用文件 mtime ≥ 运行开始时间，不能用前后文件集合 diff（我们在这栽过：重新识别误报"未能导出"）
 - 六线谱（TAB）Audiveris 识别不了（官方限制）：谱线会检出但被忽略，产出几乎无音符的空谱。我们的对策：`tabdetect.rs` 行中位数法检测 6 线谱 → 直接走 VLM 转录
 - Audiveris 的 `-playlist` 是把每张图当**独立乐章**（导出多个 .mxl、小节各自编号）——想"多张图连成一首"要用图片纵向拼接（`import.rs::concat_images`），别用 playlist
+- **多乐章产出不能取 `produced.first()`**：目录遍历顺序不可靠。多页 PDF 也会被拆成多个 `.mxl`（`original.mvt1.mxl` / `mvt2…`）——实测 4 页 Für Elise 拆成 mvt1（76 小节，真曲）+ mvt2（5 小节残片，连拍号都没识别出来），拿到残片就是"识别没内容、播放只有几小节"。现按"小节数 → 音符数"挑内容最多的（`mxl::count_measures`），日志里写明产出几个、选了哪个
+- **速度可能只以 `<words>72</words>` 形式存在**：Audiveris 认出了数字却没生成 `<metronome>`/`<sound tempo>`，alphaTab 就用默认 120 BPM（实测谱面 ♩=72 → 播放快 1.67 倍，`endTime` 57000ms vs 95000ms）。`musicxml.ts::ensureTempo` 在加载时把开头两小节里的纯数字速度文字补成 `<sound tempo>`，并删掉原文字（否则谱面上会多画一个孤零零的 "72"）。数字来自谱面本身，不是猜的；这条在前端做，存量谱子不用重新识别
 
 ## 图像处理（macOS 内置工具，零外部依赖）
 

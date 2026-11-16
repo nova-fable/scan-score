@@ -94,34 +94,21 @@ function offsetStaff(el: Element, offset: number, doc: Document, defaultStaff: b
   for (const s of staves) s.textContent = String(num(s.textContent) + offset);
 }
 
-/// 合并成功返回新的 XML 文本；不适用（单 part / 非 partwise / 小节数不一致 / 解析失败）返回 null
-export function mergeMusicXmlParts(text: string): string | null {
-  if (!text.includes("<score-partwise")) return null;
-
-  let doc: Document;
-  try {
-    doc = new DOMParser().parseFromString(text, "application/xml");
-  } catch {
-    return null;
-  }
-  if (doc.getElementsByTagName("parsererror").length > 0) return null;
-
-  const root = doc.documentElement;
-  if (!root || root.localName !== "score-partwise") return null;
-
+/// 多 part 合并（原地修改 doc）。不适用（单 part / 小节数不一致）返回 false
+function mergeParts(doc: Document, root: Element): boolean {
   const allParts = CHILD(root, "part");
-  if (allParts.length < 2) return null;
+  if (allParts.length < 2) return false;
 
   // 纯休止的 part 是噪声，直接排除；剩下的仍需合并
   const parts = allParts.filter(hasNotes);
-  if (parts.length < 2) return null;
+  if (parts.length < 2) return false;
 
   // 必须在合并前算：合并会把后续 part 的音符搬进首 part，之后再数就数不出"谁才是主体"
   const mainPartId = parts.reduce((a, b) => (noteCount(b) > noteCount(a) ? b : a)).getAttribute("id");
 
   const merged = parts[0];
   const measureCount = CHILD(merged, "measure").length;
-  if (parts.some((p) => CHILD(p, "measure").length !== measureCount)) return null;
+  if (parts.some((p) => CHILD(p, "measure").length !== measureCount)) return false;
 
   // 先取各 part 的谱表数与 divisions：后面会把首 part 的 <staves> 改写成总数，
   // 改完再读就会重复累加（踩过：音符全跑到第 4、5 行谱表）
@@ -258,15 +245,62 @@ export function mergeMusicXmlParts(text: string): string | null {
     scoreParts.slice(1).forEach((sp) => sp.remove());
   }
 
-  return new XMLSerializer().serializeToString(doc);
+  return true;
 }
 
-/// 资产字节 → 归一化后的字节；不适用时返回 null（调用方回落到原始数据）
+/// 速度兜底：Audiveris 常把「♩=72」当普通文字导出（`<words>72</words>`），没有
+/// `<metronome>` / `<sound tempo>`，alphaTab 就会用默认 120 BPM（实测 72 → 120，听感快一倍多）。
+/// 把开头两小节里形如纯数字的速度文字补成真正的 tempo —— 数字来自谱面本身，不是猜的。
+function ensureTempo(doc: Document, root: Element): boolean {
+  const hasTempo =
+    Array.from(doc.getElementsByTagName("sound")).some((s) => s.getAttribute("tempo")) ||
+    doc.getElementsByTagName("metronome").length > 0;
+  if (hasTempo) return false;
+
+  const part = CHILD(root, "part")[0];
+  if (!part) return false;
+
+  for (const measure of CHILD(part, "measure").slice(0, 2)) {
+    for (const direction of CHILD(measure, "direction")) {
+      for (const words of Array.from(direction.getElementsByTagName("words"))) {
+        const raw = (words.textContent ?? "").trim();
+        // 允许前面带 1-4 个非数字字符（♩= 之类被拆成独立字形的场景）
+        const m = raw.match(/^[^\d]{0,4}(\d{2,3})$/);
+        if (!m) continue;
+        const bpm = Number(m[1]);
+        if (!Number.isFinite(bpm) || bpm < 20 || bpm > 300) continue;
+        const sound = doc.createElement("sound");
+        sound.setAttribute("tempo", String(bpm));
+        direction.appendChild(sound);
+        // 原来的数字文字已经由 tempo 渲染成正规的 ♩=N，留着会多画一个孤零零的 "72"
+        words.remove();
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/// 资产字节 → 归一化后的字节；不需要改动时返回 null（调用方回落到原始数据）
 export function normalizeScoreData(data: Uint8Array): Uint8Array | null {
   const head = new TextDecoder().decode(data.subarray(0, 64)).trimStart();
   if (!head.startsWith("<?xml") && !head.startsWith("<score-partwise")) return null;
 
   const text = new TextDecoder().decode(data);
-  const merged = mergeMusicXmlParts(text);
-  return merged ? new TextEncoder().encode(merged) : null;
+  if (!text.includes("<score-partwise")) return null;
+
+  let doc: Document;
+  try {
+    doc = new DOMParser().parseFromString(text, "application/xml");
+  } catch {
+    return null;
+  }
+  if (doc.getElementsByTagName("parsererror").length > 0) return null;
+  const root = doc.documentElement;
+  if (!root || root.localName !== "score-partwise") return null;
+
+  const merged = mergeParts(doc, root);
+  const tempo = ensureTempo(doc, root);
+  if (!merged && !tempo) return null;
+  return new TextEncoder().encode(new XMLSerializer().serializeToString(doc));
 }

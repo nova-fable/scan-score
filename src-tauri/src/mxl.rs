@@ -169,6 +169,13 @@ pub fn count_pitched_notes(xml: &str) -> usize {
     xml.matches("<pitch>").count()
 }
 
+/// 小节元素数（每个 part 都写一遍，多 part 时会重复计数——用于乐章之间比大小足够）
+pub fn count_measures(xml: &str) -> usize {
+    let all = xml.matches("<measure").count();
+    let noise = xml.matches("<measure-numbering").count() + xml.matches("<measure-style").count();
+    all.saturating_sub(noise)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

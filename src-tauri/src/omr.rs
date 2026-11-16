@@ -584,11 +584,31 @@ fn execute_job(
         }
     })?;
 
-    // 取第一个产出的 .mxl（单输入通常只有一个）
-    let mxl_path = produced.first().ok_or(OmrError::NoOutput)?.clone();
+    // 多乐章：Audiveris 会把多页 PDF 拆成多个 .mxl（original.mvt1.mxl / original.mvt2.mxl…），
+    // 目录遍历顺序不可靠——实测取到过只有 5 小节的残片，表现为"识别没内容、播放只有几小节"。
+    // 按"小节数 → 音符数"挑内容最多的那个。
+    let mut best: Option<(PathBuf, String, usize, usize)> = None;
+    for path in &produced {
+        match mxl::load_musicxml_text(path) {
+            Ok(text) => {
+                let key = (mxl::count_measures(&text), mxl::count_pitched_notes(&text));
+                if best.as_ref().is_none_or(|(_, _, m, n)| key > (*m, *n)) {
+                    best = Some((path.clone(), text, key.0, key.1));
+                }
+            }
+            Err(e) => log::warn!("读取识别产物 {} 失败，跳过：{e}", path.display()),
+        }
+    }
+    let (mxl_path, xml_text, best_measures, _) = best.ok_or(OmrError::NoOutput)?;
+    if produced.len() > 1 {
+        log::info!(
+            "识别产出 {} 个乐章，选用内容最多的 {}（{best_measures} 小节）",
+            produced.len(),
+            mxl_path.display()
+        );
+    }
 
-    // 解包 + 元数据 → 更新曲库
-    let xml_text = mxl::load_musicxml_text(&mxl_path)?;
+    // 元数据 → 更新曲库
     let score_xml_path = out_dir.join("score.xml");
     std::fs::write(&score_xml_path, &xml_text)?;
     let meta = mxl::parse_meta(&xml_text)?;
