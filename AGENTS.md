@@ -35,6 +35,12 @@
 - 默认 `ScrollMode.Continuous` 的语义是"每换一条系统，把该系统顶对齐到滚动容器顶"（`VerticalContinuousScrollHandler`），横向布局走 `HorizontalContinuousScrollHandler`；`scrollOffsetY` 为正会把系统顶推到视口上方（裁掉），要留白得用负值
 - 跟随方式可热切：改 `settings.player.scrollMode` 后调 `updateSettings()` 即可——它会经 `_setupOrDestroyPlayer → _updateCursors → _updateScrollHandler` 重建处理器，不用 `render()`，播放中切换也不中断。`ScrollMode.OffScreen` 是"当前小节跑出视野才滚"，视口比一条系统高时（正常缩放）两种模式差别明显；放大到系统比视口还高时两者几乎一样
 - **headless Chrome + `--virtual-time-budget` 验证不了滚动**：虚拟时间会冻结音频时钟与原生平滑滚动，`scrollTo({behavior:"smooth"})` 永远停在 0。要验证就用 CDP（`--remote-debugging-port` + `Page.captureScreenshot`）在真实时间里跑
+- **alphaTab 把多个 `<part>` 当独立音轨，按顺序排成各自的系统**。Audiveris 常把一页钢琴谱拆成两个 part（如 `Voice` + `LH`，甚至凭空多出一行空谱表），于是页面顶部十几行全是空谱表、真正的音乐被排到很下面，而播放是两条音轨一起发声——症状就是"页面上看不到内容但播放正常"。`src/lib/musicxml.ts` 在 `api.load` 前把多 part 合并成单 part：`<staff>` 编号顺延、后续 part 的谱号补进首小节 `<attributes>`、每小节用 `<backup>`（时值 = 该 part 首段时值总和）叠时间轴；纯休止的 part 直接丢弃。合并失败一律回落到原始字节
+- 合并的一个已知代价：真正多乐器的谱会变成单音轨，失去 PlayerBar 的"按乐器静音"（该 app 的场景里多 part 几乎都是 OMR 产物，可接受）
+- **合并绝不能丢 `<direction>` / `<sound tempo>`**：速度标记常只写在某一个 part 里（Moonlight 实测：♩=52 只存在于 P2，P1 一条 direction 都没有），当成"重复标记"跳过会让 alphaTab 回落到默认 120 BPM——听感"快了一倍多"，但 `endTick` 完全不变（tick 与 tempo 无关），**验证速度必须看 `api.endTime`（ms）**，不能看 endTick
+- 合并时另外两件会静默错音的事：各 part 的 `<divisions>` 不一致要按比例换算时值；中途的 `<attributes><clef>` 要搬到合并后的对应谱表（只搬 clef，别搬 divisions/key/time）
+- **音色要取"承载音乐"那条 part 的 `<midi-instrument>`**：Audiveris 常把第一个 part 标成 Voice Oohs（`midi-program` 54），沿用第一条会让整首曲子用人声合唱发声（实测用户反馈"音色有点奇怪"）。判断哪条是主体必须在**合并前**数音符——合并会把后续 part 的音符搬进首 part（本例 P1 从 32 个实音符变成 915），合并后再数就永远选中第一条
+- 改合并逻辑时先量数据再改代码：`score.xml` 的 part/谱表/每小节音符数用 ElementTree 数一遍，再和 alphaTab 载入后的 `score.tracks[i].staves[j].bars[k]` 音符数对齐——两边对不上就是转换写错了（踩过：改写 `<staves>` 之后再读 `staffCount(首 part)`，偏移量被重复累加，音符全跑到第 4、5 行谱表）
 
 ## Audiveris（OMR）
 

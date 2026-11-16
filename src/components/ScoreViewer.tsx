@@ -1,6 +1,7 @@
 // alphaTab 封装：加载乐谱字节，渲染谱面 + 内置合成器播放
 import { useEffect, useRef } from "react";
 import { AlphaTabApi, ScrollMode, Settings, model, synth } from "@coderline/alphatab";
+import { normalizeScoreData } from "../lib/musicxml";
 
 /// 播放跟随方式：
 /// - line：每换一条系统就把该系统顶对齐到容器顶（ScrollMode.Continuous，MuseScore 那种）
@@ -147,7 +148,9 @@ export default function ScoreViewer({ data, night = false, loopActive = false, f
       // AI 六线谱识别产出的 alphaTex
       api.tex(new TextDecoder().decode(data));
     } else {
-      api.load(data);
+      // OMR 常把一页钢琴谱拆成多个 part，alphaTab 会把它们排成各自独立的系统
+      // （顶部全是空谱表）——先合并成单 part 多谱表，合并失败就用原始数据
+      api.load(normalizeScoreData(data) ?? data);
     }
   }, [data]);
 
