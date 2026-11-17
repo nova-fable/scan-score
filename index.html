@@ -5,6 +5,11 @@
     <link rel="icon" type="image/png" href="/app-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ScanScore · 曲谱扫描与播放</title>
+    <!-- 必须在任何模块脚本之前：alphaTab 的 Environment.fontDirectory 是模块求值时的静态字段，
+         晚设就等于没设（打包后脚本在 /assets/，会去 /assets/font/ 找字体 → 404 → 谱面静默不渲染） -->
+    <script>
+      window.ALPHATAB_FONT = "/font/";
+    </script>
   </head>
 
   <body>

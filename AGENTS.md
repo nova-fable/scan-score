@@ -19,7 +19,11 @@
 ## alphaTab（渲染/播放）
 
 - **包名是 `@coderline/alphatab`**——npm 上的 `alphatab` 不存在（404）
-- **字体缺失 = 静默不渲染**：Bravura 找不到时只有控制台一行 `[AlphaTab][Font] Loading Failed, rendering cannot start`，API 不报错、无 SVG 输出。字体目录解析顺序：`window.ALPHATAB_FONT` → 脚本同目录 `font/`。我们设了 `window.ALPHATAB_FONT = "/font/"` 且字体在 `public/font/`（Vite 打包后 import.meta.url 不可靠，必须走全局变量）
+- **字体缺失 = 静默不渲染**：Bravura 找不到时只有控制台一行 `[AlphaTab][Font] Loading Failed, rendering cannot start`，API 不报错、无 SVG 输出——症状是**谱面空白但播放有声音**（播放不需要字体）
+- **字体目录必须在 `Settings` 上显式设置**：`alphaTab` 的 `Environment.fontDirectory` 是**模块求值时的静态字段**（`Settings` 构造函数把它抄进 `core.fontDirectory`），而 `window.ALPHATAB_FONT` 只有在「alphaTab 模块求值之前」设好才会被读到。`ScoreViewer` 里 `import` 早于任何赋值，所以老写法 `window.ALPHATAB_FONT = "/font/"` 等于没设：
+  - dev：脚本在 `/node_modules/@coderline/alphatab/dist/` → 字体目录 `…/dist/font/` **存在** → 看起来一切正常
+  - 打包后：脚本在 `/assets/` → 字体目录 `/assets/font/` → **404** → 谱面空白（实测 `svgs=0 paths=0`）
+  - 正确做法：`settings.core.fontDirectory = "/font/"`（会随 core settings 传给渲染 worker），`index.html` 里再补一个模块前的 `window.ALPHATAB_FONT` 兜住 `Environment` 的求值时机。字体文件在 `public/font/`（打包后 `dist/font/`）
 - Vite 集成用官方插件 `@coderline/alphatab-vite`（devDep），自动处理 worker/worklet/字体
 - **类型是 UMD 全局声明 + 命名空间导出**：`Track`/`Score` 在 `model` 命名空间，`PlayerState` 在 `synth`，`MidiFile/MidiFileGenerator/AlphaSynthMidiFileHandler` 在 `midi`；裸 `import { Track }` 会 TS2459。`LayoutMode`/`Settings`/`DisplaySettings` 是根导出
 - 播放控制：seek 用 `api.player.tickPosition`（getter+setter，tick 单位）；A-B 循环 `api.player.playbackRange = { startTick, endTick }` + `isLooping`；变速/音量都在 `api.player.*`（api 上的同名属性是只读 getter）

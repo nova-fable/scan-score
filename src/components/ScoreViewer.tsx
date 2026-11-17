@@ -51,9 +51,10 @@ const DAY_RESOURCES = {
   barNumberColor: "rgb(200, 0, 0)",
 };
 
-// alphaTab 通过该全局变量定位 Bravura 字体目录
-// （Vite 打包后 import.meta.url 不可靠；public/font/ 双保险）
-(window as unknown as { ALPHATAB_FONT: string }).ALPHATAB_FONT = "/font/";
+// 字体目录必须显式写进 settings：alphaTab 的 Environment.fontDirectory 在模块求值时就固定了，
+// 而这里的 import 早于任何赋值，所以打包后它会落到 <assets>/font/（不存在）→ 字体加载失败 →
+// 谱面静默不渲染（只有声音，因为播放不需要字体）。index.html 里的 ALPHATAB_FONT 是同一件事的兜底。
+const FONT_DIRECTORY = "/font/";
 
 const scrollModeOf = (follow: FollowMode) =>
   follow === "onDemand" ? ScrollMode.OffScreen : ScrollMode.Continuous;
@@ -77,6 +78,7 @@ export default function ScoreViewer({ data, night = false, loopActive = false, f
     settings.core.engine = "svg";
     // worker 由 @coderline/alphatab-vite 插件配置，保持默认开启
     settings.player.enablePlayer = true;
+    settings.core.fontDirectory = FONT_DIRECTORY;
     settings.player.soundFont = SOUNDFONT_URL;
     // 拍点光标默认是平滑追帧；减动效偏好下改成逐拍跳（alphaTab 没有这个开关，得自己接）
     settings.player.enableAnimatedBeatCursor = !window.matchMedia(
