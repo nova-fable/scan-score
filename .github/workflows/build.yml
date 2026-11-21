@@ -197,6 +197,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" dist/* \
+          # 只上传 dist 顶层的文件:Windows 产物里混有 nsis/ 目录,
+          # gh 对目录会报 "read dist/nsis: is a directory" 直接退出
+          gh release create "${GITHUB_REF_NAME}" $(find dist -maxdepth 1 -type f) \
             --title "ScanScore ${GITHUB_REF_NAME}" \
             --generate-notes
