@@ -7,14 +7,28 @@
 
 ---
 
+## 🖼️ 界面
+
+<div align="center">
+  <img src="docs/screenshot-library.png" width="49%" alt="曲库书架" />
+  <img src="docs/screenshot-player.png" width="49%" alt="播放与练习" />
+  <p><b>曲库书架</b> · 播放与练习（循环段落 / 节拍器 / 录音 / 移调）</p>
+  <img src="docs/screenshot-stats.png" width="49%" alt="练习统计" />
+  <p><b>练习统计</b> · 近 7 天与每曲合计</p>
+</div>
+
+---
+
 ## ✨ 功能
 
 - 📷 **扫描识别**：PNG / JPG / AVIF / WebP / PDF 五线谱，本地离线 OMR（Audiveris）；低清图片自动放大；识别参数可调
 - 🎸 **六线谱（TAB）**：图像自动检测 → AI 视觉模型转录 alphaTex（可选，支持 DeepSeek / 智谱 / 硅基流动 / Ollama 等 OpenAI 兼容端点）；Guitar Pro 文件（.gp3–.gp5 / .gpx）直接导入
-- ✏️ **校对编辑器**：原图对照 + alphaTex 左右分栏、按小节定位与滚动同步，AI 结果人工精修
-- 🎼 **曲库**：SQLite 管理、封面、搜索筛选、文件夹批量导入、多图合并为一首、批量识别 / 删除、备份恢复
-- ▶️ **播放**：WebAudio 合成器（GeneralUser GS 音源）、A-B 循环、节拍器、变速 0.5–2x、轨道静音、横向 / 分页布局、缩放
-- 📤 **导出**：MIDI、MusicXML / alphaTex
+- ✏️ **校对编辑器**：原图对照 + alphaTex 左右分栏、按小节定位与滚动同步，点击原图自动定位小节，AI 结果人工精修
+- 🎼 **曲库**：SQLite 管理、封面、搜索筛选、标签管理、文件夹批量导入、⌘V 粘贴截图导入、多图合并为一首、批量识别 / 删除、备份恢复
+- ▶️ **播放**：WebAudio 合成器（GeneralUser GS 音源）、A-B 循环与命名循环段落、节拍器（音量 / 预备拍可调）、变速 0.25–3x、移调 ±12 半音、麦克风录音自听、轨道静音、横向 / 分页布局、缩放
+- 📚 **歌单与统计**：歌单连播（播完自动切下一首）、练习时长统计（近 7 天 + 每曲合计）
+- 🖨️ **导出**：MIDI、MusicXML / alphaTex、打印版谱面
+- 🌐 **双语界面**：跟随系统（中文 / English），设置页可切换
 - 🔍 **透明度**：每次识别的引擎日志可在界面查看
 - 🔒 **隐私**：五线谱识别全程本地；仅 AI 六线谱转录（可选功能）需联网
 

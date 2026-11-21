@@ -7,14 +7,28 @@
 
 ---
 
+## 🖼️ Screenshots
+
+<div align="center">
+  <img src="docs/screenshot-library.png" width="49%" alt="Library shelf" />
+  <img src="docs/screenshot-player.png" width="49%" alt="Playback & practice" />
+  <p><b>Library shelf</b> · Playback &amp; practice (loop segments / metronome / recording / transpose)</p>
+  <img src="docs/screenshot-stats.png" width="49%" alt="Practice stats" />
+  <p><b>Practice stats</b> · last 7 days and per-score totals</p>
+</div>
+
+---
+
 ## ✨ Features
 
 - 📷 **Scan**: PNG / JPG / AVIF / WebP / PDF staff-notation scores via offline OMR (Audiveris); low-resolution scans are automatically upscaled; recognition parameters are configurable
 - 🎸 **Tablature (TAB)**: tab images are auto-detected and transcribed to alphaTex by a vision model (optional — works with DeepSeek, Zhipu GLM, SiliconFlow, local Ollama or any OpenAI-compatible endpoint); Guitar Pro files (.gp3–.gp5 / .gpx) import natively
-- ✏️ **Proofreading editor**: side-by-side original scan & alphaTex with per-measure navigation and scroll sync — fine-tune AI transcriptions by hand
-- 🎼 **Library**: SQLite-backed catalog with covers, search & filters, folder import, merging multiple images into one piece, batch recognition / deletion, backup & restore
-- ▶️ **Play**: WebAudio synthesizer (GeneralUser GS soundfont), A-B loop, metronome, 0.5–2× speed, track mute, horizontal / page layouts, zoom
-- 📤 **Export**: MIDI, MusicXML / alphaTex
+- ✏️ **Proofreading editor**: side-by-side original scan & alphaTex with per-measure navigation, scroll sync and click-the-scan bar locating — fine-tune AI transcriptions by hand
+- 🎼 **Library**: SQLite-backed catalog with covers, search & filters, tags, folder import, ⌘V paste-screenshot import, merging multiple images into one piece, batch recognition / deletion, backup & restore
+- ▶️ **Play**: WebAudio synthesizer (GeneralUser GS soundfont), A-B loops with named segments, metronome (adjustable volume + count-in), 0.25–3× speed, transpose ±12 semitones, microphone recording for self-review, track mute, horizontal / page layouts, zoom
+- 📚 **Playlists & stats**: play-through queues (auto-advance), practice time per score (last-7-days chart + totals)
+- 🖨️ **Export**: MIDI, MusicXML / alphaTex, print-ready sheet
+- 🌐 **Bilingual UI**: follows the system (中文 / English), switchable in Settings
 - 🔍 **Transparency**: engine logs for every recognition are viewable in the app
 - 🔒 **Privacy**: staff-notation recognition runs fully offline; only the optional AI TAB transcription uses the network
 
