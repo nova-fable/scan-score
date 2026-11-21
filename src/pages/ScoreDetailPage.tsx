@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlphaTabApi, LayoutMode, midi, model } from "@coderline/alphatab";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, readAssetBytes, type PracticeState, type Score } from "../lib/tauri";
+import { analyzeSheetLayout, type SheetSystem } from "../lib/sheet-layout";
+import { useT } from "../lib/i18n";
 import { useUi } from "../stores/ui";
 import { useDialog, useDismissOnEsc } from "../lib/useDialog";
 import ScoreViewer, { type FollowMode } from "../components/ScoreViewer";
@@ -45,7 +47,9 @@ const safeName = (s: string) =>
   s.replace(/[\\/:*?"<>|]/g, "_").trim().replace(/^\.+/, "_") || "score";
 
 export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
+  const t = useT();
   const openLibrary = useUi((s) => s.openLibrary);
+  const openScore = useUi((s) => s.openScore);
   const softDeleteScores = useUi((s) => s.softDeleteScores);
   const showToast = useUi((s) => s.showToast);
   const queryClient = useQueryClient();
@@ -80,7 +84,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
 
   // 元数据编辑
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState({ title: "", composer: "", instrument: "other" });
+  const [draft, setDraft] = useState({ title: "", composer: "", instrument: "other", tags: "" });
 
   const score = useQuery({
     queryKey: ["score", scoreId],
@@ -94,6 +98,8 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
   });
   const atApiRef = useRef<AlphaTabApi | null>(null);
   const practiceRef = useRef<PracticeState | null>(null);
+  // 打印导出用:包住 ScoreViewer 以便收集渲染好的谱面 SVG
+  const viewerRef = useRef<HTMLDivElement | null>(null);
   practiceRef.current = practice.data ?? null;
 
   // 跨会话恢复的循环状态也要点亮查看器的位置指示
@@ -120,6 +126,9 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
         scale: 1,
         abStart: null,
         abEnd: null,
+        metronomeEnabled: false,
+        metronomeVolume: 1.5,
+        countInEnabled: false,
       };
       const draft = practiceDraftRef.current;
       const next: PracticeState = {
@@ -130,6 +139,9 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
         scale: draft.scale ?? base.scale,
         abStart: draft.ab === undefined ? base.abStart : (draft.ab?.startTick ?? null),
         abEnd: draft.ab === undefined ? base.abEnd : (draft.ab?.endTick ?? null),
+        metronomeEnabled: draft.metronomeEnabled ?? base.metronomeEnabled,
+        metronomeVolume: draft.metronomeVolume ?? base.metronomeVolume,
+        countInEnabled: draft.countInEnabled ?? base.countInEnabled,
       };
       practiceDraftRef.current = {};
       practiceRef.current = next;
@@ -171,8 +183,19 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
   const [confirmDiscardAtx, setConfirmDiscardAtx] = useState(false);
 
   const saveMeta = useMutation({
-    mutationFn: () =>
-      api.updateScore(scoreId, draft.title || s?.title || "未命名", draft.composer || undefined, draft.instrument),
+    mutationFn: async () => {
+      await api.updateScore(
+        scoreId,
+        draft.title || s?.title || "未命名",
+        draft.composer || undefined,
+        draft.instrument,
+      );
+      // 标签:顿号/逗号/空格分隔
+      await api.set_score_tags(
+        scoreId,
+        draft.tags.split(/[,，、\s]+/).filter(Boolean),
+      );
+    },
     onSuccess: () => {
       setEditing(false);
       queryClient.invalidateQueries({ queryKey: ["score", scoreId] });
@@ -202,6 +225,36 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
     if (target) {
       await api.exportScoreSource(s.id, target);
     }
+  };
+
+  /// 导出谱面打印版:收集渲染好的 SVG → 独立 HTML(每页一版式)→ 数据目录 exports/,浏览器打开后 ⌘P
+  const exportPrint = async () => {
+    if (!s) return;
+    const svgs = viewerRef.current?.querySelectorAll("svg");
+    if (!svgs || svgs.length === 0) {
+      showToast({ message: t("谱面还没渲染完成,稍后再试") });
+      return;
+    }
+    const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    const body = Array.from(svgs)
+      .map((svg) => svg.outerHTML)
+      .join("\n");
+    const html = `<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>${esc(s.title)} · 打印版</title>
+<style>
+@page { margin: 12mm }
+body { margin: 0; background: #fff; font-family: Georgia, "Songti SC", serif; }
+h1 { text-align: center; font-size: 20px; font-weight: 700; margin: 8px 0 4px; }
+.sub { text-align: center; color: #666; font-size: 13px; margin: 0 0 20px; }
+svg { display: block; margin: 0 auto; max-width: 100%; height: auto; break-after: page; page-break-after: always; }
+</style></head><body>
+<h1>${esc(s.title)}</h1>
+<p class="sub">${esc(s.composer ?? "")} ScanScore 打印版</p>
+${body}
+</body></html>`;
+    const path = await api.exportPrintHtml(scoreId, s.title, html);
+    await api.openScoreAsset(path);
+    showToast({ message: t("打印版已在浏览器打开,⌘P 即可打印") });
   };
 
   const [showAtxEditor, setShowAtxEditor] = useState(false);
@@ -290,6 +343,56 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
     setAtxCaretBar(seen);
   };
 
+  // 原图点击定位小节:谱线行聚类找系统 + 带内竖线找小节线;
+  // 小节数按均匀分布估(每系统 = ceil(总小节/系统数)),估偏了在跳转框里手调。
+  const atxSystemsRef = useRef<{ src: string; systems: SheetSystem[] } | null>(null);
+  const [atxAnalyzing, setAtxAnalyzing] = useState(false);
+  const estimateBarFromClick = async (e: React.MouseEvent<HTMLImageElement>) => {
+    const src = atxImageUrl;
+    if (!src) return;
+    let systems = atxSystemsRef.current?.src === src ? atxSystemsRef.current.systems : null;
+    if (!systems) {
+      setAtxAnalyzing(true);
+      try {
+        const img = new Image();
+        img.src = src;
+        await img.decode();
+        systems = analyzeSheetLayout(img);
+        atxSystemsRef.current = { src, systems: systems ?? [] };
+      } catch {
+        systems = null;
+      } finally {
+        setAtxAnalyzing(false);
+      }
+      if (!systems || systems.length === 0) {
+        showToast({ message: t("这张图没分析出谱线系统,无法点击定位") }, 4000);
+        return;
+      }
+    }
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * e.currentTarget.naturalWidth;
+    const y = ((e.clientY - rect.top) / rect.height) * e.currentTarget.naturalHeight;
+    let sysIdx = systems.findIndex((sys) => y >= sys.top - 14 && y <= sys.bottom + 14);
+    if (sysIdx < 0) {
+      sysIdx = 0;
+      let best = Infinity;
+      systems.forEach((sys, i) => {
+        const d = Math.abs(y - (sys.top + sys.bottom) / 2);
+        if (d < best) {
+          best = d;
+          sysIdx = i;
+        }
+      });
+    }
+    const sys = systems[sysIdx];
+    const internal = sys.barlines.filter((bx) => bx < x);
+    const barInSystem = Math.max(0, internal.length - 1); // 扣掉系统起始线
+    const per = Math.ceil(atxBarCount / systems.length);
+    const guess = Math.max(1, Math.min(atxBarCount, sysIdx * per + barInSystem + 1));
+    setAtxJumpTo(String(guess));
+    goToBar(guess);
+  };
+
   // 识别产物路径变化 → 强制刷新资产并重载
   const prevMxlRef = useRef<string | null>(null);
   useEffect(() => {
@@ -307,15 +410,18 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
     if (!s) return "";
     switch (s.status) {
       case "imported":
-        return "待识别：导入的扫描件尚未进行光学识别";
+        return t("待识别：导入的扫描件尚未进行光学识别");
       case "processing":
-        return `识别中… ${runningJob ? `${runningJob.progress}% ${runningJob.message ?? ""}` : ""}`;
+        return t("识别中… {p}% {msg}", {
+          p: runningJob ? runningJob.progress : "",
+          msg: runningJob?.message ?? "",
+        });
       case "ready":
-        return "可播放";
+        return t("可播放");
       case "failed":
-        return `识别失败：${s.errorMessage ?? "未知错误"}`;
+        return t("识别失败：{e}", { e: s.errorMessage ?? t("未知错误") });
     }
-  }, [s, runningJob]);
+  }, [s, runningJob, t]);
 
   // 原图对照（pdf/png 源；多页合并曲谱支持翻页）
   const [originalUrl, setOriginalUrl] = useState<string | null>(null);
@@ -358,11 +464,38 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
         const end = endTimeMs > 0 ? endTimeMs : 1;
         const next = Math.min(end, Math.max(0, currentTimeMs + (e.key === "ArrowRight" ? 5000 : -5000)));
         atApi.player.tickPosition = Math.round((next / end) * atApi.endTick);
+      } else if (/^[1-9]$/.test(e.key)) {
+        // 数字键跳小节:第 n 小节起点(谱面通常不超过 9 小节一屏,配合 Shift+滚轮/拖动够用)
+        const bar = atApi.score?.masterBars[Number(e.key) - 1];
+        if (bar) {
+          e.preventDefault();
+          atApi.player.tickPosition = bar.start;
+        }
       }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [atApi, playing, isPlayable, showAtxEditor, showLog, editing]);
+
+  // 练习时长追踪:真正播放时累计,每 30 秒落一条 practice_log;暂停/离开把 ≥5 秒的尾巴也落掉
+  const playedSecondsRef = useRef(0);
+  useEffect(() => {
+    if (!playing || !isPlayable) return;
+    const t = window.setInterval(() => {
+      playedSecondsRef.current += 5;
+      if (playedSecondsRef.current >= 30) {
+        api.add_practice_time(scoreId, playedSecondsRef.current).catch(() => {});
+        playedSecondsRef.current = 0;
+      }
+    }, 5000);
+    return () => {
+      window.clearInterval(t);
+      if (playedSecondsRef.current >= 5) {
+        api.add_practice_time(scoreId, playedSecondsRef.current).catch(() => {});
+        playedSecondsRef.current = 0;
+      }
+    };
+  }, [playing, isPlayable, scoreId]);
   const pages = s?.pages ?? [];
   const originalAssetPath =
     pages.length > 0
@@ -394,6 +527,9 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
 
   const scaleValue = scale ?? 1;
   const overflowItems = [
+    ...(isPlayable
+      ? [{ label: t("导出打印页"), onClick: () => exportPrint() }]
+      : []),
     ...(s?.musicxmlPath?.endsWith(".atx")
       ? [
           {
@@ -413,11 +549,11 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
     ...(jobs.data && jobs.data.length > 0
       ? [
           {
-            label: "日志",
+            label: t("日志"),
             onClick: async () => {
               const last = jobs.data![0];
               const log = await api.readJobLog(last.id);
-              setLogText(log ?? "（该任务无日志记录）");
+              setLogText(log ?? t("（该任务无日志记录）"));
               setShowLog(true);
             },
           },
@@ -426,7 +562,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
     ...(s?.status === "failed" && (s.errorMessage ?? "").includes("六线谱")
       ? [
           {
-            label: "找 Guitar Pro 版本 ↗",
+            label: t("找 Guitar Pro 版本 ↗"),
             onClick: () =>
               openUrl(
                 `https://www.songsterr.com/a/wa/search?pattern=${encodeURIComponent(s.title)}`,
@@ -435,11 +571,26 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
         ]
       : []),
     {
-      label: "删除曲谱",
+      label: t("删除曲谱"),
       danger: true,
       onClick: () => setConfirmingDelete(true),
     },
   ];
+  // 加入歌单:每个现有歌单一个入口(新建在歌单页做)
+  const playlists = useQuery({
+    queryKey: ["playlists"],
+    queryFn: () => api.list_playlists(),
+  });
+  for (const p of playlists.data ?? []) {
+    overflowItems.unshift({
+      label: t("加入歌单 · {t}", { t: p.name }),
+      onClick: async () => {
+        await api.add_to_playlist(p.id, scoreId);
+        queryClient.invalidateQueries({ queryKey: ["playlists"] });
+        showToast({ message: t("已加入歌单「{t}」", { t: p.name }) });
+      },
+    });
+  }
 
   return (
     <div className={`flex h-full flex-col bg-paper ${night ? "night" : ""}`}>
@@ -448,7 +599,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
           onClick={openLibrary}
           className="shrink-0 whitespace-nowrap rounded-lg border border-hair-strong px-2.5 py-1.5 text-sm text-bind/80 hover:bg-paper-dim"
         >
-          ← 曲库
+          {t("← 曲库")}
         </button>
         {editing ? (
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
@@ -458,8 +609,8 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
               onKeyDown={(e) => {
                 if (e.key === "Enter") saveMeta.mutate();
               }}
-              placeholder="标题"
-              aria-label="标题"
+              placeholder={t("标题")}
+              aria-label={t("标题")}
               className="w-48 rounded-lg border border-hair-strong bg-paper-bright px-2 py-1 text-sm text-bind outline-none focus:border-ink"
             />
             <input
@@ -468,9 +619,19 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
               onKeyDown={(e) => {
                 if (e.key === "Enter") saveMeta.mutate();
               }}
-              placeholder="作曲者"
-              aria-label="作曲者"
+              placeholder={t("作曲者")}
+              aria-label={t("作曲者")}
               className="w-36 rounded-lg border border-hair-strong bg-paper-bright px-2 py-1 text-sm text-bind outline-none focus:border-ink"
+            />
+            <input
+              value={draft.tags}
+              onChange={(e) => setDraft((d) => ({ ...d, tags: e.target.value }))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveMeta.mutate();
+              }}
+              placeholder={t("标签（顿号分隔）")}
+              aria-label={t("标签")}
+              className="w-40 rounded-lg border border-hair-strong bg-paper-bright px-2 py-1 text-sm text-bind outline-none placeholder:text-bind/40 focus:border-ink"
             />
             <select
               value={draft.instrument}
@@ -478,9 +639,9 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
               aria-label="乐器"
               className="rounded-lg border border-hair-strong bg-paper-bright px-1 py-1 text-sm text-bind"
             >
-              <option value="piano">钢琴</option>
-              <option value="guitar">吉他</option>
-              <option value="other">其他</option>
+              <option value="piano">{t("钢琴")}</option>
+              <option value="guitar">{t("吉他")}</option>
+              <option value="other">{t("其他")}</option>
             </select>
             <button
               onClick={() => saveMeta.mutate()}
@@ -492,7 +653,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
               onClick={() => setEditing(false)}
               className="rounded-lg border border-hair-strong px-3 py-1 text-sm text-bind/70"
             >
-              取消
+              {t("取消")}
             </button>
           </div>
         ) : (
@@ -508,12 +669,13 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                       title: s.title,
                       composer: s.composer ?? "",
                       instrument: s.instrument,
+                      tags: s.tags.join("、"),
                     });
                     setEditing(true);
                   }}
                   className="text-xs text-bind/40 transition hover:text-ink"
-                  title="编辑信息"
-                  aria-label="编辑信息"
+                  title={t("编辑信息")}
+                  aria-label={t("编辑信息")}
                 >
                   <IconEdit size={13} />
                 </button>
@@ -523,6 +685,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
               {s ? `${INSTRUMENT_LABEL[s.instrument] ?? "其他"} · ` : ""}
               {s?.composer ? `${s.composer} · ` : ""}
               {statusText}
+              {s?.tags?.length ? ` · ${s.tags.map((t) => `#${t}`).join(" ")}` : ""}
             </div>
           </div>
         )}
@@ -533,8 +696,8 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
               未识别/识别失败的暗场页面里也要能切回日间 */}
           <button
             onClick={toggleNight}
-            aria-label={night ? "切换到日间看谱" : "切换到夜间看谱"}
-            title="夜间看谱"
+            aria-label={night ? t("切换到日间看谱") : t("切换到夜间看谱")}
+            title={t("夜间看谱")}
             className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-sm ${
               night
                 ? "border-ink/50 bg-ink/10 font-semibold text-ink"
@@ -542,7 +705,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
             }`}
           >
             {night ? <IconSun size={13} /> : <IconMoon size={13} />}
-            {night ? "日间" : "夜间"}
+            {night ? t("日间") : t("夜间")}
           </button>
           {originalUrl && (
             <OriginalMenu
@@ -569,7 +732,11 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
             disabled={s?.status === "processing"}
             className="shrink-0 whitespace-nowrap rounded-lg bg-ink px-3 py-1.5 text-sm font-semibold text-paper hover:bg-ink-bright disabled:opacity-50"
           >
-            {s?.status === "processing" ? "识别中…" : s?.status === "imported" ? "开始识别" : "重新识别"}
+            {s?.status === "processing"
+              ? t("识别中…")
+              : s?.status === "imported"
+                ? t("开始识别")
+                : t("重新识别")}
           </button>
         )}
       </header>
@@ -578,11 +745,12 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
         {isPlayable ? (
           asset.isError ? (
             <div className="grid flex-1 place-items-center text-sm text-spot-fail">
-              乐谱文件读取失败
+              {t("乐谱文件读取失败")}
             </div>
           ) : !asset.data ? (
-            <div className="grid flex-1 place-items-center text-sm text-bind/55">加载乐谱…</div>
+            <div className="grid flex-1 place-items-center text-sm text-bind/55">{t("加载乐谱…")}</div>
           ) : (
+            <div ref={viewerRef} className="contents">
             <ScoreViewer
               key={`${assetPath}-${loadKey}`}
               data={asset.data}
@@ -627,9 +795,15 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                 },
                 onPlayerState: setPlaying,
                 onPosition: (currentTimeMs, endTimeMs) => setPosition({ currentTimeMs, endTimeMs }),
-                onFinished: () => setPlaying(false),
+                onFinished: () => {
+                  setPlaying(false);
+                  // 连播队列:歌单「连播」进入后,播完自动切下一首
+                  const next = useUi.getState().advancePlayQueue();
+                  if (next) openScore(next);
+                },
               }}
             />
+            </div>
           )
         ) : (
           <div className="grid flex-1 place-items-center bg-paper-dim/40 px-6 text-center">
@@ -648,7 +822,9 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                   </g>
                   <rect x="46" y="25" width={`${Math.max(8, Math.min(58, ((runningJob?.progress ?? 0) / 100) * 58))}`} height="9" rx="2" fill="#2a5580" />
                 </svg>
-                <div className="mt-3 text-sm">正在识别，进度 {runningJob?.progress ?? 0}%</div>
+                <div className="mt-3 text-sm">
+                  {t("正在识别，进度 {p}%", { p: runningJob?.progress ?? 0 })}
+                </div>
                 <div className="mt-1 max-w-md truncate select-text text-xs text-bind/55">
                   {runningJob?.message ?? "…"}
                 </div>
@@ -660,7 +836,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                   }}
                   className="mt-4 rounded-lg border border-hair-strong px-3 py-1.5 text-sm text-bind/80 hover:bg-paper-dim"
                 >
-                  取消识别
+                  {t("取消识别")}
                 </button>
               </div>
             ) : (
@@ -676,15 +852,15 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                 </svg>
                 <div className="mx-auto mt-3 max-w-md select-text text-sm">
                   {s?.status === "failed"
-                    ? `识别失败：${s.errorMessage ?? "未知错误"}`
-                    : "这份谱还没有识别，点击上方「开始识别」"}
+                    ? t("识别失败：{e}", { e: s.errorMessage ?? t("未知错误") })
+                    : t("这份谱还没有识别，点击上方「开始识别」")}
                 </div>
                 {canRecognize && (
                   <button
                     onClick={() => recognize.mutate()}
                     className="mt-4 rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-paper hover:bg-ink-bright"
                   >
-                    开始识别
+                    {t("开始识别")}
                   </button>
                 )}
                 {originalUrl && s?.sourceType !== "pdf" && (
@@ -712,7 +888,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                 schedulePractice({ scale: atApi.settings.display.scale });
               }}
               disabled={scaleValue <= 0.51}
-              aria-label="缩小"
+              aria-label={t("缩小")}
               className="px-2 py-1 text-sm text-bind/70 hover:text-ink disabled:opacity-40"
             >
               −
@@ -730,7 +906,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                 schedulePractice({ scale: atApi.settings.display.scale });
               }}
               disabled={scaleValue >= 2.49}
-              aria-label="放大"
+              aria-label={t("放大")}
               className="px-2 py-1 text-sm text-bind/70 hover:text-ink disabled:opacity-40"
             >
               ＋
@@ -746,17 +922,17 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                 setLayout(next === LayoutMode.Horizontal ? "horizontal" : "page");
                 schedulePractice({ layout: next === LayoutMode.Horizontal ? "horizontal" : "page" });
               }}
-              aria-label="切换滚动方向"
-              title="切换滚动方向"
+              aria-label={t("切换滚动方向")}
+              title={t("切换滚动方向")}
               className="flex items-center gap-1 px-2 py-1 text-xs text-bind/70 hover:text-ink"
             >
               {layout === "page" ? (
                 <>
-                  <IconLayoutHorizontal size={12} /> 横向
+                  <IconLayoutHorizontal size={12} /> {t("横向")}
                 </>
               ) : (
                 <>
-                  <IconLayoutPage size={12} /> 分页
+                  <IconLayoutPage size={12} /> {t("分页")}
                 </>
               )}
             </button>
@@ -779,24 +955,27 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
         {showOriginal && originalUrl && (
           <div className="max-h-[40%] shrink-0 overflow-auto border-t border-hair bg-paper-dim/70 p-3">
             <div className="mb-1 flex items-center gap-2 text-xs text-bind/60">
-              <span>原图对照</span>
+              <span>{t("原图对照")}</span>
               {pages.length > 1 && (
                 <span className="flex items-center gap-1">
                   <button
                     onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
                     disabled={pageIndex === 0}
-                    aria-label="上一页"
+                    aria-label={t("上一页")}
                     className="rounded border border-hair-strong px-1.5 py-0.5 disabled:opacity-40"
                   >
                     <IconCaretLeft size={11} />
                   </button>
                   <span>
-                    第 {Math.min(pageIndex, pages.length - 1) + 1} / {pages.length} 页
+                    {t("第 {a} / {b} 页", {
+                      a: Math.min(pageIndex, pages.length - 1) + 1,
+                      b: pages.length,
+                    })}
                   </span>
                   <button
                     onClick={() => setPageIndex((p) => Math.min(pages.length - 1, p + 1))}
                     disabled={pageIndex >= pages.length - 1}
-                    aria-label="下一页"
+                    aria-label={t("下一页")}
                     className="rounded border border-hair-strong px-1.5 py-0.5 disabled:opacity-40"
                   >
                     <IconCaretRight size={11} />
@@ -838,6 +1017,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
       {isPlayable && asset.data && practice.isSuccess && (
         <PlayerBar
           api={atApi}
+          scoreId={scoreId}
           playing={playing}
           currentTimeMs={position.currentTimeMs}
           endTimeMs={position.endTimeMs}
@@ -845,6 +1025,9 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
           initialSpeed={practice.data?.speed}
           initialVolume={practice.data?.volume}
           initialLoop={practice.data?.loopEnabled}
+          initialMetronome={practice.data?.metronomeEnabled}
+          initialMetronomeVolume={practice.data?.metronomeVolume}
+          initialCountIn={practice.data?.countInEnabled}
           initialAB={
             practice.data?.abStart != null && practice.data?.abEnd != null
               ? { startTick: practice.data.abStart, endTick: practice.data.abEnd }
@@ -872,7 +1055,9 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
             className="anim-pop-in flex h-[88%] w-[1100px] max-w-[96%] flex-col rounded-xl border border-hair bg-paper-bright p-4 shadow-xl"
           >
             <div className="flex items-center justify-between">
-              <div className="font-disp text-base font-bold text-bind">校对编辑器 — 原图对照 · alphaTex</div>
+              <div className="font-disp text-base font-bold text-bind">
+                {t("校对编辑器 — 原图对照 · alphaTex")}
+              </div>
               <div className="flex items-center gap-3">
                 <label className="flex cursor-pointer items-center gap-1 text-xs text-bind/60">
                   <input
@@ -881,11 +1066,11 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                     onChange={(e) => setAtxSync(e.target.checked)}
                     className="h-3.5 w-3.5 accent-ink"
                   />
-                  滚动同步
+                  {t("滚动同步")}
                 </label>
                 <button
                   onClick={closeAtxEditor}
-                  aria-label="关闭校对编辑器"
+                  aria-label={t("关闭校对编辑器")}
                   className="text-bind/40 transition hover:text-bind"
                 >
                   <IconClose size={13} />
@@ -897,7 +1082,10 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
               {/* 左：原图对照 */}
               <div className="flex w-1/2 min-w-0 flex-col rounded-lg border border-hair bg-paper-dim/50">
                 <div className="flex items-center justify-between border-b border-hair px-2 py-1.5 text-xs text-bind/60">
-                  <span>原始扫描图</span>
+                  <span title={t("点击谱面自动定位小节")}>
+                    {t("原始扫描图")}
+                    {atxAnalyzing ? t(" · 分析中…") : t(" · 点击可定位小节")}
+                  </span>
                   <span className="flex items-center gap-2">
                     {editorPages.length > 1 && (
                       <span className="flex items-center gap-1">
@@ -939,10 +1127,14 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                     <img
                       src={atxImageUrl}
                       alt="原图"
-                      className={`mx-auto w-full ${invertScan ? "scan-invert" : ""}`}
+                      className={`mx-auto w-full cursor-crosshair ${invertScan ? "scan-invert" : ""}`}
+                      title="点击谱面定位小节"
+                      onClick={(e) => estimateBarFromClick(e)}
                     />
                   ) : (
-                    <div className="grid h-full place-items-center text-xs text-bind/55">无原图</div>
+                    <div className="grid h-full place-items-center text-xs text-bind/55">
+                      {t("无原图")}
+                    </div>
                   )}
                 </div>
               </div>
@@ -951,9 +1143,11 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
               <div className="flex w-1/2 min-w-0 flex-col rounded-lg border border-hair">
                 <div className="flex items-center justify-between border-b border-hair px-2 py-1.5 text-xs text-bind/60">
                   <span>
-                    alphaTex · 共 {atxBarCount} 小节
+                    {t("alphaTex · 共 {n} 小节", { n: atxBarCount })}
                     {atxCaretBar > 0 && (
-                      <span className="ml-2 font-semibold text-ink">光标在第 {atxCaretBar} 小节</span>
+                      <span className="ml-2 font-semibold text-ink">
+                        {t("光标在第 {n} 小节", { n: atxCaretBar })}
+                      </span>
                     )}
                   </span>
                   <span className="flex items-center gap-1">
@@ -963,15 +1157,15 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                       onKeyDown={(e) => {
                         if (e.key === "Enter") goToBar(Number(atxJumpTo));
                       }}
-                      placeholder="小节"
-                      aria-label="跳转到小节"
+                      placeholder={t("小节")}
+                      aria-label={t("跳转到小节")}
                       className="w-14 rounded border border-hair-strong bg-paper-bright px-1.5 py-0.5 text-right text-bind"
                     />
                     <button
                       onClick={() => goToBar(Number(atxJumpTo))}
                       className="rounded border border-hair-strong px-1.5 py-0.5 hover:bg-paper-dim"
                     >
-                      跳转
+                      {t("跳转")}
                     </button>
                   </span>
                 </div>
@@ -998,14 +1192,14 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
             {atxMsg && <div className="mt-1 text-xs text-spot-ok">{atxMsg}</div>}
             <div className="mt-2 flex items-center justify-between gap-2">
               <span className="text-xs text-spot-wait">
-                {atxDirty ? "有未保存的修改" : ""}
+                {atxDirty ? t("有未保存的修改") : ""}
               </span>
               <div className="flex justify-end gap-2">
                 <button
                   onClick={closeAtxEditor}
                   className="rounded-lg border border-hair-strong px-4 py-1.5 text-sm text-bind/80 hover:bg-paper-dim"
                 >
-                  取消
+                  {t("取消")}
                 </button>
               <button
                 onClick={async () => {
@@ -1021,7 +1215,7 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
                 }}
                 className="rounded-lg bg-ink px-4 py-1.5 text-sm font-semibold text-paper hover:bg-ink-bright"
               >
-                保存并刷新
+                {t("保存并刷新")}
               </button>
               </div>
             </div>
@@ -1039,10 +1233,10 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <div className="font-disp text-base font-bold text-bind">识别引擎日志</div>
+              <div className="font-disp text-base font-bold text-bind">{t("识别引擎日志")}</div>
               <button
                 onClick={() => setShowLog(false)}
-                aria-label="关闭日志"
+                aria-label={t("关闭日志")}
                 className="text-bind/40 transition hover:text-bind"
               >
                 <IconClose size={13} />
@@ -1059,9 +1253,11 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
       {/* 删除确认（window.confirm 在 wry 中不可用） */}
       <ConfirmDialog
         open={confirmingDelete}
-        title="删除曲谱"
-        message={`将永久删除「${s?.title ?? ""}」及其全部文件。删除后 30 秒内可在曲库撤销。`}
-        confirmLabel="删除"
+        title={t("删除曲谱")}
+        message={t("将永久删除「{t}」及其全部文件。删除后 30 秒内可在曲库撤销。", {
+          t: s?.title ?? "",
+        })}
+        confirmLabel={t("删除")}
         onConfirm={() => {
           setConfirmingDelete(false);
           if (!s) return;
@@ -1074,9 +1270,9 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
       {/* 重新识别守卫：覆盖已校对谱文前先确认 */}
       <ConfirmDialog
         open={confirmingRerecognize}
-        title="重新识别"
-        message="当前谱文包含已保存的校对内容，重新识别将用新的识别结果覆盖它。原扫描图保留。"
-        confirmLabel="覆盖并重识"
+        title={t("重新识别")}
+        message={t("当前谱文包含已保存的校对内容，重新识别将用新的识别结果覆盖它。原扫描图保留。")}
+        confirmLabel={t("覆盖并重识")}
         onConfirm={() => {
           setConfirmingRerecognize(false);
           recognize.mutate();
@@ -1087,9 +1283,9 @@ export default function ScoreDetailPage({ scoreId }: { scoreId: string }) {
       {/* 编辑器脏草稿守卫 */}
       <ConfirmDialog
         open={confirmDiscardAtx}
-        title="放弃未保存的修改？"
-        message="校对编辑器的修改尚未保存，关闭后将丢失。"
-        confirmLabel="放弃修改"
+        title={t("放弃未保存的修改？")}
+        message={t("校对编辑器的修改尚未保存，关闭后将丢失。")}
+        confirmLabel={t("放弃修改")}
         onConfirm={() => {
           setConfirmDiscardAtx(false);
           setShowAtxEditor(false);
@@ -1106,13 +1302,14 @@ function OverflowMenu({
 }: {
   items: { label: string; danger?: boolean; onClick: () => void }[];
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   useDismissOnEsc(open, () => setOpen(false));
   return (
     <div className="relative shrink-0">
       <button
         onClick={() => setOpen((v) => !v)}
-        aria-label="更多操作"
+        aria-label={t("更多操作")}
         aria-expanded={open}
         aria-haspopup="menu"
         className={`grid h-8 w-8 place-items-center rounded-lg border ${
@@ -1128,7 +1325,7 @@ function OverflowMenu({
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
           <div
             role="menu"
-            aria-label="更多操作"
+            aria-label={t("更多操作")}
             className="anim-pop-in absolute right-0 top-full z-20 mt-1 w-44 rounded-lg border border-hair bg-paper-bright py-1 shadow-lg"
           >
             {items.map((it) => (
@@ -1163,6 +1360,7 @@ function OriginalMenu({
   onToggle: () => void;
   onOpenExternal: () => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   useDismissOnEsc(open, () => setOpen(false));
   const tone = active
@@ -1172,14 +1370,14 @@ function OriginalMenu({
     <div className="relative flex shrink-0">
       <button
         onClick={onToggle}
-        title={active ? "隐藏原图对照" : "对照原图"}
+        title={active ? t("隐藏原图对照") : t("对照原图")}
         className={`whitespace-nowrap rounded-l-lg border border-r-0 px-2.5 py-1.5 text-sm ${tone}`}
       >
-        原图
+        {t("原图")}
       </button>
       <button
         onClick={() => setOpen((v) => !v)}
-        aria-label="原图选项"
+        aria-label={t("原图选项")}
         aria-expanded={open}
         aria-haspopup="menu"
         className={`grid w-6 place-items-center rounded-r-lg border ${tone}`}
@@ -1191,7 +1389,7 @@ function OriginalMenu({
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
           <div
             role="menu"
-            aria-label="原图选项"
+            aria-label={t("原图选项")}
             className="anim-pop-in absolute right-0 top-full z-20 mt-1 w-48 rounded-lg border border-hair bg-paper-bright py-1 shadow-lg"
           >
             <button
@@ -1202,7 +1400,7 @@ function OriginalMenu({
               }}
               className="block w-full px-3 py-1.5 text-left text-sm text-bind/85 hover:bg-paper-dim"
             >
-              {active ? "收起对照" : "对照原图"}
+              {active ? t("收起对照") : t("对照原图")}
             </button>
             <button
               role="menuitem"
@@ -1210,10 +1408,10 @@ function OriginalMenu({
                 setOpen(false);
                 onOpenExternal();
               }}
-              title="用系统默认程序打开扫描件，可自由缩放、翻页、打印"
+              title={t("用系统默认程序打开扫描件，可自由缩放、翻页、打印")}
               className="block w-full px-3 py-1.5 text-left text-sm text-bind/85 hover:bg-paper-dim"
             >
-              新窗口打开原图
+              {t("新窗口打开原图")}
             </button>
           </div>
         </>
@@ -1224,6 +1422,7 @@ function OriginalMenu({
 
 /// 导出下拉菜单（收拢 MIDI / 乐谱文件两个入口）
 function ExportMenu({ onMidi, onSource }: { onMidi: () => void; onSource: () => void }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   useDismissOnEsc(open, () => setOpen(false));
   return (
@@ -1238,14 +1437,14 @@ function ExportMenu({ onMidi, onSource }: { onMidi: () => void; onSource: () => 
             : "border-hair-strong text-bind/80 hover:bg-paper-dim"
         }`}
       >
-        导出 <IconCaretDown size={11} />
+        {t("导出")} <IconCaretDown size={11} />
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
           <div
             role="menu"
-            aria-label="导出"
+            aria-label={t("导出")}
             className="anim-pop-in absolute right-0 top-full z-20 mt-1 w-44 rounded-lg border border-hair bg-paper-bright py-1 shadow-lg"
           >
             <button
@@ -1256,7 +1455,7 @@ function ExportMenu({ onMidi, onSource }: { onMidi: () => void; onSource: () => 
               }}
               className="block w-full px-3 py-1.5 text-left text-sm text-bind/85 hover:bg-paper-dim"
             >
-              导出 MIDI
+              {t("导出 MIDI")}
             </button>
             <button
               role="menuitem"
@@ -1266,7 +1465,7 @@ function ExportMenu({ onMidi, onSource }: { onMidi: () => void; onSource: () => 
               }}
               className="block w-full px-3 py-1.5 text-left text-sm text-bind/85 hover:bg-paper-dim"
             >
-              导出乐谱文件
+              {t("导出乐谱文件")}
             </button>
           </div>
         </>

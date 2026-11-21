@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <!-- 练习录音自听:用户跟着谱演奏并回放对比 -->
+    <key>NSMicrophoneUsageDescription</key>
+    <string>ScanScore 需要使用麦克风录制你的演奏,以便跟练后回放对比。</string>
+  </dict>
+</plist>

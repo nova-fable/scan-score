@@ -1,9 +1,11 @@
 import { useUi } from "../stores/ui";
+import { useT } from "../lib/i18n";
 import { IconClose } from "./icons";
 
 /// 全局底部 toast(墨绿油墨深条,纸上专色金动作);可携带「撤销」类动作。
 /// 悬停暂停计时、可手动关闭——长提示(撤销窗口)读不完就被清掉是纯损耗。
 export default function Toast() {
+  const t = useT();
   const toast = useUi((s) => s.toast);
   const pauseToast = useUi((s) => s.pauseToast);
   const resumeToast = useUi((s) => s.resumeToast);
@@ -29,7 +31,7 @@ export default function Toast() {
         )}
         <button
           onClick={dismissToast}
-          aria-label="关闭提示"
+          aria-label={t("关闭提示")}
           className="shrink-0 text-paper/50 hover:text-paper"
         >
           <IconClose size={12} />

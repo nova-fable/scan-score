@@ -93,6 +93,14 @@ export default function ScoreViewer({ data, night = false, loopActive = false, f
     const api = new AlphaTabApi(el, settings);
     apiRef.current = api;
 
+    // Shift + 滚轮 = 横向滚动(分页布局下翻列、横向布局下加速翻页;浏览器默认 shift+wheel 是横向,但容器未必接)
+    const onWheel = (e: WheelEvent) => {
+      if (!e.shiftKey) return;
+      e.preventDefault();
+      scroller.scrollLeft += e.deltaY;
+    };
+    scroller.addEventListener("wheel", onWheel, { passive: false });
+
     api.scoreLoaded.on((score) => {
       cbRef.current?.onScoreLoaded?.(
         score,
@@ -112,6 +120,7 @@ export default function ScoreViewer({ data, night = false, loopActive = false, f
     readyRef.current?.(api);
 
     return () => {
+      scroller.removeEventListener("wheel", onWheel);
       try {
         api.destroy();
       } catch {

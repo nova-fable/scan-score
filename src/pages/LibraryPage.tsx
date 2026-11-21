@@ -5,6 +5,7 @@ import { api, type Score } from "../lib/tauri";
 import { useUi } from "../stores/ui";
 import { useDialog } from "../lib/useDialog";
 import ConfirmDialog from "../components/ConfirmDialog";
+import { useT } from "../lib/i18n";
 import { IconCheck } from "../components/icons";
 
 const STATUS_LABEL: Record<Score["status"], string> = {
@@ -79,12 +80,34 @@ function ScoreCard({
   onOpen: () => void;
   onRequestDelete: () => void;
 }) {
+  const t = useT();
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  // 封面惰性加载:卡片进入视口附近才读封面资产(大曲库不再一次性发几十个读文件请求)
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const [nearView, setNearView] = useState(false);
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") {
+      setNearView(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((en) => en.isIntersecting)) {
+          setNearView(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: "300px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
 
   useEffect(() => {
     let url: string | null = null;
-    if (score.coverPath) {
+    if (nearView && score.coverPath) {
       api
         .readScoreAsset(score.coverPath)
         .then((bytes) => {
@@ -96,7 +119,7 @@ function ScoreCard({
     return () => {
       if (url) URL.revokeObjectURL(url);
     };
-  }, [score.coverPath]);
+  }, [score.coverPath, nearView]);
 
   const canRecognize =
     (score.sourceType === "pdf" || score.sourceType === "png" || score.sourceType === "jpg") &&
@@ -118,6 +141,7 @@ function ScoreCard({
 
   return (
     <div
+      ref={cardRef}
       className={`book-card group relative flex flex-col rounded-lg p-4 transition-[transform,box-shadow] duration-200 ${
         paper ? "paper-card" : ""
       }`}
@@ -128,7 +152,9 @@ function ScoreCard({
           e.stopPropagation();
           onToggleCheck(e.shiftKey);
         }}
-        aria-label={checked ? `取消选择 ${score.title}` : `选择 ${score.title}`}
+        aria-label={checked
+          ? t("取消选择 {t}", { t: score.title })
+          : t("选择 {t}", { t: score.title })}
         className={`absolute left-2.5 top-2.5 z-10 grid h-6 w-6 place-items-center rounded-md border ${
           checked
             ? "border-paper bg-paper text-ink"
@@ -142,8 +168,8 @@ function ScoreCard({
         className={`absolute right-3 top-3 z-10 -rotate-2 rounded-full px-2.5 py-0.5 text-[11px] font-bold tracking-wide ${STATUS_BADGE[score.status]}`}
       >
         {score.status === "processing" && progress !== null
-          ? `识别中 ${progress}%`
-          : STATUS_LABEL[score.status]}
+          ? `${t("识别中")} ${progress}%`
+          : t(STATUS_LABEL[score.status])}
       </span>
       <button onClick={onOpen} className="block w-full text-left">
         {coverUrl ? (
@@ -190,7 +216,7 @@ function ScoreCard({
             onClick={() => recognize.mutate()}
             className="rounded-md bg-paper-bright/95 px-2 py-1 text-xs font-semibold text-ink shadow-sm hover:bg-paper-dim"
           >
-            识别
+            {t("识别")}
           </button>
         )}
         <button
@@ -208,6 +234,7 @@ function ScoreCard({
 }
 
 export default function LibraryPage() {
+  const t = useT();
   const openScore = useUi((s) => s.openScore);
   const showToast = useUi((s) => s.showToast);
   const pendingDeleteIds = useUi((s) => s.pendingDeleteIds);
@@ -216,6 +243,7 @@ export default function LibraryPage() {
   const [search, setSearch] = useState("");
   const [instrument, setInstrument] = useState("");
   const [status, setStatus] = useState("");
+  const [tag, setTag] = useState("");
   const [sort, setSort] = useState<"default" | "title">("default");
   const queryClient = useQueryClient();
   const searchRef = useRef<HTMLInputElement>(null);
@@ -250,17 +278,24 @@ export default function LibraryPage() {
   }, []);
 
   const scores = useQuery({
-    queryKey: ["scores", search, instrument, status],
+    queryKey: ["scores", search, instrument, status, tag],
     queryFn: () =>
       api.listScores({
         query: search || undefined,
         instrument: instrument || undefined,
         status: status || undefined,
+        tag: tag || undefined,
       }),
   });
 
+
   // 识别队列状态(用于角标展示)——仅在曲库中有识别任务进行中时轮询
   const scoresList = useMemo(() => scores.data ?? [], [scores.data]);
+  // 全库去重后的标签清单(筛选下拉用)
+  const allTags = useMemo(
+    () => [...new Set(scoresList.flatMap((s) => s.tags ?? []))].sort((a, b) => a.localeCompare(b, "zh-Hans-CN")),
+    [scoresList],
+  );
   const hasProcessing = scoresList.some((s) => s.status === "processing");
   const allJobs = useQuery({
     queryKey: ["jobs", "queue"],
@@ -328,18 +363,27 @@ export default function LibraryPage() {
       queryClient.invalidateQueries({ queryKey: ["scores"] });
       if (res) {
         const skippedNote = res.skipped.length
-          ? `，跳过 ${res.skipped.length} 个：${res.skipped
-              .slice(0, 3)
-              .map((p) => p.split("/").pop())
-              .join("、")}${res.skipped.length > 3 ? " 等" : ""}`
+          ? t("，跳过 {n} 个：{names}{more}", {
+              n: res.skipped.length,
+              names: res.skipped
+                .slice(0, 3)
+                .map((p) => p.split("/").pop())
+                .join("、"),
+              more: res.skipped.length > 3 ? t("等") : "",
+            })
           : "";
         showToast(
-          { message: `已导入 ${res.imported.length} 个文件${skippedNote}` },
+          {
+            message: t("已导入 {n} 个文件{skip}", {
+              n: res.imported.length,
+              skip: skippedNote,
+            }),
+          },
           res.skipped.length ? 8000 : 4000,
         );
       }
     },
-    onError: (e) => showToast({ message: `导入失败：${String(e)}` }, 6000),
+    onError: (e) => showToast({ message: t("导入失败：{e}", { e: String(e) }) }, 6000),
   });
 
   const doImportMerged = useMutation({
@@ -347,10 +391,46 @@ export default function LibraryPage() {
     onSuccess: () => {
       setFolderFiles(null);
       queryClient.invalidateQueries({ queryKey: ["scores"] });
-      showToast({ message: "已合并导入为一首曲子（待识别）" });
+      showToast({ message: t("已合并导入为一首曲子（待识别）") });
     },
-    onError: (e) => showToast({ message: `合并导入失败：${String(e)}` }, 6000),
+    onError: (e) => showToast({ message: t("合并导入失败：{e}", { e: String(e) }) }, 6000),
   });
+
+  // 粘贴导入:截图/复制图片后 Cmd/Ctrl+V 直接进曲库(Rust 侧 arboard 读剪贴板,走标准导入管线)
+  const doPasteImport = useMutation({
+    mutationFn: () => api.importClipboardImage(),
+    onSuccess: (score) => {
+      if (!score) {
+        showToast({ message: t("剪贴板里没有图片") });
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: ["scores"] });
+      showToast({
+        message: t("已导入剪贴板图片「{t}」（待识别）", { t: score.title }),
+      });
+    },
+    onError: (e) => showToast({ message: String(e) }, 6000),
+  });
+  const pasteImportRef = useRef(doPasteImport);
+  pasteImportRef.current = doPasteImport;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "v") return;
+      const t = e.target as HTMLElement | null;
+      if (
+        t &&
+        (t instanceof HTMLInputElement ||
+          t instanceof HTMLTextAreaElement ||
+          t.isContentEditable)
+      ) {
+        return;
+      }
+      e.preventDefault();
+      pasteImportRef.current.mutate();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
   // 拖拽导入（非 Tauri 环境下不可用，静默降级）
   useEffect(() => {
@@ -406,7 +486,7 @@ export default function LibraryPage() {
     }
     return visibleScores;
   }, [visibleScores, sort]);
-  const hasFilter = !!(search || instrument || status);
+  const hasFilter = !!(search || instrument || status || tag);
   const isBatchMode = selected.size > 0;
   // 首次空库时，空态里的「导入乐谱」是唯一主按钮，头部入口让位隐藏
   const isEmptyLibrary = !scores.isLoading && scoresList.length === 0 && !hasFilter;
@@ -418,7 +498,9 @@ export default function LibraryPage() {
         <div className="flex items-baseline gap-2">
           <span className="font-disp text-xl font-black text-bind">曲库</span>
           <span className="text-xs text-bind/55">
-            {hasFilter ? `${sortedScores.length} / ${scoresList.length} 册` : `共 ${scoresList.length} 册`}
+            {hasFilter
+              ? t("{a} / {b} 册", { a: sortedScores.length, b: scoresList.length })
+              : t("共 {n} 册", { n: scoresList.length })}
           </span>
         </div>
         {/* 筛选簇 */}
@@ -435,8 +517,8 @@ export default function LibraryPage() {
                 e.currentTarget.blur();
               }
             }}
-            placeholder="搜索标题 / 作曲者…"
-            aria-label="搜索标题或作曲者"
+            placeholder={t("搜索标题 / 作曲者…")}
+            aria-label={t("搜索标题或作曲者")}
             className="w-56 rounded-lg border border-hair-strong bg-paper-bright px-3 py-1.5 text-sm text-bind outline-none placeholder:text-bind/45 focus:border-ink"
           />
           <select
@@ -445,10 +527,10 @@ export default function LibraryPage() {
             aria-label="按乐器筛选"
             className="rounded-lg border border-hair-strong bg-paper-bright px-2 py-1.5 text-sm text-bind outline-none focus:border-ink"
           >
-            <option value="">全部乐器</option>
-            <option value="piano">钢琴</option>
-            <option value="guitar">吉他</option>
-            <option value="other">其他</option>
+            <option value="">{t("全部乐器")}</option>
+            <option value="piano">{t("钢琴")}</option>
+            <option value="guitar">{t("吉他")}</option>
+            <option value="other">{t("其他")}</option>
           </select>
           <select
             value={status}
@@ -463,19 +545,32 @@ export default function LibraryPage() {
             ))}
           </select>
           <select
+            value={tag}
+            onChange={(e) => setTag(e.target.value)}
+            aria-label="按标签筛选"
+            className="rounded-lg border border-hair-strong bg-paper-bright px-2 py-1.5 text-sm text-bind outline-none focus:border-ink"
+          >
+            <option value="">全部标签</option>
+            {allTags.map((t) => (
+              <option key={t} value={t}>
+                #{t}
+              </option>
+            ))}
+          </select>
+          <select
             value={sort}
             onChange={(e) => setSort(e.target.value as "default" | "title")}
             aria-label="排序方式"
             className="rounded-lg border border-hair-strong bg-paper-bright px-2 py-1.5 text-sm text-bind outline-none focus:border-ink"
           >
-            <option value="default">排序：添加顺序</option>
-            <option value="title">排序：标题</option>
+            <option value="default">{t("排序：添加顺序")}</option>
+            <option value="title">{t("排序：标题")}</option>
           </select>
         </div>
         <div className="flex-1" />
         {queuedCount > 0 && (
           <span className="rounded-full bg-spot-run/15 px-2.5 py-1 text-xs font-semibold text-spot-run">
-            队列 {queuedCount}
+            {t("队列 {n}", { n: queuedCount })}
           </span>
         )}
         {/* 批量簇：独立容器，与相邻簇保持 16px */}
@@ -485,31 +580,31 @@ export default function LibraryPage() {
             role="group"
             aria-label="批量操作"
           >
-            <span className="ml-1.5 text-xs text-bind/60">已选 {selected.size}</span>
+            <span className="ml-1.5 text-xs text-bind/60">{t("已选 {n}", { n: selected.size })}</span>
             <button
               onClick={() => setSelected(new Set(sortedScores.map((s) => s.id)))}
               className="whitespace-nowrap rounded-md px-2 py-1 text-xs text-bind/70 hover:bg-paper-dim"
             >
-              全选
+              {t("全选")}
             </button>
             <button
               onClick={() => batchRecognize.mutate()}
               disabled={batchRecognize.isPending}
               className="whitespace-nowrap rounded-md bg-ink px-3 py-1 text-sm font-semibold text-paper hover:bg-ink-bright disabled:opacity-50"
             >
-              识别所选
+              {t("识别所选")}
             </button>
             <button
               onClick={() => setConfirmState({ kind: "batch", ids: [...selected] })}
               className="whitespace-nowrap rounded-md border border-spot-fail/40 px-3 py-1 text-sm text-spot-fail hover:bg-spot-fail/10"
             >
-              删除所选
+              {t("删除所选")}
             </button>
             <button
               onClick={() => setSelected(new Set())}
               className="whitespace-nowrap rounded-md px-3 py-1 text-sm text-bind/70 hover:bg-paper-dim"
             >
-              取消
+              {t("取消")}
             </button>
           </div>
         )}
@@ -517,12 +612,19 @@ export default function LibraryPage() {
         {!isEmptyLibrary && (
           <div className="flex items-center gap-2">
             <button
+              onClick={() => pasteImportRef.current.mutate()}
+              className="whitespace-nowrap rounded-lg border border-hair-strong px-3 py-1.5 text-sm text-bind/80 hover:bg-paper-dim"
+              title={t("把剪贴板里的截图 / 图片直接导入（⌘V）")}
+            >
+              {t("粘贴导入")}
+            </button>
+            <button
               onClick={async () => {
                 const folder = await api.pickImportFolder();
                 if (!folder) return;
                 const files = await api.listFolderScores(folder);
                 if (!files.length) {
-                  showToast({ message: "文件夹里没有找到乐谱图片 / PDF" });
+                  showToast({ message: t("文件夹里没有找到乐谱图片 / PDF") });
                   return;
                 }
                 setMergeChecked(files.length > 1);
@@ -534,7 +636,7 @@ export default function LibraryPage() {
                   : "border-ink/35 text-ink hover:bg-paper-dim"
               }`}
             >
-              导入文件夹
+              {t("导入文件夹")}
             </button>
             <button
               onClick={pickAndImport}
@@ -544,7 +646,7 @@ export default function LibraryPage() {
                   : "bg-ink text-paper shadow-sm hover:bg-ink-bright"
               }`}
             >
-              导入乐谱
+              {t("导入乐谱")}
             </button>
           </div>
         )}
@@ -552,7 +654,7 @@ export default function LibraryPage() {
 
       <div className="flex-1 overflow-auto p-5">
         {scores.isLoading ? (
-          <div className="grid h-full place-items-center text-sm text-bind/55">加载中…</div>
+          <div className="grid h-full place-items-center text-sm text-bind/55">{t("加载中…")}</div>
         ) : visibleScores.length === 0 && scoresList.length === 0 && !hasFilter ? (
           <div className="grid h-full place-items-center">
             <div className="text-center">
@@ -579,15 +681,15 @@ export default function LibraryPage() {
                   fill="none"
                 />
               </svg>
-              <div className="mt-4 text-sm text-bind/70">谱架还是空的</div>
+              <div className="mt-4 text-sm text-bind/70">{t("谱架还是空的")}</div>
               <div className="mt-1 text-xs text-bind/55">
-                把 PDF / PNG / MusicXML / Guitar Pro 文件拖进来，或
+                {t("把 PDF / PNG / MusicXML / Guitar Pro 文件拖进来、⌘V 粘贴截图，或")}
               </div>
               <button
                 onClick={pickAndImport}
                 className="mt-3 rounded-lg bg-ink px-4 py-1.5 text-sm font-semibold text-paper shadow-sm hover:bg-ink-bright"
               >
-                导入乐谱
+                {t("导入乐谱")}
               </button>
             </div>
           </div>
@@ -607,17 +709,18 @@ export default function LibraryPage() {
                 </g>
                 <rect x="62" y="31" width="26" height="9" rx="2" fill="#1e4636" />
               </svg>
-              <div className="mt-3 text-sm">没有匹配的曲谱</div>
+              <div className="mt-3 text-sm">{t("没有匹配的曲谱")}</div>
               <button
                 onClick={() => {
                   setSearchInput("");
                   setSearch("");
                   setInstrument("");
                   setStatus("");
+                  setTag("");
                 }}
                 className="mt-3 rounded-lg border border-hair-strong px-3 py-1.5 text-sm text-bind/80 hover:bg-paper-dim"
               >
-                清除筛选
+                {t("清除筛选")}
               </button>
             </div>
           </div>
@@ -655,8 +758,10 @@ export default function LibraryPage() {
             aria-label="导入文件夹"
             className="anim-pop-in w-[420px] rounded-xl border border-hair bg-paper-bright p-5 shadow-xl"
           >
-            <div className="text-sm font-semibold text-bind">导入文件夹</div>
-            <div className="mt-1 text-xs text-bind/60">检测到 {folderFiles.length} 个乐谱文件</div>
+            <div className="text-sm font-semibold text-bind">{t("导入文件夹")}</div>
+            <div className="mt-1 text-xs text-bind/60">
+              {t("检测到 {n} 个乐谱文件", { n: folderFiles.length })}
+            </div>
             <div className="mt-3 max-h-40 overflow-auto rounded-lg border border-hair bg-paper-dim/60 p-2 text-xs text-bind/70">
               {folderFiles.map((f) => (
                 <div key={f} className="truncate py-0.5">
@@ -673,9 +778,9 @@ export default function LibraryPage() {
                   className="mt-0.5 h-4 w-4 accent-[#1e4636]"
                 />
                 <span>
-                  <span className="font-semibold text-bind">合并为一首曲子</span>
+                  <span className="font-semibold text-bind">{t("合并为一首曲子")}</span>
                   <span className="block text-xs text-bind/60">
-                    多张图片按文件名顺序拼接成连续谱面，一次识别（适合分页扫描的同一首）
+                    {t("多张图片按文件名顺序拼接成连续谱面，一次识别（适合分页扫描的同一首）")}
                   </span>
                 </span>
               </label>
@@ -686,7 +791,7 @@ export default function LibraryPage() {
                 disabled={doImportMerged.isPending}
                 className="rounded-lg border border-hair-strong px-4 py-1.5 text-sm text-bind/80 hover:bg-paper-dim disabled:opacity-50"
               >
-                取消
+                {t("取消")}
               </button>
               <button
                 onClick={() => {
@@ -700,7 +805,7 @@ export default function LibraryPage() {
                 disabled={doImportMerged.isPending}
                 className="rounded-lg bg-ink px-4 py-1.5 text-sm font-semibold text-paper hover:bg-ink-bright disabled:opacity-50"
               >
-                {doImportMerged.isPending ? "导入中…" : "导入"}
+                {doImportMerged.isPending ? t("导入中…") : t("导入")}
               </button>
             </div>
           </div>
@@ -710,13 +815,19 @@ export default function LibraryPage() {
       {/* 删除确认（单删 / 批删共用；window.confirm 在 wry 中不可用） */}
       <ConfirmDialog
         open={confirmState !== null}
-        title={confirmState?.kind === "batch" ? "删除所选曲谱" : "删除曲谱"}
+        title={
+          confirmState?.kind === "batch" ? t("删除所选曲谱") : t("删除曲谱")
+        }
         message={
           confirmState?.kind === "batch"
-            ? `将永久删除所选的 ${confirmState.ids.length} 个曲谱，文件将一并删除。删除后 30 秒内可撤销。`
-            : `将永久删除「${confirmState?.kind === "single" ? confirmState.score.title : ""}」，文件将一并删除。删除后 30 秒内可撤销。`
+            ? t("将永久删除所选的 {n} 个曲谱，文件将一并删除。删除后 30 秒内可撤销。", {
+                n: confirmState.ids.length,
+              })
+            : t("将永久删除「{t}」，文件将一并删除。删除后 30 秒内可撤销。", {
+                t: confirmState?.kind === "single" ? confirmState.score.title : "",
+              })
         }
-        confirmLabel="删除"
+        confirmLabel={t("删除")}
         busy={false}
         onConfirm={confirmDelete}
         onCancel={() => setConfirmState(null)}

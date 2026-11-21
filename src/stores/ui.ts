@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { QueryClient } from "@tanstack/react-query";
 import { api } from "../lib/tauri";
 
-export type View = "library" | "detail" | "settings";
+export type View = "library" | "detail" | "settings" | "playlists" | "stats";
 
 export interface ToastState {
   message: string;
@@ -18,9 +18,16 @@ interface UiState {
   pendingDeleteIds: string[];
   /// 删除正在落盘（此间撤销不可用）
   deletingNow: boolean;
+  /// 连播队列:歌单「连播」进入,详情页播完自动切下一首
+  playQueue: { ids: string[]; index: number } | null;
   openLibrary: () => void;
   openScore: (id: string) => void;
   openSettings: () => void;
+  openPlaylists: () => void;
+  openStats: () => void;
+  /// 连播推进:返回下一个 scoreId,队列走完返回 null 并清空
+  advancePlayQueue: () => string | null;
+  clearPlayQueue: () => void;
   showToast: (toast: ToastState, durationMs?: number) => void;
   dismissToast: () => void;
   pauseToast: () => void;
@@ -63,9 +70,24 @@ export const useUi = create<UiState>((set, get) => ({
   toast: null,
   pendingDeleteIds: [],
   deletingNow: false,
+  playQueue: null,
   openLibrary: () => set({ view: "library", scoreId: null }),
   openScore: (id) => set({ view: "detail", scoreId: id }),
   openSettings: () => set({ view: "settings" }),
+  openPlaylists: () => set({ view: "playlists", scoreId: null }),
+  openStats: () => set({ view: "stats", scoreId: null }),
+  advancePlayQueue: () => {
+    const q = get().playQueue;
+    if (!q) return null;
+    const nextIndex = q.index + 1;
+    if (nextIndex >= q.ids.length) {
+      set({ playQueue: null });
+      return null;
+    }
+    set({ playQueue: { ids: q.ids, index: nextIndex } });
+    return q.ids[nextIndex];
+  },
+  clearPlayQueue: () => set({ playQueue: null }),
   showToast: (toast, durationMs = 4000) => {
     if (toastTimer !== undefined) clearTimeout(toastTimer);
     set({ toast });
@@ -131,3 +153,4 @@ export const useUi = create<UiState>((set, get) => ({
     get().showToast({ message: "已撤销删除" }, 2000);
   },
 }));
+

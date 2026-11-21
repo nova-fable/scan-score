@@ -1,12 +1,18 @@
 import { useDialog } from "../lib/useDialog";
 import { IconClose } from "./icons";
+import { useT } from "../lib/i18n";
 
 const SHORTCUTS: { keys: string; desc: string }[] = [
   { keys: "空格", desc: "播放 / 暂停（曲谱详情页）" },
   { keys: "← / →", desc: "快退 / 快进 5 秒" },
+  { keys: "M", desc: "节拍器开 / 关（详情页）" },
+  { keys: "L", desc: "循环播放开 / 关（详情页）" },
+  { keys: "1-9", desc: "跳到第 n 小节（详情页）" },
+  { keys: "Shift + 滚轮", desc: "横向滚动谱面" },
   { keys: "Esc", desc: "关闭弹窗 · 退出编辑 · 逐层退出" },
   { keys: "Enter", desc: "保存元数据（编辑态）" },
   { keys: "⌘F / Ctrl+F", desc: "聚焦曲库搜索" },
+  { keys: "⌘V / Ctrl+V", desc: "粘贴剪贴板图片导入（曲库页）" },
   { keys: "Shift + 点击", desc: "范围多选曲谱" },
   { keys: "?", desc: "打开本说明" },
 ];
@@ -19,6 +25,7 @@ export default function ShortcutsDialog({
   open: boolean;
   onClose: () => void;
 }) {
+  const t = useT();
   const ref = useDialog(open, onClose);
   if (!open) return null;
   return (
@@ -35,7 +42,7 @@ export default function ShortcutsDialog({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <div className="font-disp text-base font-bold text-bind">快捷键</div>
+          <div className="font-disp text-base font-bold text-bind">{t("快捷键")}</div>
           <button
             onClick={onClose}
             aria-label="关闭快捷键说明"
@@ -53,7 +60,7 @@ export default function ShortcutsDialog({
                     {s.keys}
                   </kbd>
                 </td>
-                <td className="py-2 text-bind/80">{s.desc}</td>
+                <td className="py-2 text-bind/80">{t(s.desc)}</td>
               </tr>
             ))}
           </tbody>

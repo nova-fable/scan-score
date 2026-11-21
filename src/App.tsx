@@ -2,16 +2,25 @@ import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUi } from "./stores/ui";
 import { events } from "./lib/tauri";
+import { useT } from "./lib/i18n";
 import LibraryPage from "./pages/LibraryPage";
 import ScoreDetailPage from "./pages/ScoreDetailPage";
 import SettingsPage from "./pages/SettingsPage";
+import PlaylistsPage from "./pages/PlaylistsPage";
+import StatsPage from "./pages/StatsPage";
 import Toast from "./components/Toast";
 import ShortcutsDialog from "./components/ShortcutsDialog";
-
 /// 侧栏 = 书的封面:深墨绿油墨底、奶油字、烫金双细线。
 /// 主区 = 内页:奶油纸面,左缘一道书脊装订阴影。
 function Sidebar({ onOpenHelp }: { onOpenHelp: () => void }) {
-  const { view, openLibrary, openSettings } = useUi();
+  const { view, openLibrary, openSettings, openPlaylists, openStats } = useUi();
+  const t = useT();
+  const nav = [
+    { key: "library", label: t("曲库"), active: view === "library" || view === "detail", onClick: openLibrary },
+    { key: "playlists", label: t("歌单"), active: view === "playlists", onClick: openPlaylists },
+    { key: "stats", label: t("统计"), active: view === "stats", onClick: openStats },
+    { key: "settings", label: t("设置"), active: view === "settings", onClick: openSettings },
+  ];
   return (
     <aside className="on-ink flex w-56 shrink-0 flex-col bg-ink-deep px-5 pb-5 pt-7 text-paper">
       <div className="flex items-center gap-2.5">
@@ -21,43 +30,36 @@ function Sidebar({ onOpenHelp }: { onOpenHelp: () => void }) {
             ScanScore
           </div>
           <div className="mt-1.5 text-[10.5px] font-semibold tracking-[0.3em] text-ink-faint">
-            扫描 · 识别 · 播放
+            {t("扫描 · 识别 · 播放")}
           </div>
         </div>
       </div>
       <div className="mt-4 border-t-4 border-double border-gold/45" />
       <nav className="mt-6 flex flex-col gap-1.5">
-        <button
-          onClick={openLibrary}
-          className={`flex items-center justify-between rounded-lg px-3.5 py-2.5 text-left text-sm font-semibold ${
-            view !== "settings"
-              ? "bg-paper/15 text-paper shadow-[inset_3px_0_0_0_#f7f1de]"
-              : "text-ink-faint hover:bg-ink-bright"
-          }`}
-        >
-          曲库
-        </button>
-        <button
-          onClick={openSettings}
-          className={`flex items-center justify-between rounded-lg px-3.5 py-2.5 text-left text-sm font-semibold ${
-            view === "settings"
-              ? "bg-paper/15 text-paper shadow-[inset_3px_0_0_0_#f7f1de]"
-              : "text-ink-faint hover:bg-ink-bright"
-          }`}
-        >
-          设置
-        </button>
+        {nav.map((item) => (
+          <button
+            key={item.key}
+            onClick={item.onClick}
+            className={`flex items-center justify-between rounded-lg px-3.5 py-2.5 text-left text-sm font-semibold ${
+              item.active
+                ? "bg-paper/15 text-paper shadow-[inset_3px_0_0_0_#f7f1de]"
+                : "text-ink-faint hover:bg-ink-bright"
+            }`}
+          >
+            {item.label}
+          </button>
+        ))}
       </nav>
       <div className="mt-auto">
         <button
           onClick={onOpenHelp}
-          title="快捷键说明（按 ?）"
+          title={t("快捷键（?）")}
           className="text-xs text-ink-faint hover:text-gold"
         >
-          快捷键（<span className="text-gold">?</span>）
+          {t("快捷键")}（<span className="text-gold">?</span>）
         </button>
         <div className="mt-1.5 text-[10.5px] leading-relaxed text-ink-faint">
-          OMR: Audiveris · 渲染播放: alphaTab
+          {t("OMR: Audiveris · 渲染播放: alphaTab")}
         </div>
       </div>
     </aside>
@@ -66,6 +68,7 @@ function Sidebar({ onOpenHelp }: { onOpenHelp: () => void }) {
 
 export default function App() {
   const { view, scoreId } = useUi();
+
   const showToast = useUi((s) => s.showToast);
   const queryClient = useQueryClient();
   const [helpOpen, setHelpOpen] = useState(false);
@@ -112,12 +115,14 @@ export default function App() {
   }, []);
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full overflow-x-clip">
       <Sidebar onOpenHelp={() => setHelpOpen(true)} />
       <main className="flex min-w-0 flex-1 flex-col shadow-[inset_12px_0_16px_-12px_rgba(28,36,32,0.4)]">
         {view === "library" && <LibraryPage />}
         {view === "detail" && scoreId && <ScoreDetailPage key={scoreId} scoreId={scoreId} />}
         {view === "settings" && <SettingsPage />}
+        {view === "playlists" && <PlaylistsPage />}
+        {view === "stats" && <StatsPage />}
       </main>
       <Toast />
       <ShortcutsDialog open={helpOpen} onClose={() => setHelpOpen(false)} />

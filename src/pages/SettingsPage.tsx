@@ -5,6 +5,7 @@ import { api } from "../lib/tauri";
 import { useUi } from "../stores/ui";
 import { useDismissOnEsc } from "../lib/useDialog";
 import ConfirmDialog from "../components/ConfirmDialog";
+import { useLang, useT } from "../lib/i18n";
 import { IconCaretDown, IconCaretUp } from "../components/icons";
 
 const VLM_PROVIDERS = [
@@ -43,6 +44,9 @@ const secondaryBtnCls =
   "rounded-lg border border-hair-strong px-3 py-1.5 text-sm text-bind/80 hover:bg-paper-dim";
 
 export default function SettingsPage() {
+  const t = useT();
+  const lang = useLang((s) => s.lang);
+  const setLang = useLang((s) => s.setLang);
   const queryClient = useQueryClient();
   const showToast = useUi((s) => s.showToast);
   const info = useQuery({ queryKey: ["appInfo"], queryFn: () => api.getAppInfo() });
@@ -81,8 +85,9 @@ export default function SettingsPage() {
   }, [settings.data]);
 
   // 保存反馈走全局 Toast：条目可能远在视口外，页面顶部的内联提示看不见
-  const flashSaved = (msg = "已保存", ms = 2000) => {
-    showToast({ message: msg }, ms);
+  const flashSaved = (msg?: string, ms = 2000) => {
+    const text = msg ?? t("已保存");
+    showToast({ message: text }, ms);
   };
 
   const save = async (key: string, value: string) => {
@@ -100,34 +105,53 @@ export default function SettingsPage() {
         <div className="mt-3 border-t-4 border-double border-gold/45" />
 
         <div className="mt-2 grid">
+          <Row label={t("语言")} hint={t("UI 语言:跟随系统 / 中文 / English")}>
+            <select
+              value={lang}
+              onChange={(e) => {
+                const v = e.target.value as "zh" | "en";
+                setLang(v);
+                void api.setSetting("ui_lang", v);
+                flashSaved();
+              }}
+              className="rounded-lg border border-hair-strong bg-paper-bright px-3 py-1.5 text-sm text-bind outline-none focus:border-ink"
+              aria-label={t("语言")}
+            >
+              <option value="zh">{t("中文")}</option>
+              <option value="en">{t("English")}</option>
+            </select>
+          </Row>
+
           <Row
-            label="识别引擎 (Audiveris)"
-            hint="留空则自动探测：打包内置 → /Applications/Audiveris.app → 环境变量 AUDIVERIS_CMD。可指定启动器路径（如 /Applications/Audiveris.app/Contents/MacOS/Audiveris）。"
+            label={t("识别引擎 (Audiveris)")}
+            hint={t("留空则自动探测：打包内置 → /Applications/Audiveris.app → 环境变量 AUDIVERIS_CMD。可指定启动器路径（如 /Applications/Audiveris.app/Contents/MacOS/Audiveris）。")}
           >
             <div className="flex gap-2">
               <input
                 value={enginePath}
                 onChange={(e) => setEnginePath(e.target.value)}
-                placeholder="自动探测"
-                aria-label="Audiveris 启动器路径"
+                placeholder={t("自动探测")}
+                aria-label={t("Audiveris 启动器路径")}
                 className={`flex-1 ${inputCls}`}
               />
               <button onClick={() => save("engine_path", enginePath)} className={secondaryBtnCls}>
-                保存
+                {t("保存")}
               </button>
             </div>
             <div className="mt-2 text-xs">
-              当前状态：
+              {t("当前状态：")}
               {info.data ? (
                 info.data.engineFound ? (
-                  <span className="font-semibold text-spot-ok">已找到 ✓ {info.data.enginePath}</span>
+                  <span className="font-semibold text-spot-ok">
+                    {t("已找到 ✓ {p}", { p: info.data.enginePath ?? "" })}
+                  </span>
                 ) : (
                   <span className="font-semibold text-spot-fail">
-                    未找到 ✗（请安装 Audiveris 或填写路径）
+                    {t("未找到 ✗（请安装 Audiveris 或填写路径）")}
                   </span>
                 )
               ) : (
-                "检测中…"
+                t("检测中…")
               )}
             </div>
           </Row>
@@ -140,23 +164,28 @@ export default function SettingsPage() {
                 aria-expanded={vlmOpen}
                 className="flex min-w-0 items-center gap-2 text-left text-sm font-semibold text-bind"
               >
-                <span>AI 六线谱识别（实验性）</span>
+                <span>{t("AI 六线谱识别（实验性）")}</span>
                 <span className="shrink-0 text-xs font-normal text-bind/60">
-                  {info.data ? (info.data.vlmConfigured ? "· 已配置 ✓" : "· 未配置") : "· 检测中…"}
+                  {info.data
+                    ? info.data.vlmConfigured
+                      ? t("· 已配置 ✓")
+                      : t("· 未配置")
+                    : t("· 检测中…")}
                 </span>
               </button>
               <button
                 onClick={() => setVlmOpen((v) => !v)}
                 aria-expanded={vlmOpen}
-                aria-label={vlmOpen ? "收起 AI 六线谱识别设置" : "展开 AI 六线谱识别设置"}
+                aria-label={
+                  vlmOpen ? t("收起 AI 六线谱识别设置") : t("展开 AI 六线谱识别设置")
+                }
                 className="grid h-6 w-6 shrink-0 place-items-center rounded border border-hair-strong text-xs text-bind/60 hover:bg-paper-dim"
               >
                 {vlmOpen ? <IconCaretUp size={11} /> : <IconCaretDown size={11} />}
               </button>
             </div>
             <p className="mt-1 text-xs leading-5 text-bind/60">
-              开源 OMR 无法识别六线谱。配置视觉大模型后，检测到六线谱输入时自动改用 AI
-              转录（需联网，按调用量计费）。兼容 OpenAI chat/completions 协议。
+              {t("开源 OMR 无法识别六线谱。配置视觉大模型后，检测到六线谱输入时自动改用 AI 转录（需联网，按调用量计费）。兼容 OpenAI chat/completions 协议。")}
             </p>
             {vlmOpen && (
             <div className="mt-3 grid gap-2">
@@ -174,7 +203,7 @@ export default function SettingsPage() {
                 aria-label="选择服务商"
                 className={inputCls}
               >
-                <option value="">选择服务商（自动填接口地址）</option>
+                <option value="">{t("选择服务商（自动填接口地址）")}</option>
                 {VLM_PROVIDERS.map((p) => (
                   <option key={p.name} value={p.name}>
                     {p.name}
@@ -184,8 +213,8 @@ export default function SettingsPage() {
               <input
                 value={vlmBase}
                 onChange={(e) => setVlmBase(e.target.value)}
-                placeholder="接口地址 (API Base)"
-                aria-label="API 接口地址"
+                placeholder={t("接口地址 (API Base)")}
+                aria-label={t("接口地址 (API Base)")}
                 className={inputCls}
               />
               <div className="flex gap-2">
@@ -200,32 +229,32 @@ export default function SettingsPage() {
                 <ModelCombobox value={vlmModel} onChange={setVlmModel} options={vlmModels} />
                 <button
                   onClick={async () => {
-                    setVlmTest("获取模型列表中…");
+                    setVlmTest(t("获取模型列表中…"));
                     try {
                       const models = await api.fetchVlmModels(vlmBase, vlmKey);
                       setVlmModels(models);
-                      setVlmTest(`获取到 ${models.length} 个模型，点模型框右侧箭头选择`);
+                      setVlmTest(t("获取到 {n} 个模型，点模型框右侧箭头选择", { n: models.length }));
                     } catch (e) {
-                      setVlmTest(`该平台不支持列表接口（${String(e).slice(0, 80)}…），可手动输入模型名`);
+                      setVlmTest(t("该平台不支持列表接口（{e}…），可手动输入模型名", { e: String(e).slice(0, 80) }));
                     }
                   }}
                   className={`shrink-0 whitespace-nowrap ${secondaryBtnCls}`}
                 >
-                  获取模型列表
+                  {t("获取模型列表")}
                 </button>
               </div>
               <label className="flex items-center gap-2 text-xs text-bind/60">
-                推理模式
+                {t("推理模式")}
                 <select
                   value={vlmThinking}
                   onChange={(e) => setVlmThinking(e.target.value)}
                   aria-label="推理模式"
                   className="rounded border border-hair-strong bg-paper-bright px-2 py-1 text-bind"
                 >
-                  <option value="on">允许推理（更准，更慢更贵）</option>
-                  <option value="off">关闭推理（更快更省）</option>
+                  <option value="on">{t("允许推理（更准，更慢更贵）")}</option>
+                  <option value="off">{t("关闭推理（更快更省）")}</option>
                 </select>
-                <span className="text-bind/60">长输出预算已自动配置，无需手动调整</span>
+                <span className="text-bind/60">{t("长输出预算已自动配置，无需手动调整")}</span>
               </label>
               <div className="flex items-center gap-2">
                 <button
@@ -242,32 +271,32 @@ export default function SettingsPage() {
                   }}
                   className={secondaryBtnCls}
                 >
-                  保存
+                  {t("保存")}
                 </button>
                 <button
                   onClick={async () => {
-                    setVlmTest("测试中…");
+                    setVlmTest(t("测试中…"));
                     try {
                       const res = await api.testVlmConnection(vlmBase, vlmKey, vlmModel);
                       setVlmTest(res);
                     } catch (e) {
-                      setVlmTest(`失败：${String(e)}`);
+                      setVlmTest(t("失败：{e}", { e: String(e) }));
                     }
                   }}
                   className={secondaryBtnCls}
                 >
-                  测试连接
+                  {t("测试连接")}
                 </button>
                 {info.data?.vlmConfigured && !vlmKey.trim() && (
                   <button
                     onClick={async () => {
                       await api.setSetting("vlm_api_key", "");
                       queryClient.invalidateQueries({ queryKey: ["appInfo"] });
-                      flashSaved("已清除保存的 API Key");
+                      flashSaved(t("已清除保存的 API Key"));
                     }}
                     className="text-xs text-bind/60 underline hover:text-spot-fail"
                   >
-                    清除已保存的 Key
+                    {t("清除已保存的 Key")}
                   </button>
                 )}
               </div>
@@ -286,19 +315,19 @@ export default function SettingsPage() {
             )}
           </div>
 
-          <Row label="数据目录" hint="曲库数据库与乐谱文件存放位置">
+          <Row label={t("数据目录")} hint={t("曲库数据库与乐谱文件存放位置")}>
             <code className="block break-all rounded bg-paper-dim/70 px-2 py-1.5 text-xs text-bind/80">
               {info.data?.dataDir ?? "…"}
             </code>
           </Row>
 
           <Row
-            label="识别参数"
-            hint="低分辨率图片自动放大的目标宽度（谱线间距越大约识别越稳，默认 2400px）；Audiveris 附加命令行参数（留空即可）。"
+            label={t("识别参数")}
+            hint={t("低分辨率图片自动放大的目标宽度（谱线间距越大约识别越稳，默认 2400px）；Audiveris 附加命令行参数（留空即可）。")}
           >
             <div className="flex flex-wrap items-center gap-2">
               <label className="flex items-center gap-1 text-xs text-bind/60">
-                放大宽度
+                {t("放大宽度")}
                 <input
                   value={upscaleWidth}
                   onChange={(e) => setUpscaleWidth(e.target.value)}
@@ -308,7 +337,7 @@ export default function SettingsPage() {
                 />
               </label>
               <label className="flex min-w-0 flex-1 items-center gap-1 text-xs text-bind/60">
-                附加参数
+                {t("附加参数")}
                 <input
                   value={audiverisArgs}
                   onChange={(e) => setAudiverisArgs(e.target.value)}
@@ -325,36 +354,36 @@ export default function SettingsPage() {
                 }}
                 className={secondaryBtnCls}
               >
-                保存
+                {t("保存")}
               </button>
             </div>
           </Row>
 
           <Row
-            label="备份与恢复"
-            hint="备份包含曲库数据库与全部乐谱文件。恢复会覆盖现有数据，完成后需重启应用。"
+            label={t("备份与恢复")}
+            hint={t("备份包含曲库数据库与全部乐谱文件。恢复会覆盖现有数据，完成后需重启应用。")}
           >
             <div className="flex gap-2">
               <button onClick={async () => {
                 const target = await api.pickBackupTarget();
                 if (!target) return;
                 await api.exportBackup(target);
-                flashSaved("已导出备份", 3000);
+                flashSaved(t("已导出备份"), 3000);
               }} className={secondaryBtnCls}>
-                导出备份…
+                {t("导出备份…")}
               </button>
               <button
                 onClick={() => setConfirmingRestore(true)}
                 className="rounded-lg border border-spot-wait/50 bg-spot-wait/10 px-3 py-1.5 text-sm text-spot-wait hover:bg-spot-wait/20"
               >
-                从备份恢复…
+                {t("从备份恢复…")}
               </button>
             </div>
           </Row>
 
-          <Row label="关于" hint={`ScanScore v${appVersion ?? "…"}`}>
+          <Row label={t("关于")} hint={`ScanScore v${appVersion ?? "…"}`}>
             <ul className="space-y-1 text-xs text-bind/70">
-              <li>· 本项目以 MIT 许可发布</li>
+              <li>· {t("本项目以 MIT 许可发布")}</li>
               <li>
                 · OMR 引擎{" "}
                 <a
@@ -365,7 +394,7 @@ export default function SettingsPage() {
                 >
                   Audiveris
                 </a>{" "}
-                （AGPL-3.0，独立进程调用）
+                ({t("（AGPL-3.0，独立进程调用）")})
               </li>
               <li>
                 · 渲染/播放{" "}
@@ -377,9 +406,9 @@ export default function SettingsPage() {
                 >
                   alphaTab
                 </a>{" "}
-                （MIT）
+                ({t("（MIT）")})
               </li>
-              <li>· 音源 GeneralUser GS（S. Christian Collins，免费分发）· SONiVOX EAS（Apache-2.0）</li>
+              <li>· {t("音源 GeneralUser GS（S. Christian Collins，免费分发）· SONiVOX EAS（Apache-2.0）")}</li>
             </ul>
           </Row>
         </div>
@@ -388,7 +417,7 @@ export default function SettingsPage() {
       {/* 恢复备份确认（window.confirm 在 wry 中不可用） */}
       <ConfirmDialog
         open={confirmingRestore}
-        title="从备份恢复"
+        title={t("从备份恢复")}
         message="恢复备份将覆盖当前全部曲库数据（数据库与乐谱文件），且完成后需重启应用生效。"
         confirmLabel="覆盖恢复"
         busy={restoring}
@@ -403,7 +432,7 @@ export default function SettingsPage() {
             }
             const n = await api.importBackup(source);
             setConfirmingRestore(false);
-            flashSaved(`已恢复 ${n} 个文件，请重启应用生效`, 6000);
+            flashSaved(t("已恢复 {n} 个文件，请重启应用生效", { n }), 6000);
           } catch (e) {
             setConfirmingRestore(false);
             showToast({ message: `恢复失败：${String(e)}` }, 6000);
@@ -429,6 +458,7 @@ function ModelCombobox({
   onChange: (v: string) => void;
   options: string[];
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   useDismissOnEsc(open, () => setOpen(false));
   return (
@@ -437,13 +467,13 @@ function ModelCombobox({
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="模型"
-          aria-label="模型名称"
+          placeholder={t("模型")}
+          aria-label={t("模型名称")}
           className="w-40 rounded-l-lg border border-hair-strong bg-paper-bright px-3 py-1.5 text-sm text-bind outline-none placeholder:text-bind/40 focus:border-ink"
         />
         <button
           onClick={() => setOpen((v) => !v)}
-          aria-label="展开模型列表"
+          aria-label={t("展开模型列表")}
           aria-expanded={open}
           className="rounded-r-lg border border-l-0 border-hair-strong px-2 text-xs text-bind/60 hover:bg-paper-dim"
         >
@@ -460,7 +490,7 @@ function ModelCombobox({
           >
             {options.length === 0 ? (
               <div className="px-3 py-2 text-xs text-bind/60">
-                列表为空——先点「获取模型列表」，或直接手动输入
+                {t("列表为空——先点「获取模型列表」，或直接手动输入")}
               </div>
             ) : (
               options.map((m) => (

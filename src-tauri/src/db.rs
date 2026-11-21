@@ -3,7 +3,10 @@ use std::sync::Mutex;
 
 use rusqlite::{params, Connection, OptionalExtension, Row};
 
-use crate::model::{Job, PracticeState, Score, ScoreQuery};
+use crate::model::{
+    AbSegment, DailyPractice, Job, Playlist, PlaylistItem, PracticeState, PracticeStatRow, Score,
+    ScoreQuery,
+};
 
 /// 线程安全的数据库连接包装
 pub struct Db(pub Mutex<Connection>);
@@ -69,6 +72,53 @@ impl Db {
         if !has_pages_json {
             conn.execute_batch("ALTER TABLE scores ADD COLUMN pages_json TEXT;")?;
         }
+        // 增量迁移：练习状态补节拍器/预备拍列（老库无痛加列，新建表已含这些列时跳过）
+        if !Self::column_exists(conn, "practice_state", "metronome_enabled")? {
+            conn.execute_batch(
+                "ALTER TABLE practice_state ADD COLUMN metronome_enabled INTEGER NOT NULL DEFAULT 0;
+                 ALTER TABLE practice_state ADD COLUMN metronome_volume REAL NOT NULL DEFAULT 1.5;
+                 ALTER TABLE practice_state ADD COLUMN count_in_enabled INTEGER NOT NULL DEFAULT 0;",
+            )?;
+        }
+        // 增量迁移:曲谱标签列
+        if !Self::column_exists(conn, "scores", "tags_json")? {
+            conn.execute_batch("ALTER TABLE scores ADD COLUMN tags_json TEXT;")?;
+        }
+        conn.execute_batch(
+            r#"
+            CREATE TABLE IF NOT EXISTS ab_segments (
+                id         TEXT PRIMARY KEY,
+                score_id   TEXT NOT NULL REFERENCES scores(id) ON DELETE CASCADE,
+                name       TEXT NOT NULL,
+                start_tick INTEGER NOT NULL,
+                end_tick   INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_ab_segments_score ON ab_segments(score_id);
+            CREATE TABLE IF NOT EXISTS practice_log (
+                id        TEXT PRIMARY KEY,
+                score_id  TEXT NOT NULL REFERENCES scores(id) ON DELETE CASCADE,
+                played_at TEXT NOT NULL,
+                seconds   INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_practice_log_score ON practice_log(score_id);
+            CREATE INDEX IF NOT EXISTS idx_practice_log_time ON practice_log(played_at);
+            CREATE TABLE IF NOT EXISTS playlists (
+                id         TEXT PRIMARY KEY,
+                name       TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS playlist_items (
+                id          TEXT PRIMARY KEY,
+                playlist_id TEXT NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
+                score_id    TEXT NOT NULL REFERENCES scores(id) ON DELETE CASCADE,
+                position    INTEGER NOT NULL,
+                added_at    TEXT NOT NULL,
+                UNIQUE(playlist_id, score_id)
+            );
+            "#,
+        )?;
         Ok(())
     }
 
@@ -91,6 +141,11 @@ fn row_to_score(row: &Row) -> rusqlite::Result<Score> {
         .as_deref()
         .and_then(|s| serde_json::from_str(s).ok())
         .unwrap_or_default();
+    let tags_json: Option<String> = row.get("tags_json").unwrap_or(None);
+    let tags: Vec<String> = tags_json
+        .as_deref()
+        .and_then(|s| serde_json::from_str(s).ok())
+        .unwrap_or_default();
     Ok(Score {
         id: row.get("id")?,
         title: row.get("title")?,
@@ -104,6 +159,7 @@ fn row_to_score(row: &Row) -> rusqlite::Result<Score> {
         pages,
         page_count: row.get("page_count")?,
         error_message: row.get("error_message")?,
+        tags,
         created_at: row.get("created_at")?,
         updated_at: row.get("updated_at")?,
     })
@@ -131,11 +187,12 @@ impl Db {
         } else {
             Some(serde_json::to_string(&score.pages).unwrap_or_default())
         };
+        let tags_json = serde_json::to_string(&score.tags).unwrap_or_default();
         conn.execute(
             "INSERT INTO scores (id, title, composer, instrument, source_type, status,
-                 original_path, musicxml_path, cover_path, pages_json, page_count, error_message,
+                 original_path, musicxml_path, cover_path, pages_json, tags_json, page_count, error_message,
                  created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
             params![
                 score.id,
                 score.title,
@@ -147,6 +204,7 @@ impl Db {
                 score.musicxml_path,
                 score.cover_path,
                 pages_json,
+                tags_json,
                 score.page_count,
                 score.error_message,
                 score.created_at,
@@ -160,13 +218,13 @@ impl Db {
         let conn = self.0.lock().unwrap();
         let mut sql = String::from(
             "SELECT id, title, composer, instrument, source_type, status,
-                    original_path, musicxml_path, cover_path, pages_json, page_count, error_message,
+                    original_path, musicxml_path, cover_path, pages_json, tags_json, page_count, error_message,
                     created_at, updated_at
              FROM scores WHERE 1=1",
         );
         let mut binds: Vec<String> = Vec::new();
         if let Some(q) = query.query.as_deref().filter(|s| !s.is_empty()) {
-            sql.push_str(" AND (title LIKE ?1 OR composer LIKE ?1)");
+            sql.push_str(" AND (title LIKE ?1 OR composer LIKE ?1 OR tags_json LIKE ?1)");
             binds.push(format!("%{q}%"));
         }
         if let Some(instrument) = query.instrument.as_deref().filter(|s| !s.is_empty()) {
@@ -176,6 +234,13 @@ impl Db {
         if let Some(status) = query.status.as_deref().filter(|s| !s.is_empty()) {
             sql.push_str(&format!(" AND status = ?{}", binds.len() + 1));
             binds.push(status.to_string());
+        }
+        if let Some(tag) = query.tag.as_deref().filter(|s| !s.is_empty()) {
+            sql.push_str(&format!(
+                " AND EXISTS (SELECT 1 FROM json_each(scores.tags_json) WHERE value = ?{})",
+                binds.len() + 1
+            ));
+            binds.push(tag.to_string());
         }
         sql.push_str(" ORDER BY created_at DESC");
         let mut stmt = conn.prepare(&sql)?;
@@ -187,7 +252,7 @@ impl Db {
         let conn = self.0.lock().unwrap();
         conn.query_row(
             "SELECT id, title, composer, instrument, source_type, status,
-                    original_path, musicxml_path, cover_path, pages_json, page_count, error_message,
+                    original_path, musicxml_path, cover_path, pages_json, tags_json, page_count, error_message,
                     created_at, updated_at
              FROM scores WHERE id = ?1",
             params![id],
@@ -362,16 +427,188 @@ impl Db {
         .optional()
     }
 
+    // ---- 标签 ----
+
+    pub fn set_score_tags(&self, id: &str, tags: &[String]) -> Result<(), rusqlite::Error> {
+        let conn = self.0.lock().unwrap();
+        conn.execute(
+            "UPDATE scores SET tags_json = ?2, updated_at = ?3 WHERE id = ?1",
+            params![id, serde_json::to_string(tags).unwrap_or_default(), now()],
+        )?;
+        Ok(())
+    }
+
+    // ---- A-B 段落 ----
+
+    pub fn list_ab_segments(&self, score_id: &str) -> Result<Vec<AbSegment>, rusqlite::Error> {
+        let conn = self.0.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, score_id, name, start_tick, end_tick FROM ab_segments
+             WHERE score_id = ?1 ORDER BY start_tick",
+        )?;
+        let rows = stmt.query_map(params![score_id], |row| {
+            Ok(AbSegment {
+                id: row.get(0)?,
+                score_id: row.get(1)?,
+                name: row.get(2)?,
+                start_tick: row.get(3)?,
+                end_tick: row.get(4)?,
+            })
+        })?;
+        Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    }
+
+    pub fn insert_ab_segment(&self, seg: &AbSegment) -> Result<(), rusqlite::Error> {
+        let conn = self.0.lock().unwrap();
+        conn.execute(
+            "INSERT INTO ab_segments (id, score_id, name, start_tick, end_tick, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![seg.id, seg.score_id, seg.name, seg.start_tick, seg.end_tick, now(), now()],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_ab_segment(&self, id: &str) -> Result<(), rusqlite::Error> {
+        let conn = self.0.lock().unwrap();
+        conn.execute("DELETE FROM ab_segments WHERE id = ?1", params![id])?;
+        Ok(())
+    }
+
+    // ---- 练习统计 ----
+
+    pub fn add_practice_log(&self, score_id: &str, seconds: i64) -> Result<(), rusqlite::Error> {
+        let conn = self.0.lock().unwrap();
+        conn.execute(
+            "INSERT INTO practice_log (id, score_id, played_at, seconds) VALUES (?1, ?2, ?3, ?4)",
+            params![uuid::Uuid::new_v4().to_string(), score_id, now(), seconds.max(0)],
+        )?;
+        Ok(())
+    }
+
+    pub fn list_practice_stats(&self) -> Result<Vec<PracticeStatRow>, rusqlite::Error> {
+        let conn = self.0.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT p.score_id, s.title, s.instrument, SUM(p.seconds), COUNT(*), MAX(p.played_at)
+             FROM practice_log p JOIN scores s ON s.id = p.score_id
+             GROUP BY p.score_id ORDER BY SUM(p.seconds) DESC",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok(PracticeStatRow {
+                score_id: row.get(0)?,
+                title: row.get(1)?,
+                instrument: row.get(2)?,
+                total_seconds: row.get(3)?,
+                sessions: row.get(4)?,
+                last_played_at: row.get(5)?,
+            })
+        })?;
+        Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    }
+
+    /// 近 N 天每日练习秒数(date() 把 rfc3339 归一到 YYYY-MM-DD,字符串比较安全)
+    pub fn practice_daily(&self, days: i64) -> Result<Vec<DailyPractice>, rusqlite::Error> {
+        let conn = self.0.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT date(played_at) AS day, SUM(seconds) FROM practice_log
+             WHERE date(played_at) >= date('now', ?1)
+             GROUP BY day ORDER BY day",
+        )?;
+        let rows = stmt.query_map(params![format!("-{days} days")], |row| {
+            Ok(DailyPractice {
+                day: row.get(0)?,
+                seconds: row.get(1)?,
+            })
+        })?;
+        Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    }
+
+    // ---- 歌单 ----
+
+    pub fn create_playlist(&self, name: &str) -> Result<Playlist, rusqlite::Error> {
+        let conn = self.0.lock().unwrap();
+        let id = uuid::Uuid::new_v4().to_string();
+        conn.execute(
+            "INSERT INTO playlists (id, name, created_at) VALUES (?1, ?2, ?3)",
+            params![id, name, now()],
+        )?;
+        Ok(Playlist {
+            id,
+            name: name.to_string(),
+            item_count: 0,
+        })
+    }
+
+    pub fn delete_playlist(&self, id: &str) -> Result<(), rusqlite::Error> {
+        let conn = self.0.lock().unwrap();
+        conn.execute("DELETE FROM playlists WHERE id = ?1", params![id])?;
+        Ok(())
+    }
+
+    pub fn list_playlists(&self) -> Result<Vec<Playlist>, rusqlite::Error> {
+        let conn = self.0.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT p.id, p.name, COUNT(pi.id) FROM playlists p
+             LEFT JOIN playlist_items pi ON pi.playlist_id = p.id
+             GROUP BY p.id ORDER BY p.created_at",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok(Playlist {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                item_count: row.get(2)?,
+            })
+        })?;
+        Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    }
+
+    pub fn add_to_playlist(&self, playlist_id: &str, score_id: &str) -> Result<(), rusqlite::Error> {
+        let conn = self.0.lock().unwrap();
+        conn.execute(
+            "INSERT OR IGNORE INTO playlist_items (id, playlist_id, score_id, position, added_at)
+             VALUES (?1, ?2, ?3,
+                     COALESCE((SELECT MAX(position) + 1 FROM playlist_items WHERE playlist_id = ?2), 1),
+                     ?4)",
+            params![uuid::Uuid::new_v4().to_string(), playlist_id, score_id, now()],
+        )?;
+        Ok(())
+    }
+
+    pub fn remove_from_playlist(&self, item_id: &str) -> Result<(), rusqlite::Error> {
+        let conn = self.0.lock().unwrap();
+        conn.execute("DELETE FROM playlist_items WHERE id = ?1", params![item_id])?;
+        Ok(())
+    }
+
+    pub fn list_playlist_items(&self, playlist_id: &str) -> Result<Vec<PlaylistItem>, rusqlite::Error> {
+        let conn = self.0.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT pi.id AS item_id, pi.position, s.id, s.title, s.composer, s.instrument,
+                    s.source_type, s.status, s.original_path, s.musicxml_path, s.cover_path,
+                    s.pages_json, s.tags_json, s.page_count, s.error_message, s.created_at, s.updated_at
+             FROM playlist_items pi JOIN scores s ON s.id = pi.score_id
+             WHERE pi.playlist_id = ?1 ORDER BY pi.position",
+        )?;
+        let rows = stmt.query_map(params![playlist_id], |row| {
+            Ok(PlaylistItem {
+                id: row.get("item_id")?,
+                position: row.get("position")?,
+                score: row_to_score(row)?,
+            })
+        })?;
+        Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    }
+
     // ---- settings ----
 
-    /// 练习状态：跨会话按曲子恢复（速度/音量/循环/布局/缩放/A-B）
+    /// 练习状态：跨会话按曲子恢复（速度/音量/循环/布局/缩放/A-B/节拍器/预备拍）
     pub fn get_practice_state(
         &self,
         score_id: &str,
     ) -> Result<Option<PracticeState>, rusqlite::Error> {
         let conn = self.0.lock().unwrap();
         conn.query_row(
-            "SELECT speed, volume, loop_enabled, layout, scale, ab_start, ab_end
+            "SELECT speed, volume, loop_enabled, layout, scale, ab_start, ab_end,
+                    metronome_enabled, metronome_volume, count_in_enabled
              FROM practice_state WHERE score_id = ?1",
             params![score_id],
             |row| {
@@ -383,6 +620,9 @@ impl Db {
                     scale: row.get(4)?,
                     ab_start: row.get(5)?,
                     ab_end: row.get(6)?,
+                    metronome_enabled: row.get::<_, i64>(7)? != 0,
+                    metronome_volume: row.get(8)?,
+                    count_in_enabled: row.get::<_, i64>(9)? != 0,
                 })
             },
         )
@@ -397,11 +637,14 @@ impl Db {
         let conn = self.0.lock().unwrap();
         conn.execute(
             "INSERT INTO practice_state
-                (score_id, speed, volume, loop_enabled, layout, scale, ab_start, ab_end, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+                (score_id, speed, volume, loop_enabled, layout, scale, ab_start, ab_end,
+                 metronome_enabled, metronome_volume, count_in_enabled, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
              ON CONFLICT(score_id) DO UPDATE SET
                 speed = ?2, volume = ?3, loop_enabled = ?4, layout = ?5,
-                scale = ?6, ab_start = ?7, ab_end = ?8, updated_at = ?9",
+                scale = ?6, ab_start = ?7, ab_end = ?8,
+                metronome_enabled = ?9, metronome_volume = ?10, count_in_enabled = ?11,
+                updated_at = ?12",
             params![
                 score_id,
                 p.speed,
@@ -411,6 +654,9 @@ impl Db {
                 p.scale,
                 p.ab_start,
                 p.ab_end,
+                p.metronome_enabled as i64,
+                p.metronome_volume,
+                p.count_in_enabled as i64,
                 now()
             ],
         )?;
@@ -454,6 +700,7 @@ mod tests {
             instrument: "piano".into(),
             source_type: "pdf".into(),
             status: status.into(),
+            tags: Vec::new(),
             original_path: None,
             musicxml_path: None,
             cover_path: None,

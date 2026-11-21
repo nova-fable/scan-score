@@ -8,7 +8,10 @@ use tauri_plugin_dialog::DialogExt;
 
 use crate::db::now;
 use crate::import::{concat_images, natural_cmp};
-use crate::model::{Job, OmrProgressEvent, PracticeState, Score, ScoreQuery, Setting};
+use crate::model::{
+    AbSegment, DailyPractice, Job, OmrProgressEvent, Playlist, PlaylistItem, PracticeState,
+    PracticeStatRow, Score, ScoreQuery, Setting,
+};
 use crate::omr::{self, AppState};
 use crate::{mxl, pdf};
 
@@ -203,6 +206,7 @@ fn import_merged_impl(state: &AppState, paths: Vec<String>) -> Result<Score, Str
         pages: pages.iter().map(|p| p.to_string_lossy().into_owned()).collect(),
         page_count: pages.len() as i64,
         error_message: None,
+        tags: Vec::new(),
         created_at: now(),
         updated_at: now(),
     };
@@ -239,6 +243,205 @@ fn convert_to_png(src: &Path, target: &Path) -> bool {
 /// 导入文件：复制进应用数据目录并建立曲库条目（含 PDF 封面渲染，放后台线程）。
 /// - MusicXML/GP：立即可用 (status=ready)
 /// - PDF/图片：待识别 (status=imported)
+/// 剪贴板图片直接导入(截图后 Ctrl/Cmd+V 或曲库「粘贴导入」):经 arboard 读图,
+/// 落临时 PNG 后走标准导入管线;导入即复制进 scores/,临时文件用完即删。
+#[tauri::command]
+pub async fn import_clipboard_image(state: Ctx<'_>) -> Result<Option<Score>, String> {
+    let state = Arc::clone(&state);
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut cb = arboard::Clipboard::new().map_err(|e| format!("无法访问剪贴板:{e}"))?;
+        let img = cb.get_image().map_err(|e| format!("剪贴板里没有图片:{e}"))?;
+        let buf = image::RgbaImage::from_raw(
+            img.width as u32,
+            img.height as u32,
+            img.bytes.into_owned(),
+        )
+        .ok_or_else(|| "剪贴板图片数据无效".to_string())?;
+        let tmp_dir = state.data_dir.join("tmp");
+        std::fs::create_dir_all(&tmp_dir).map_err(err)?;
+        let tmp = tmp_dir.join(format!("clipboard-{}.png", uuid::Uuid::new_v4()));
+        buf.save(&tmp).map_err(|e| format!("剪贴板图片落盘失败:{e}"))?;
+        let res = import_files_impl(&state, vec![tmp.to_string_lossy().into_owned()]);
+        let _ = std::fs::remove_file(&tmp);
+        let imported = res?.imported.into_iter().next();
+        Ok(imported)
+    })
+    .await
+    .map_err(err)?
+}
+
+// ---- 录音自听 ----
+
+/// 录音存进 scores/<id>/recordings/,文件名带时间戳;ext 限白名单
+#[tauri::command]
+pub async fn save_recording(
+    score_id: String,
+    bytes: Vec<u8>,
+    ext: String,
+    state: Ctx<'_>,
+) -> Result<String, String> {
+    let state = Arc::clone(&state);
+    tauri::async_runtime::spawn_blocking(move || {
+        let safe_ext = ext.to_lowercase();
+        if !matches!(safe_ext.as_str(), "m4a" | "webm" | "ogg" | "mp3" | "wav") {
+            return Err(format!("不支持的录音格式:{safe_ext}"));
+        }
+        let dir = state.data_dir.join("scores").join(&score_id).join("recordings");
+        std::fs::create_dir_all(&dir).map_err(err)?;
+        let name = format!(
+            "rec-{}.{}",
+            chrono::Local::now().format("%Y%m%d-%H%M%S"),
+            safe_ext
+        );
+        let p = dir.join(name);
+        std::fs::write(&p, bytes).map_err(|e| format!("录音落盘失败:{e}"))?;
+        Ok(p.to_string_lossy().into_owned())
+    })
+    .await
+    .map_err(err)?
+}
+
+#[tauri::command]
+pub fn list_recordings(score_id: String, state: Ctx) -> Result<Vec<String>, String> {
+    let dir = state.data_dir.join("scores").join(&score_id).join("recordings");
+    let mut out: Vec<String> = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&dir) {
+        for e in entries.flatten() {
+            let p = e.path();
+            if p.is_file() {
+                out.push(p.to_string_lossy().into_owned());
+            }
+        }
+    }
+    out.sort();
+    out.reverse(); // 新的在前
+    Ok(out)
+}
+
+#[tauri::command]
+pub fn delete_recording(path: String, state: Ctx) -> Result<(), String> {
+    let p = PathBuf::from(&path);
+    ensure_inside_data_dir(state.inner(), &p)?;
+    std::fs::remove_file(&p).map_err(|e| format!("删除录音失败:{e}"))
+}
+
+// ---- 标签 ----
+
+/// 导出谱面打印版 HTML(前端把渲染好的 SVG 拼好传过来),存入数据目录 exports/ 并返回路径。
+#[tauri::command]
+pub async fn export_print_html(
+    score_id: String,
+    title: String,
+    html: String,
+    state: Ctx<'_>,
+) -> Result<String, String> {
+    let state = Arc::clone(&state);
+    tauri::async_runtime::spawn_blocking(move || {
+        let dir = state.data_dir.join("exports");
+        std::fs::create_dir_all(&dir).map_err(err)?;
+        let safe: String = title
+            .chars()
+            .map(|c| if r#"\/:*?"<>|"#.contains(c) { '_' } else { c })
+            .collect();
+        let safe = safe.trim().replace(' ', "_");
+        let base = if safe.is_empty() { "score" } else { &safe };
+        let name = format!(
+            "{base}-打印版-{}.html",
+            &score_id[..8.min(score_id.len())]
+        );
+        let p = dir.join(name);
+        std::fs::write(&p, html.as_bytes()).map_err(|e| format!("写入打印版失败:{e}"))?;
+        Ok(p.to_string_lossy().into_owned())
+    })
+    .await
+    .map_err(err)?
+}
+
+#[tauri::command]
+pub fn set_score_tags(id: String, tags: Vec<String>, state: Ctx) -> Result<(), String> {
+    state.db.set_score_tags(&id, &tags).map_err(err)
+}
+
+// ---- A-B 段落 ----
+
+#[tauri::command]
+pub fn list_ab_segments(score_id: String, state: Ctx) -> Result<Vec<AbSegment>, String> {
+    state.db.list_ab_segments(&score_id).map_err(err)
+}
+
+#[tauri::command]
+pub fn save_ab_segment(
+    score_id: String,
+    name: String,
+    start_tick: i64,
+    end_tick: i64,
+    state: Ctx,
+) -> Result<AbSegment, String> {
+    let seg = AbSegment {
+        id: uuid::Uuid::new_v4().to_string(),
+        score_id,
+        name: name.trim().to_string(),
+        start_tick,
+        end_tick,
+    };
+    state.db.insert_ab_segment(&seg).map_err(err)?;
+    Ok(seg)
+}
+
+#[tauri::command]
+pub fn delete_ab_segment(id: String, state: Ctx) -> Result<(), String> {
+    state.db.delete_ab_segment(&id).map_err(err)
+}
+
+// ---- 练习统计 ----
+
+#[tauri::command]
+pub fn add_practice_time(score_id: String, seconds: i64, state: Ctx) -> Result<(), String> {
+    state.db.add_practice_log(&score_id, seconds).map_err(err)
+}
+
+#[tauri::command]
+pub fn list_practice_stats(state: Ctx) -> Result<Vec<PracticeStatRow>, String> {
+    state.db.list_practice_stats().map_err(err)
+}
+
+#[tauri::command]
+pub fn practice_daily(days: i64, state: Ctx) -> Result<Vec<DailyPractice>, String> {
+    state.db.practice_daily(days).map_err(err)
+}
+
+// ---- 歌单 ----
+
+#[tauri::command]
+pub fn create_playlist(name: String, state: Ctx) -> Result<Playlist, String> {
+    state.db.create_playlist(name.trim()).map_err(err)
+}
+
+#[tauri::command]
+pub fn delete_playlist(id: String, state: Ctx) -> Result<(), String> {
+    state.db.delete_playlist(&id).map_err(err)
+}
+
+#[tauri::command]
+pub fn list_playlists(state: Ctx) -> Result<Vec<Playlist>, String> {
+    state.db.list_playlists().map_err(err)
+}
+
+#[tauri::command]
+pub fn add_to_playlist(playlist_id: String, score_id: String, state: Ctx) -> Result<(), String> {
+    state.db.add_to_playlist(&playlist_id, &score_id).map_err(err)
+}
+
+#[tauri::command]
+pub fn remove_from_playlist(item_id: String, state: Ctx) -> Result<(), String> {
+    state.db.remove_from_playlist(&item_id).map_err(err)
+}
+
+#[tauri::command]
+pub fn list_playlist_items(playlist_id: String, state: Ctx) -> Result<Vec<PlaylistItem>, String> {
+    state.db.list_playlist_items(&playlist_id).map_err(err)
+}
+
 #[tauri::command]
 pub async fn import_files(paths: Vec<String>, state: Ctx<'_>) -> Result<ImportResult, String> {
     let state = Arc::clone(&state);
@@ -349,6 +552,7 @@ fn import_files_impl(state: &AppState, paths: Vec<String>) -> Result<ImportResul
             musicxml_path,
             cover_path,
             pages: Vec::new(),
+            tags: Vec::new(),
             page_count,
             error_message: None,
             created_at: now(),

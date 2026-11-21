@@ -131,6 +131,43 @@ export function IconOverflow(props: IconProps) {
   );
 }
 
+export function IconList(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M8.5 6h12M8.5 12h12M8.5 18h12" />
+      <circle cx="4" cy="6" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="4" cy="12" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="4" cy="18" r="1.1" fill="currentColor" stroke="none" />
+    </Svg>
+  );
+}
+
+export function IconRecord(props: IconProps) {
+  return (
+    <Svg {...props} filled>
+      <circle cx="12" cy="12" r="6" />
+    </Svg>
+  );
+}
+
+export function IconVolume(props: IconProps) {  return (
+    <Svg {...props}>
+      <path d="M11 5L6.5 9H3v6h3.5L11 19V5z" />
+      <path d="M15 9.8a3.4 3.4 0 010 4.4" />
+      <path d="M17.6 7.4a6.6 6.6 0 010 9.2" />
+    </Svg>
+  );
+}
+
+export function IconVolumeMute(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M11 5L6.5 9H3v6h3.5L11 19V5z" />
+      <path d="M16 9.8l5 4.4M21 9.8l-5 4.4" />
+    </Svg>
+  );
+}
+
 export function IconLayoutHorizontal(props: IconProps) {
   return (
     <Svg {...props}>

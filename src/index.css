@@ -222,6 +222,9 @@ button {
   background: var(--color-ink);
   color: var(--color-paper);
   box-shadow: 0 2px 6px rgba(28, 36, 32, 0.2);
+  /* 大曲库渲染优化:视口外的卡片跳过渲染,占位高度按典型卡片 */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 320px;
 }
 .book-card.paper-card {
   --line: rgba(30, 70, 54, 0.45);
