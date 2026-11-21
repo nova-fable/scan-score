@@ -197,8 +197,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # 只上传 dist 顶层的文件:Windows 产物里混有 nsis/ 目录,
-          # gh 对目录会报 "read dist/nsis: is a directory" 直接退出
-          gh release create "${GITHUB_REF_NAME}" $(find dist -maxdepth 1 -type f) \
+          # 递归找文件上传:Windows 的 msi/nsis 两个上传路径共享 bundle/ 祖先,
+          # download-artifact 合并后落在 dist/msi、dist/nsis 子目录,不能只取顶层
+          # (gh 对目录会报 "read dist/nsis: is a directory" 直接退出)
+          gh release create "${GITHUB_REF_NAME}" $(find dist -type f) \
             --title "ScanScore ${GITHUB_REF_NAME}" \
             --generate-notes
